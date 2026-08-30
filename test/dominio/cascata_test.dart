@@ -180,7 +180,7 @@ void main() {
         potes: potesPadrao(), totalGanhos: 6111.11, totalGastos: 6111.11);
 
     // excedente DEVE ser exatamente zero, não 2.2737e-13
-    // Este teste FALHA se remover a clamp em cascata.dart:94
+    // Este teste FALHA se remover a clamp em cascata.dart:95
     expect(r.excedente, 0.0);
   });
 
@@ -191,7 +191,7 @@ void main() {
         potes: potesPadrao(), totalGanhos: 1234.56, totalGastos: 1234.56);
 
     // O último pote (índice 5) DEVE ter sobra exatamente zero, não 2.8422e-14
-    // Este teste FALHA se remover a clamp em cascata.dart:89
+    // Este teste FALHA se remover a clamp em cascata.dart:90
     expect(r.linhas[5].sobra, 0.0);
   });
 
@@ -231,5 +231,62 @@ void main() {
 
     // Ordem da lista deve ser preservada
     expect([potesOriginal[0].id, potesOriginal[1].id], potesAntes);
+  });
+
+  // Testes para semRenda (renda zero = não há potes para gastar)
+
+  test('semRenda true quando ganhos zero e gastos zero', () {
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: 0, totalGastos: 0);
+
+    expect(r.semRenda, isTrue);
+    expect(r.rotulo, 'CADASTRE SEUS GANHOS');
+    expect(r.poteAtivo, isNull);
+    expect(r.excedente, 0);
+  });
+
+  test('semRenda true toma precedência sobre excedente (ganhos 0, gastos 300)', () {
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: 0, totalGastos: 300);
+
+    // Mesmo com spending, semRenda prevalece: a ação é cadastrar ganhos, não "pare de gastar"
+    expect(r.semRenda, isTrue);
+    expect(r.rotulo, 'CADASTRE SEUS GANHOS');
+    expect(r.excedente, 300);
+  });
+
+  test('semRenda false quando ganhos positivos', () {
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: ganhos, totalGastos: 0);
+
+    expect(r.semRenda, isFalse);
+    expect(r.rotulo, 'CUSTO FIXO');
+    expect(r.poteAtivo?.id, 'p1');
+  });
+
+  test('rotulo é PARE DE GASTAR quando sem pote ativo mas com renda', () {
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: ganhos, totalGastos: 5600);
+
+    expect(r.semRenda, isFalse);
+    expect(r.poteAtivo, isNull);
+    expect(r.rotulo, 'PARE DE GASTAR');
+  });
+
+  test('semRenda false quando ganhos está acima da tolerância', () {
+    // Ganhos no limite: 0.006 > toleranciaCentavo (0.005)
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: 0.006, totalGastos: 0);
+
+    expect(r.semRenda, isFalse);
+  });
+
+  test('semRenda true quando ganhos está abaixo da tolerância', () {
+    // Ganhos no limite: 0.004 < toleranciaCentavo (0.005)
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: 0.004, totalGastos: 0);
+
+    expect(r.semRenda, isTrue);
+    expect(r.rotulo, 'CADASTRE SEUS GANHOS');
   });
 }

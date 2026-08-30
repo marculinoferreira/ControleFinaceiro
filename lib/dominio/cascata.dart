@@ -30,16 +30,30 @@ class ResultadoCascata {
   /// Quanto de gasto sobrou depois de esgotar todos os potes.
   final double excedente;
 
+  /// Renda total do mês, para determinar se o usuário cadastrou ganhos.
+  final double totalGanhos;
+
   const ResultadoCascata({
     required this.linhas,
     required this.poteAtivo,
     required this.excedente,
+    required this.totalGanhos,
   });
 
   bool get estourouTudo => poteAtivo == null;
 
+  /// True quando a renda está na tolerância (zero para fins práticos).
+  bool get semRenda => totalGanhos.abs() < toleranciaCentavo;
+
   /// Rotulo exibido em destaque na tela de Resumo.
-  String get rotulo => poteAtivo?.nome.toUpperCase() ?? 'PARE DE GASTAR';
+  /// Precedência: semRenda → 'CADASTRE SEUS GANHOS',
+  /// poteAtivo != null → nome do pote em maiúscula,
+  /// caso contrário → 'PARE DE GASTAR'.
+  String get rotulo {
+    if (semRenda) return 'CADASTRE SEUS GANHOS';
+    if (poteAtivo != null) return poteAtivo!.nome.toUpperCase();
+    return 'PARE DE GASTAR';
+  }
 }
 
 /// Faz o gasto **total** escorrer pela fila de potes na ordem de prioridade.
@@ -98,5 +112,6 @@ ResultadoCascata calcularCascata({
     linhas: linhas,
     poteAtivo: poteAtivo,
     excedente: excedente,
+    totalGanhos: totalGanhos,
   );
 }
