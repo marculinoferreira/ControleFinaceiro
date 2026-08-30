@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "ganhos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mesRef", "order": "ASCENDING" },
+        { "fieldPath": "membroId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gastos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mesRef", "order": "ASCENDING" },
+        { "fieldPath": "criadoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gastos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "parcelado", "order": "ASCENDING" },
+        { "fieldPath": "mesRef", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
