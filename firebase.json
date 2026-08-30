@@ -1,1 +1,26 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"controlefinaceiro-b5a70","appId":"1:186985169258:android:530360c0d7fbc0c1636513","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"controlefinaceiro-b5a70","configurations":{"android":"1:186985169258:android:530360c0d7fbc0c1636513","windows":"1:186985169258:web:f2ff983afbba9b4b636513"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "controlefinaceiro-b5a70",
+          "appId": "1:186985169258:android:530360c0d7fbc0c1636513",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "controlefinaceiro-b5a70",
+          "configurations": {
+            "android": "1:186985169258:android:530360c0d7fbc0c1636513",
+            "windows": "1:186985169258:web:f2ff983afbba9b4b636513"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
