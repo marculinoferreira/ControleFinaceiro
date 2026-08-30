@@ -52,8 +52,8 @@ class MesRef implements Comparable<MesRef> {
   int compareTo(MesRef outro) => diferencaEm(outro);
 
   @override
-  bool operator ==(Object outro) =>
-      outro is MesRef && outro.ano == ano && outro.mes == mes;
+  bool operator ==(Object other) =>
+      other is MesRef && other.ano == ano && other.mes == mes;
 
   @override
   int get hashCode => Object.hash(ano, mes);

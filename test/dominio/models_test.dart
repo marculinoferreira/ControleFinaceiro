@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dominio/models/casa.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
-import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 
 void main() {
