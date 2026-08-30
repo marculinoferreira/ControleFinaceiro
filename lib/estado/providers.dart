@@ -58,6 +58,14 @@ final membroLogadoProvider = Provider<Membro?>((ref) {
   return casa.membroPorEmail(email);
 });
 
+/// Os membros da casa, ou lista vazia enquanto a casa nao chegou. Devolver
+/// vazio em vez de null poupa cada tela de um ramo de nulo — a diferenca
+/// entre "carregando" e "sem membros" ja e tratada por casaProvider.
+final membrosProvider = Provider<List<Membro>>((ref) {
+  final casa = ref.watch(casaProvider).value;
+  return casa?.membros ?? const <Membro>[];
+});
+
 // --- Mes selecionado (global, compartilhado por todas as telas) ------------
 
 class MesNotifier extends Notifier<MesRef> {

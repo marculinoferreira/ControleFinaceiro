@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
+import 'package:controle_financeiro/dominio/models/casa.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
+import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
@@ -113,5 +115,46 @@ void main() {
 
     expect(c.read(resumoCascataProvider).isLoading, isTrue);
     c.dispose();
+  });
+
+  group('membrosProvider', () {
+    test('sem casa carregada devolve lista vazia, nao null', () {
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+      ]);
+      expect(c.read(membrosProvider), isEmpty);
+      c.dispose();
+    });
+
+    test('com casa carregada devolve os membros', () async {
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(
+          const Casa(
+            id: 'principal',
+            nome: 'Casa',
+            membros: [
+              Membro(
+                  id: 'marcos',
+                  nome: 'Marcos',
+                  email: 'm@x.com',
+                  cor: '#2E7D32',
+                  ordem: 0),
+              Membro(
+                  id: 'silvia',
+                  nome: 'Silvia',
+                  email: 's@x.com',
+                  cor: '#6A1B9A',
+                  ordem: 1),
+            ],
+          ),
+        )),
+      ]);
+      c.listen(casaProvider, (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(membrosProvider).map((m) => m.id).toList(),
+          ['marcos', 'silvia']);
+      c.dispose();
+    });
   });
 }
