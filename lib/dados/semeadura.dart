@@ -1,0 +1,59 @@
+import '../dominio/models/casa.dart';
+import '../dominio/models/membro.dart';
+import '../dominio/models/pote.dart';
+import 'repositorios.dart';
+
+/// Configuracao inicial dos potes. Soma 100% — a validacao da tela de
+/// Lei dos Potes depende disso.
+List<Pote> potesPadrao() => const [
+      Pote(id: '', nome: 'Custo fixo', percentual: 55, ordem: 0,
+          cor: '#2E7D32', icone: 'casa'),
+      Pote(id: '', nome: 'Conforto', percentual: 15, ordem: 1,
+          cor: '#1565C0', icone: 'sofa'),
+      Pote(id: '', nome: 'Investimento', percentual: 10, ordem: 2,
+          cor: '#00838F', icone: 'grafico'),
+      Pote(id: '', nome: 'Metas/Sonho', percentual: 10, ordem: 3,
+          cor: '#EF6C00', icone: 'alvo'),
+      Pote(id: '', nome: 'Prazer', percentual: 5, ordem: 4,
+          cor: '#AD1457', icone: 'presente'),
+      Pote(id: '', nome: 'Conhecimento', percentual: 5, ordem: 5,
+          cor: '#4527A0', icone: 'livro'),
+    ];
+
+Casa casaPadrao() => const Casa(
+      id: 'principal',
+      nome: 'Casa Marcos & Silvia',
+      membros: [
+        Membro(
+          id: 'marcos',
+          nome: 'Marcos',
+          email: 'marcos.centrone@gmail.com',
+          cor: '#2E7D32',
+          ordem: 0,
+        ),
+        Membro(
+          id: 'silvia',
+          nome: 'Silvia',
+          email: 'silviabborges3@gmail.com',
+          cor: '#6A1B9A',
+          ordem: 1,
+        ),
+      ],
+    );
+
+/// Cria casa e potes no primeiro acesso, para que o usuario nao caia em uma
+/// tela vazia sem saida: sem pote nao da para lancar gasto, e o Resumo nao
+/// tem o que calcular.
+///
+/// Nao sobrescreve nada que ja exista.
+Future<void> semear({
+  required RepositorioCasa casa,
+  required RepositorioPotes potes,
+}) async {
+  if (await casa.observar().first == null) {
+    await casa.criar(casaPadrao());
+  }
+  if ((await potes.observar().first).isEmpty) {
+    await potes.salvarTodos(potesPadrao());
+  }
+}
