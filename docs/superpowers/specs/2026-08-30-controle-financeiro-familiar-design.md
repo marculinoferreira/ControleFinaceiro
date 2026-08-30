@@ -201,8 +201,23 @@ ResultadoCascata calcularCascata({
 }
 ```
 
-`ResultadoCascata.rotulo` devolve o nome do pote ativo em caixa alta, ou
-`"PARE DE GASTAR"` quando `poteAtivo == null`.
+`ResultadoCascata.rotulo` é uma decisão de três vias, nesta precedência:
+
+1. `semRenda` (renda do mês ≤ tolerância) → `"CADASTRE SEUS GANHOS"`
+2. `poteAtivo != null` → o nome do pote em caixa alta
+3. caso contrário → `"PARE DE GASTAR"`
+
+O primeiro caso existe porque, sem renda cadastrada, todo previsto é zero e
+nenhum pote tem folga — o cálculo cairia em `"PARE DE GASTAR"` e um usuário
+recém-chegado veria um alarme vermelho antes de gastar um centavo. `semRenda`
+tem precedência mesmo havendo gasto: sem renda não há potes a estourar, e a
+ação útil é cadastrar a renda.
+
+**Robustez de entrada.** `totalGastos` e `previsto` são limitados a zero por
+baixo: um `percentual` negativo vindo do Firestore faria `restante -= consumido`
+*aumentar* o restante, injetando gasto inexistente nos potes seguintes. E
+`sobra` e `excedente` zeram abaixo da tolerância, senão "gastei exatamente o que
+ganhei" devolve `2.8e-14` e a tela acusa estouro de R$ 0,00.
 
 **Casos de teste obrigatórios:**
 
@@ -215,6 +230,14 @@ ResultadoCascata calcularCascata({
 | Lista de potes vazia | resultado vazio, `excedente == totalGastos`, sem exceção |
 | `totalGanhos == 0` com gasto > 0 | todos previstos 0, `poteAtivo == null` |
 | Soma de percentuais == 100 | soma dos previstos == totalGanhos (tolerância de centavo) |
+| Um pote com `percentual` negativo | nenhum consumo fantasma nos potes seguintes |
+| `totalGastos` negativo | `consumido == 0`, `sobra == previsto` (nunca maior) |
+| Ganhos == gastos == 6111,11 | `excedente` exatamente `0.0`, não `2.27e-13` |
+| Ganhos == gastos == 1234,56 | `linhas[5].sobra` exatamente `0.0`, não `2.84e-14` |
+| Dois potes com o mesmo `ordem` | ordem determinística, desempatada por `id` |
+| Lista de potes do chamador | não é reordenada pela função |
+| Ganhos 0, com ou sem gasto | `semRenda` true, rótulo "CADASTRE SEUS GANHOS" |
+| Ganhos exatamente 0,005 | `semRenda` true (fronteira inclusiva) |
 
 ### 6.2 Geração de parcelas (`dominio/parcelas.dart`)
 

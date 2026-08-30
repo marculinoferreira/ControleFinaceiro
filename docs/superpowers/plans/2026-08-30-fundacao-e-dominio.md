@@ -877,7 +877,7 @@ A regra de negócio central. O gasto **total** escorre pela fila de potes na ord
 - Produces:
   - `const double toleranciaCentavo = 0.005;`
   - `class LinhaCascata { final Pote pote; final double previsto, consumido, sobra; }`
-  - `class ResultadoCascata { final List<LinhaCascata> linhas; final Pote? poteAtivo; final double excedente; bool get estourouTudo; String get rotulo; }`
+  - `class ResultadoCascata { final List<LinhaCascata> linhas; final Pote? poteAtivo; final double excedente; final double totalGanhos; bool get estourouTudo; bool get semRenda; String get rotulo; }`
   - `ResultadoCascata calcularCascata({required List<Pote> potes, required double totalGanhos, required double totalGastos})`
 
 - [ ] **Step 1: Escrever os testes que falham**
@@ -1074,16 +1074,30 @@ class ResultadoCascata {
   /// Quanto de gasto sobrou depois de esgotar todos os potes.
   final double excedente;
 
+  /// Renda total do mes, para determinar se o usuario cadastrou ganhos.
+  final double totalGanhos;
+
   const ResultadoCascata({
     required this.linhas,
     required this.poteAtivo,
     required this.excedente,
+    required this.totalGanhos,
   });
 
   bool get estourouTudo => poteAtivo == null;
 
+  /// True quando a renda esta na tolerancia (zero para fins praticos).
+  bool get semRenda => totalGanhos.abs() <= toleranciaCentavo;
+
   /// Rotulo exibido em destaque na tela de Resumo.
-  String get rotulo => poteAtivo?.nome.toUpperCase() ?? 'PARE DE GASTAR';
+  /// Precedencia: semRenda -> 'CADASTRE SEUS GANHOS',
+  /// poteAtivo != null -> nome do pote em maiuscula,
+  /// caso contrario -> 'PARE DE GASTAR'.
+  String get rotulo {
+    if (semRenda) return 'CADASTRE SEUS GANHOS';
+    if (poteAtivo != null) return poteAtivo!.nome.toUpperCase();
+    return 'PARE DE GASTAR';
+  }
 }
 
 /// Faz o gasto **total** escorrer pela fila de potes na ordem de prioridade.
@@ -1099,14 +1113,24 @@ ResultadoCascata calcularCascata({
   required double totalGanhos,
   required double totalGastos,
 }) {
-  final ordenados = [...potes]..sort((a, b) => a.ordem.compareTo(b.ordem));
+  // Gasto negativo produziria consumido negativo e sobra > previsto.
+  var restante = math.max(0.0, totalGastos);
 
-  var restante = totalGastos;
+  // Desempate por id: List.sort e instavel, e o pote vencedor vira o rotulo.
+  final ordenados = [...potes]
+    ..sort((a, b) {
+      final cmp = a.ordem.compareTo(b.ordem);
+      if (cmp != 0) return cmp;
+      return a.id.compareTo(b.id);
+    });
+
   final linhas = <LinhaCascata>[];
   Pote? poteAtivo;
 
   for (final pote in ordenados) {
-    final previsto = totalGanhos * pote.percentual / 100;
+    // Percentual negativo daria previsto negativo, e `restante -= consumido`
+    // passaria a AUMENTAR o restante, injetando gasto que nao existe.
+    final previsto = math.max(0.0, totalGanhos * pote.percentual / 100);
     final consumido = math.min(restante, previsto);
     final sobra = previsto - consumido;
     restante -= consumido;
@@ -1119,17 +1143,29 @@ ResultadoCascata calcularCascata({
       pote: pote,
       previsto: previsto,
       consumido: consumido,
-      sobra: sobra,
+      // Sem isto, "gastei exatamente o que ganhei" devolve 2.8e-14 em vez de 0.
+      sobra: sobra.abs() < toleranciaCentavo ? 0.0 : sobra,
     ));
   }
+
+  final excedente = restante.abs() < toleranciaCentavo ? 0.0 : restante;
 
   return ResultadoCascata(
     linhas: linhas,
     poteAtivo: poteAtivo,
-    excedente: restante,
+    excedente: excedente,
+    totalGanhos: totalGanhos,
   );
 }
 ```
+
+> **Emenda aplicada durante a execucao.** O bloco acima ja incorpora quatro
+> correcoes que a revisao da Task 4 exigiu e que a primeira versao deste plano
+> nao previa: clamp de `totalGastos` e de `previsto` contra valores negativos,
+> desempate deterministico por `id`, e clamp de `sobra`/`excedente` abaixo da
+> tolerancia. Alem disso, o produto decidiu que renda zero deixa de exibir
+> "PARE DE GASTAR" e passa a exibir "CADASTRE SEUS GANHOS", o que introduziu
+> `totalGanhos` e `semRenda` em `ResultadoCascata`.
 
 - [ ] **Step 4: Rodar os testes e confirmar que passam**
 
