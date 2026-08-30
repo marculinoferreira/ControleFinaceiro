@@ -92,7 +92,7 @@ void main() {
     expect(r.excedente, 300);
   });
 
-  test('renda zero e gasto zero nao estoura', () {
+  test('renda zero e gasto zero estoura', () {
     final r = calcularCascata(
         potes: potesPadrao(), totalGanhos: 0, totalGastos: 0);
 
@@ -138,5 +138,85 @@ void main() {
         potes: foraDeOrdem, totalGanhos: ganhos, totalGastos: 0);
 
     expect(r.linhas.first.pote.id, 'p1');
+  });
+
+  // Testes de hardening para cases não explícitos no brief
+
+  test('percentual negativo nao inventa gasto fantasma', () {
+    // CRITICAL 1: pote com percentual negativo não deve criar consumo
+    final potesComNegativo = const [
+      Pote(id: 'pneg', nome: 'Negativo', percentual: -10, ordem: 0,
+          cor: '#000000', icone: 'x'),
+      Pote(id: 'p2pos', nome: 'Positivo', percentual: 60, ordem: 1,
+          cor: '#FFFFFF', icone: 'y'),
+    ];
+    final r = calcularCascata(
+        potes: potesComNegativo, totalGanhos: 1000, totalGastos: 0);
+
+    // Com gasto zero, nenhum pote deve consumir nada
+    expect(r.linhas[0].consumido, 0);
+    expect(r.linhas[1].consumido, 0);
+    // O segundo pote não deve ter absorvido "spending imaginário"
+    expect(r.linhas[1].sobra, closeTo(600, 0.005));
+  });
+
+  test('totalGastos negativo nao causa sobra maior que previsto', () {
+    // IMPORTANT 2: gasto negativo não deve violar a invariante consumido + sobra = previsto
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: ganhos, totalGastos: -100);
+
+    for (final l in r.linhas) {
+      // sobra nunca deve exceder previsto
+      expect(l.sobra, lessThanOrEqualTo(l.previsto + toleranciaCentavo));
+      // consumido nunca deve ser negativo
+      expect(l.consumido, greaterThanOrEqualTo(0));
+    }
+  });
+
+  test('excedente com rounding é exatamente zero quando gasto iguala renda', () {
+    // IMPORTANT 3: flutuações de ponto flutuante não criam excedente fantasma
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: 1234.56, totalGastos: 1234.56);
+
+    // excedente deve ser exatamente zero, não 1.9895e-13
+    expect(r.excedente, 0.0);
+  });
+
+  test('estourouTudo retorna false quando ha pote ativo', () {
+    // IMPORTANT 4: estourouTudo deve poder retornar false
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: ganhos, totalGastos: 0);
+
+    // Com zero gasto, o primeiro pote tem folga e é ativo
+    expect(r.poteAtivo, isNotNull);
+    expect(r.estourouTudo, isFalse);
+  });
+
+  test('ordem com empate usa id como desempate', () {
+    // MINOR 5: potes com mesmo ordem são desempatados por id
+    final potesComEmpate = const [
+      Pote(id: 'pz', nome: 'Z', percentual: 50, ordem: 0,
+          cor: '#000000', icone: 'z'),
+      Pote(id: 'pa', nome: 'A', percentual: 50, ordem: 0,
+          cor: '#FFFFFF', icone: 'a'),
+    ];
+    final r = calcularCascata(
+        potes: potesComEmpate, totalGanhos: 1000, totalGastos: 0);
+
+    // Com desempate por id, 'pa' vem antes de 'pz'
+    expect(r.linhas.first.pote.id, 'pa');
+    expect(r.linhas[1].pote.id, 'pz');
+  });
+
+  test('calcularCascata nao mutacao lista de potes do chamador', () {
+    // MINOR 6: a função deve não mutar a lista recebida
+    final potesOriginal = [potesPadrao()[1], potesPadrao()[0]];
+    final potesAntes = [potesOriginal[0].id, potesOriginal[1].id];
+
+    calcularCascata(
+        potes: potesOriginal, totalGanhos: ganhos, totalGastos: 0);
+
+    // Ordem da lista deve ser preservada
+    expect([potesOriginal[0].id, potesOriginal[1].id], potesAntes);
   });
 }

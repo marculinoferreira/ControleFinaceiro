@@ -55,14 +55,24 @@ ResultadoCascata calcularCascata({
   required double totalGanhos,
   required double totalGastos,
 }) {
-  final ordenados = [...potes]..sort((a, b) => a.ordem.compareTo(b.ordem));
+  // Clamp negative values to zero to avoid phantom spending (CRITICAL 1, IMPORTANT 2)
+  final ganhos = math.max(0.0, totalGanhos);
+  var restante = math.max(0.0, totalGastos);
 
-  var restante = totalGastos;
+  // Sort by ordem, then by id as tie-breaker (MINOR 5)
+  final ordenados = [...potes]
+    ..sort((a, b) {
+      final cmp = a.ordem.compareTo(b.ordem);
+      if (cmp != 0) return cmp;
+      return a.id.compareTo(b.id);
+    });
+
   final linhas = <LinhaCascata>[];
   Pote? poteAtivo;
 
   for (final pote in ordenados) {
-    final previsto = totalGanhos * pote.percentual / 100;
+    // Clamp previsto to non-negative (CRITICAL 1)
+    final previsto = math.max(0.0, ganhos * pote.percentual / 100);
     final consumido = math.min(restante, previsto);
     final sobra = previsto - consumido;
     restante -= consumido;
@@ -75,13 +85,17 @@ ResultadoCascata calcularCascata({
       pote: pote,
       previsto: previsto,
       consumido: consumido,
-      sobra: sobra,
+      // Clamp sobra to zero if below tolerance (IMPORTANT 3)
+      sobra: sobra.abs() < toleranciaCentavo ? 0.0 : sobra,
     ));
   }
+
+  // Clamp excedente to zero if below tolerance (IMPORTANT 3)
+  final excedente = restante.abs() < toleranciaCentavo ? 0.0 : restante;
 
   return ResultadoCascata(
     linhas: linhas,
     poteAtivo: poteAtivo,
-    excedente: restante,
+    excedente: excedente,
   );
 }
