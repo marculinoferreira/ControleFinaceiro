@@ -23,6 +23,14 @@
         { "fieldPath": "parcelado", "order": "ASCENDING" },
         { "fieldPath": "mesRef", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "gastos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "compraId", "order": "ASCENDING" },
+        { "fieldPath": "parcela", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
