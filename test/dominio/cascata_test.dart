@@ -289,4 +289,13 @@ void main() {
     expect(r.semRenda, isTrue);
     expect(r.rotulo, 'CADASTRE SEUS GANHOS');
   });
+
+  test('semRenda true quando ganhos está exatamente na tolerância', () {
+    // Ganhos exatamente igual à tolerância: 0.005 == toleranciaCentavo (0.005)
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: 0.005, totalGastos: 0);
+
+    expect(r.semRenda, isTrue);
+    expect(r.rotulo, 'CADASTRE SEUS GANHOS');
+  });
 }

@@ -43,7 +43,7 @@ class ResultadoCascata {
   bool get estourouTudo => poteAtivo == null;
 
   /// True quando a renda está na tolerância (zero para fins práticos).
-  bool get semRenda => totalGanhos.abs() < toleranciaCentavo;
+  bool get semRenda => totalGanhos.abs() <= toleranciaCentavo;
 
   /// Rotulo exibido em destaque na tela de Resumo.
   /// Precedência: semRenda → 'CADASTRE SEUS GANHOS',
