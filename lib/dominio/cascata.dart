@@ -56,7 +56,8 @@ ResultadoCascata calcularCascata({
   required double totalGastos,
 }) {
   // Clamp negative values to zero to avoid phantom spending (CRITICAL 1, IMPORTANT 2)
-  final ganhos = math.max(0.0, totalGanhos);
+  // Note: only totalGastos is clamped here; totalGanhos is used as-is.
+  // Negative percentuals are clamped per-pot below.
   var restante = math.max(0.0, totalGastos);
 
   // Sort by ordem, then by id as tie-breaker (MINOR 5)
@@ -72,7 +73,7 @@ ResultadoCascata calcularCascata({
 
   for (final pote in ordenados) {
     // Clamp previsto to non-negative (CRITICAL 1)
-    final previsto = math.max(0.0, ganhos * pote.percentual / 100);
+    final previsto = math.max(0.0, totalGanhos * pote.percentual / 100);
     final consumido = math.min(restante, previsto);
     final sobra = previsto - consumido;
     restante -= consumido;

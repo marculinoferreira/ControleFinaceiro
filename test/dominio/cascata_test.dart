@@ -173,13 +173,26 @@ void main() {
     }
   });
 
-  test('excedente com rounding é exatamente zero quando gasto iguala renda', () {
+  test('excedente com rounding é exatamente zero (discriminating input)', () {
     // IMPORTANT 3: flutuações de ponto flutuante não criam excedente fantasma
+    // Este input específico (6111.11) gera excedente fantasma (2.2737e-13) na versão SEM clamp
+    final r = calcularCascata(
+        potes: potesPadrao(), totalGanhos: 6111.11, totalGastos: 6111.11);
+
+    // excedente DEVE ser exatamente zero, não 2.2737e-13
+    // Este teste FALHA se remover a clamp em cascata.dart:94
+    expect(r.excedente, 0.0);
+  });
+
+  test('sobra em linha com rounding é exatamente zero (discriminating input)', () {
+    // IMPORTANT 3: flutuações de ponto flutuante não criam sobra fantasma
+    // Este input específico (1234.56) gera sobra fantasma (2.8422e-14) no último pote na versão SEM clamp
     final r = calcularCascata(
         potes: potesPadrao(), totalGanhos: 1234.56, totalGastos: 1234.56);
 
-    // excedente deve ser exatamente zero, não 1.9895e-13
-    expect(r.excedente, 0.0);
+    // O último pote (índice 5) DEVE ter sobra exatamente zero, não 2.8422e-14
+    // Este teste FALHA se remover a clamp em cascata.dart:89
+    expect(r.linhas[5].sobra, 0.0);
   });
 
   test('estourouTudo retorna false quando ha pote ativo', () {
