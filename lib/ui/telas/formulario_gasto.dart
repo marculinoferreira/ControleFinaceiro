@@ -53,10 +53,19 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     _membroId = g?.membroId ?? '';
     _poteId = g?.poteId;
     _parcelado = g?.parcelado ?? false;
+    // O preview le _valor.text direto no build: sem este listener, digitar
+    // um novo valor depois de ligar "Parcelado" nao teria efeito ate algum
+    // outro campo forcar um rebuild.
+    _valor.addListener(_aoMudarValor);
+  }
+
+  void _aoMudarValor() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _valor.removeListener(_aoMudarValor);
     _descricao.dispose();
     _valor.dispose();
     _quantidade.dispose();

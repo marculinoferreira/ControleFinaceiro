@@ -125,6 +125,37 @@ void main() {
     expect(preview, contains('Mai/27'));
   });
 
+  testWidgets('o preview reage a mudanca no valor depois do switch ligado',
+      (tester) async {
+    await montar(tester);
+    await preencher(tester);
+    await tester.tap(find.byKey(const Key('gasto_parcelado')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('gasto_quantidade')), '10');
+    await tester.pump();
+
+    // Muda o valor da parcela DEPOIS de ligar o parcelamento: o preview
+    // precisa recalcular sem que nada mais force o rebuild.
+    await tester.enterText(
+        find.descendant(
+          of: find.byKey(const Key('gasto_valor')),
+          matching: find.byType(TextFormField),
+        ),
+        '20000');
+    await tester.pump();
+
+    final preview = tester
+        .widget<Text>(find.descendant(
+          of: find.byKey(const Key('gasto_preview')),
+          matching: find.byType(Text),
+        ))
+        .data!;
+
+    expect(preview, contains(formatarReais(200)));
+    expect(preview, contains(formatarReais(2000)));
+    expect(preview, isNot(contains(formatarReais(1000))));
+  });
+
   testWidgets('parcelado grava um documento por mes com o mesmo compraId',
       (tester) async {
     final repo = await montar(tester);
@@ -210,6 +241,43 @@ void main() {
     expect(repo.todos.single.id, original.id);
     expect(repo.todos.single.descricao, 'Mercado grande');
     expect(repo.todos.single.valor, 300); // valor intocado
+  });
+
+  testWidgets(
+      'editar uma parcela de compra parcelada preserva compraId, parcela e '
+      'totalParcelas', (tester) async {
+    final repo = RepositorioGastosFake();
+    await repo.adicionar(
+      base: Gasto(
+        id: '',
+        mesRef: '2026-08',
+        membroId: 'marcos',
+        poteId: 'p1',
+        descricao: 'Geladeira',
+        valor: 100,
+        criadoEm: DateTime.utc(2026, 8, 2),
+        parcelado: false, // gerarParcelas ignora este campo com quantidade>1
+      ),
+      quantidadeParcelas: 10,
+    );
+    final original = repo.todos.firstWhere((g) => g.parcela == 3);
+
+    await montar(tester, existente: original, comRepo: repo);
+
+    await tester.enterText(
+        find.byKey(const Key('gasto_descricao')), 'Geladeira nova');
+    await tester.tap(find.byKey(const Key('gasto_salvar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, hasLength(10)); // nenhuma parcela criada ou apagada
+    final editado = repo.todos.firstWhere((g) => g.id == original.id);
+    expect(editado.descricao, 'Geladeira nova');
+    expect(editado.id, original.id);
+    expect(editado.mesRef, original.mesRef);
+    expect(editado.compraId, original.compraId);
+    expect(editado.compraId, isNotNull);
+    expect(editado.parcela, original.parcela);
+    expect(editado.totalParcelas, original.totalParcelas);
   });
 
   testWidgets('editar nao deixa ligar o parcelamento', (tester) async {
