@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../dominio/graficos.dart';
 import '../../../dominio/serie_mensal.dart';
 import '../../../estado/providers.dart';
+import '../../tema/formatadores.dart';
 import '../legenda_grafico.dart';
 import '../moldura_grafico.dart';
 import 'eixo_mensal.dart';
@@ -73,6 +74,24 @@ class _Linhas extends StatelessWidget {
           _serie([for (final (i, p) in serie.indexed) FlSpot(i.toDouble(), p.gastos)],
               esquema.error),
         ],
+        // O tooltip padrao pinta o texto com a cor da serie sobre fundo
+        // escuro; o vermelho de "Gastos" fica quase invisivel ali.
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (pontos) => [
+              for (final p in pontos)
+                LineTooltipItem(
+                  '${p.barIndex == 0 ? 'Ganhos' : 'Gastos'}: '
+                      '${formatarReais(p.y)}',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+        ),
         gridData: const FlGridData(show: true, drawVerticalLine: false),
         borderData: FlBorderData(show: false),
         titlesData: eixoMensal(

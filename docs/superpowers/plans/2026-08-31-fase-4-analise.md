@@ -204,7 +204,7 @@ Tarefas 1, 2 e 3 podem ir em paralelo. As 4, 5 e 6 dependem só da 3 (a 6 també
 
 **Problema:** o gráfico 3 precisa de ganhos e gastos de vários meses. Todo o app até aqui só sabe ler **um** mês (`observarMes`). Esta é a única lacuna de dados da Fase 4.
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [x] **Step 1: Escrever os testes que falham**
 
 `test/dominio/serie_mensal_test.dart`:
 
@@ -219,9 +219,9 @@ Tarefas 1, 2 e 3 podem ir em paralelo. As 4, 5 e 6 dependem só da 3 (a 6 també
 
 `test/dados/intervalo_test.dart`: os fakes devolvem só o que está na janela, e emitem de novo quando algo é gravado dentro dela.
 
-- [ ] **Step 2: Rodar e confirmar que falham**
+- [x] **Step 2: Rodar e confirmar que falham**
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 `lib/dominio/serie_mensal.dart`:
 
@@ -290,8 +290,8 @@ final serieMensalProvider = Provider.autoDispose<AsyncValue<List<PontoMensal>>>(
 });
 ```
 
-- [ ] **Step 4: Rodar os testes e confirmar que passam**
-- [ ] **Step 5: Commit** — `feat: serie mensal de ganhos e gastos para os graficos de evolucao`
+- [x] **Step 4: Rodar os testes e confirmar que passam**
+- [x] **Step 5: Commit** — `feat: serie mensal de ganhos e gastos para os graficos de evolucao`
 
 ---
 
@@ -299,7 +299,7 @@ final serieMensalProvider = Provider.autoDispose<AsyncValue<List<PontoMensal>>>(
 
 A tela que a spec descreve com mais detalhe, e a que dá sentido a toda a Fase 2.
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [x] **Step 1: Escrever os testes que falham**
 
 `test/ui/tela_resumo_test.dart`:
 
@@ -316,9 +316,9 @@ A tela que a spec descreve com mais detalhe, e a que dá sentido a toda a Fase 2
 | erro | `ErroComRecarregar` |
 | mobile (<900) | cards, não `DataTable` |
 
-- [ ] **Step 2: Rodar e confirmar que falham**
+- [x] **Step 2: Rodar e confirmar que falham**
 
-- [ ] **Step 3: Implementar** `lib/ui/telas/tela_resumo.dart`
+- [x] **Step 3: Implementar** `lib/ui/telas/tela_resumo.dart`
 
 Estrutura: `ConsumerWidget` lendo `resumoCascataProvider` (já existe, já respeita a visão).
 
@@ -328,9 +328,9 @@ Estrutura: `ConsumerWidget` lendo `resumoCascataProvider` (já existe, já respe
 
 > **Cuidado com o `previsto == 0`:** um pote de 0% ou um mês sem ganhos dá divisão por zero na barra. Trate antes de dividir, não com `??` depois.
 
-- [ ] **Step 4: Ligar no shell** — trocar `_ProximaFase('Resumo dos Potes')` por `TelaResumo()`. O teste do shell (`test/ui/shell_test.dart`) precisa acompanhar.
-- [ ] **Step 5: Rodar os testes e confirmar que passam**
-- [ ] **Step 6: Commit** — `feat: tela de resumo dos potes com rotulo semaforico e PARE DE GASTAR`
+- [x] **Step 4: Ligar no shell** — trocar `_ProximaFase('Resumo dos Potes')` por `TelaResumo()`. O teste do shell (`test/ui/shell_test.dart`) precisa acompanhar.
+- [x] **Step 5: Rodar os testes e confirmar que passam**
+- [x] **Step 6: Commit** — `feat: tela de resumo dos potes com rotulo semaforico e PARE DE GASTAR`
 
 ---
 
@@ -338,7 +338,7 @@ Estrutura: `ConsumerWidget` lendo `resumoCascataProvider` (já existe, já respe
 
 Absorve, uma vez só, o que os seis gráficos repetiriam: título, `AsyncValue.when`, estado vazio, altura e legenda.
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [x] **Step 1: Escrever os testes que falham**
 
 `test/ui/moldura_grafico_test.dart`:
 
@@ -351,9 +351,9 @@ Absorve, uma vez só, o que os seis gráficos repetiriam: título, `AsyncValue.w
 | legenda | um marcador por série, com a cor certa e o rótulo certo |
 | legenda com muitos itens | quebra em várias linhas (`Wrap`), não estoura |
 
-- [ ] **Step 2: Rodar e confirmar que falham**
+- [x] **Step 2: Rodar e confirmar que falham**
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```dart
 // lib/ui/widgets/moldura_grafico.dart
@@ -372,14 +372,14 @@ class ItemLegenda { final String rotulo; final Color cor; }
 class LegendaGrafico extends StatelessWidget { final List<ItemLegenda> itens; }
 ```
 
-- [ ] **Step 4: Rodar os testes e confirmar que passam**
-- [ ] **Step 5: Commit** — `feat: moldura e legenda compartilhadas dos graficos`
+- [x] **Step 4: Rodar os testes e confirmar que passam**
+- [x] **Step 5: Commit** — `feat: moldura e legenda compartilhadas dos graficos`
 
 ---
 
 ## Tarefa 4 — Gráficos 1 e 2 (por pote)
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [x] **Step 1: Escrever os testes que falham**
 
 `test/ui/graficos_test.dart`, grupo "por pote":
 
@@ -393,19 +393,19 @@ class LegendaGrafico extends StatelessWidget { final List<ItemLegenda> itens; }
 | barras: pote estourado | a barra de gasto ultrapassa a de previsto (não trava no teto) |
 | ambos respeitam `visaoProvider` | trocar a visão muda os valores |
 
-- [ ] **Step 2: Rodar e confirmar que falham**
-- [ ] **Step 3: Implementar** `rosca_por_pote.dart` e `barras_previsto_gasto.dart`
+- [x] **Step 2: Rodar e confirmar que falham**
+- [x] **Step 3: Implementar** `rosca_por_pote.dart` e `barras_previsto_gasto.dart`
 
 Dados: `somarGastosPorPote(gastos, membroId: visao)` cruzado com `potesProvider`. O previsto de cada pote vem de `resumoCascataProvider` (`LinhaCascata.previsto`) — **não recalcule** `ganhos * percentual / 100` na UI.
 
-- [ ] **Step 4: Rodar os testes e confirmar que passam**
-- [ ] **Step 5: Commit** — `feat: rosca de gastos por pote e barras previsto x gasto`
+- [x] **Step 4: Rodar os testes e confirmar que passam**
+- [x] **Step 5: Commit** — `feat: rosca de gastos por pote e barras previsto x gasto`
 
 ---
 
 ## Tarefa 5 — Gráficos 4 e 5 (pizza de ganhos e barra da cascata)
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [x] **Step 1: Escrever os testes que falham**
 
 | Caso | Espera |
 |---|---|
@@ -418,15 +418,15 @@ Dados: `somarGastosPorPote(gastos, membroId: visao)` cruzado com `potesProvider`
 | cascata: estouro | marcador no fim, com destaque de excedente |
 | cascata: sem renda | mostra o vazio, sem barra de larguras NaN |
 
-- [ ] **Step 2: Rodar e confirmar que falham**
-- [ ] **Step 3: Implementar** `pizza_ganhos.dart` e `barra_cascata.dart`
+- [x] **Step 2: Rodar e confirmar que falham**
+- [x] **Step 3: Implementar** `pizza_ganhos.dart` e `barra_cascata.dart`
 
 A barra da cascata **não usa `fl_chart`**: é um `Row` de `Expanded` com `flex` proporcional ao previsto de cada pote, mais um marcador posicionado. É mais simples, mais fiel ao desenho da spec e não força um gráfico empilhado a fingir ser uma régua.
 
 > **Divisão por zero de novo:** sem renda, todo `previsto` é 0 e o `flex` vira 0 para todos. Trate com `semRenda` antes de montar o `Row`.
 
-- [ ] **Step 4: Rodar os testes e confirmar que passam**
-- [ ] **Step 5: Commit** — `feat: pizza de ganhos por pessoa e barra da cascata`
+- [x] **Step 4: Rodar os testes e confirmar que passam**
+- [x] **Step 5: Commit** — `feat: pizza de ganhos por pessoa e barra da cascata`
 
 ---
 
@@ -434,7 +434,7 @@ A barra da cascata **não usa `fl_chart`**: é um `Row` de `Expanded` com `flex`
 
 Depende da Tarefa 1.
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [x] **Step 1: Escrever os testes que falham**
 
 | Caso | Espera |
 |---|---|
@@ -445,21 +445,21 @@ Depende da Tarefa 1.
 | comprometimento: sem parcelas | moldura mostra o vazio |
 | comprometimento: parcela que acaba no meio | a linha cai a zero depois da última |
 
-- [ ] **Step 2: Rodar e confirmar que falham**
-- [ ] **Step 3: Implementar** `linha_evolucao.dart` e `linha_comprometimento.dart`
+- [x] **Step 2: Rodar e confirmar que falham**
+- [x] **Step 3: Implementar** `linha_evolucao.dart` e `linha_comprometimento.dart`
 
 Evolução lê `serieMensalProvider`. Comprometimento lê `parceladosDesdeProvider` (já existe) e aplica `comprometidoNoMes` sobre `janelaDe(mesSelecionado, 12)`.
 
 Cores: as duas séries da evolução vêm do `ColorScheme` (`primary` e `error`), não de potes — é a exceção prevista na constraint de cor.
 
-- [ ] **Step 4: Rodar os testes e confirmar que passam**
-- [ ] **Step 5: Commit** — `feat: linha de evolucao mensal e de comprometimento futuro`
+- [x] **Step 4: Rodar os testes e confirmar que passam**
+- [x] **Step 5: Commit** — `feat: linha de evolucao mensal e de comprometimento futuro`
 
 ---
 
 ## Tarefa 7 — Tela de Gráficos
 
-- [ ] **Step 1: Escrever os testes que falham**
+- [x] **Step 1: Escrever os testes que falham**
 
 | Caso | Espera |
 |---|---|
@@ -471,20 +471,20 @@ Cores: as duas séries da evolução vêm do `ColorScheme` (`primary` e `error`)
 
 > O quarto caso é o que mais importa: um `AsyncValue.when` no topo da tela derrubaria os seis juntos. Cada moldura resolve o seu.
 
-- [ ] **Step 2: Rodar e confirmar que falham**
-- [ ] **Step 3: Implementar** `lib/ui/telas/tela_graficos.dart`
-- [ ] **Step 4: Ligar no shell** — trocar `_ProximaFase('Gráficos')` por `TelaGraficos()` e **apagar a classe `_ProximaFase`**, que fica sem uso.
-- [ ] **Step 5: Rodar a suíte inteira**
+- [x] **Step 2: Rodar e confirmar que falham**
+- [x] **Step 3: Implementar** `lib/ui/telas/tela_graficos.dart`
+- [x] **Step 4: Ligar no shell** — trocar `_ProximaFase('Gráficos')` por `TelaGraficos()` e **apagar a classe `_ProximaFase`**, que fica sem uso.
+- [x] **Step 5: Rodar a suíte inteira**
 
 Esperado: tudo verde, `analyze` limpo, contagem subindo dos 267 da Fase 3 para algo em torno de 340.
 
-- [ ] **Step 6: Commit** — `feat: tela de graficos e fecha os placeholders do shell`
+- [x] **Step 6: Commit** — `feat: tela de graficos e fecha os placeholders do shell`
 
 ---
 
 ## Tarefa 8 — Builds e verificação final
 
-- [ ] **Step 1: Verificar no app real, no Windows**
+- [x] **Step 1: Verificar no app real, no Windows**
 
 ```powershell
 flutter run -d windows
@@ -497,7 +497,7 @@ flutter run -d windows
 5. Um mês sem lançamento nenhum: os seis mostram a frase de vazio, nenhum círculo em branco.
 6. Voltar 3 meses no seletor: a linha de evolução acompanha a janela.
 
-- [ ] **Step 2: Verificar no Android**
+- [x] **Step 2: Verificar no Android**
 
 ```powershell
 flutter run -d emulator-5554
@@ -507,7 +507,7 @@ Layout de coluna única, sem overflow, e os rótulos do eixo X legíveis na larg
 
 > O emulador `Medium_Phone_API_36.1` foi recriado com `-wipe-data` no fim da Fase 3 e agora tem os 16 GB que o `config.ini` sempre pediu. Se voltar a faltar espaço, a causa é outra.
 
-- [ ] **Step 3: Gerar os binários** (spec §13)
+- [x] **Step 3: Gerar os binários** (spec §13)
 
 ```powershell
 flutter build windows --release
@@ -518,7 +518,7 @@ Saídas: `build/windows/x64/runner/Release/` e `build/app/outputs/flutter-apk/ap
 
 O `applicationId` é `controle.finaceiro` (grafia do console, deliberada); o pacote Dart é `controle_financeiro`. **São independentes e ambos estão certos** — não "conserte" um para casar com o outro.
 
-- [ ] **Step 4: Commit** — `chore: builds de release da Fase 4`
+- [x] **Step 4: Commit** — `chore: builds de release da Fase 4`
 
 ---
 

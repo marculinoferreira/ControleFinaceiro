@@ -287,5 +287,58 @@ void main() {
 
       expect(grupos(tester)[0].barRods[1].toY, 0);
     });
+
+    testWidgets('o tooltip usa texto branco, legivel na caixa escura',
+        (tester) async {
+      await montar(tester, const BarrasPrevistoGasto(), gastosDoMes: [
+        ('marcos', 'p1', 5500),
+      ]);
+
+      final dados = tester.widget<BarChart>(find.byType(BarChart)).data;
+      final item = dados.barTouchData.touchTooltipData.getTooltipItem(
+        dados.barGroups[0],
+        0,
+        dados.barGroups[0].barRods[1],
+        1,
+      );
+
+      expect(item, isNotNull);
+      expect(item!.textStyle.color, Colors.white);
+    });
+
+    testWidgets('o tooltip mostra o nome inteiro do pote e o valor em moeda',
+        (tester) async {
+      await montar(tester, const BarrasPrevistoGasto(), gastosDoMes: [
+        ('marcos', 'p1', 5500),
+      ]);
+
+      final dados = tester.widget<BarChart>(find.byType(BarChart)).data;
+      final item = dados.barTouchData.touchTooltipData.getTooltipItem(
+        dados.barGroups[0],
+        0,
+        dados.barGroups[0].barRods[1],
+        1,
+      );
+
+      // O eixo abrevia ("Custo f..."); o tooltip e o unico lugar com o nome
+      // completo, e o valor precisa vir formatado, nao como 5500.0.
+      expect(item!.text, contains('Custo fixo'));
+      expect(item.text, contains('Gasto'));
+      expect(item.text, contains(formatarReais(5500)));
+    });
+
+    testWidgets('o tooltip distingue a barra de previsto da de gasto',
+        (tester) async {
+      await montar(tester, const BarrasPrevistoGasto(), gastosDoMes: [
+        ('marcos', 'p1', 5500),
+      ]);
+
+      final dados = tester.widget<BarChart>(find.byType(BarChart)).data;
+      final previsto = dados.barTouchData.touchTooltipData.getTooltipItem(
+          dados.barGroups[0], 0, dados.barGroups[0].barRods[0], 0);
+
+      expect(previsto!.text, contains('Previsto'));
+      expect(previsto.text, contains(formatarReais(6000)));
+    });
   });
 }

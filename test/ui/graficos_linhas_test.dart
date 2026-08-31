@@ -10,6 +10,7 @@ import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/serie_mensal.dart';
 import 'package:controle_financeiro/estado/providers.dart';
+import 'package:controle_financeiro/ui/tema/formatadores.dart';
 import 'package:controle_financeiro/ui/widgets/graficos/linha_comprometimento.dart';
 import 'package:controle_financeiro/ui/widgets/graficos/linha_evolucao.dart';
 
@@ -213,6 +214,29 @@ void main() {
       // Silvia nao lancou nada: a serie zera e a moldura passa a frase.
       expect(find.textContaining('Nada lançado'), findsOneWidget);
     });
+
+    testWidgets('o tooltip da evolucao usa texto branco e nomeia a serie',
+        (tester) async {
+      await montar(
+        tester,
+        const LinhaEvolucao(),
+        ganhosPorMes: const [('2026-08', 5000)],
+        gastosPorMes: const [('2026-08', 3000)],
+      );
+
+      final dados = dadosDaLinha(tester);
+      final itens = dados.lineTouchData.touchTooltipData.getTooltipItems([
+        LineBarSpot(dados.lineBarsData[0], 0, dados.lineBarsData[0].spots.last),
+        LineBarSpot(dados.lineBarsData[1], 1, dados.lineBarsData[1].spots.last),
+      ]);
+
+      // O padrao do fl_chart pinta o texto com a cor da serie; o vermelho de
+      // "Gastos" some na caixa escura.
+      expect(itens[0]!.textStyle.color, Colors.white);
+      expect(itens[1]!.textStyle.color, Colors.white);
+      expect(itens[0]!.text, contains('Ganhos'));
+      expect(itens[1]!.text, contains('Gastos'));
+    });
   });
 
   group('linha de comprometimento', () {
@@ -273,6 +297,18 @@ void main() {
       expect(pontos, hasLength(mesesDaSerie));
       expect(pontos.every((p) => p.y == 100), isTrue);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('o tooltip do comprometimento usa texto branco', (tester) async {
+      await montar(tester, const LinhaComprometimento(), parcelasDe: 3);
+
+      final dados = dadosDaLinha(tester);
+      final itens = dados.lineTouchData.touchTooltipData.getTooltipItems([
+        LineBarSpot(dados.lineBarsData[0], 0, dados.lineBarsData[0].spots.first),
+      ]);
+
+      expect(itens.single!.textStyle.color, Colors.white);
+      expect(itens.single!.text, contains(formatarReais(100)));
     });
   });
 }

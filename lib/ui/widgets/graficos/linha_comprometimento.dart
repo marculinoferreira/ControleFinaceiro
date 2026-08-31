@@ -85,7 +85,14 @@ class _Linha extends StatelessWidget {
               for (final p in pontos)
                 LineTooltipItem(
                   formatarReais(p.y),
-                  Theme.of(context).textTheme.bodySmall ?? const TextStyle(),
+                  // Branco, e nao textTheme: a caixa do tooltip e escura nos
+                  // dois temas, entao herdar a cor do tema deixa o texto
+                  // ilegivel no tema claro.
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
             ],
           ),

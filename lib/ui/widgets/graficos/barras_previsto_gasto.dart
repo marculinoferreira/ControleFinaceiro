@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../dominio/graficos.dart';
 import '../../../estado/providers.dart';
+import '../../tema/formatadores.dart';
 import '../../tema/tema.dart';
 import '../legenda_grafico.dart';
 import '../moldura_grafico.dart';
@@ -87,6 +88,27 @@ class _Barras extends StatelessWidget {
               ],
             ),
         ],
+        // Sem isto o fl_chart usa o tooltip padrao: caixa escura com texto
+        // escuro (ilegivel) e o valor cru, tipo "1387.4". O rotulo do eixo e
+        // abreviado por falta de espaco, entao o tooltip e o unico lugar que
+        // mostra o nome do pote inteiro.
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (grupo, iGrupo, rod, iRod) {
+              if (iGrupo < 0 || iGrupo >= barras.length) return null;
+              final barra = barras[iGrupo];
+              final qual = iRod == 0 ? 'Previsto' : 'Gasto';
+              return BarTooltipItem(
+                '${barra.nome}\n$qual: ${formatarReais(rod.toY)}',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              );
+            },
+          ),
+        ),
         gridData: const FlGridData(show: true, drawVerticalLine: false),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
