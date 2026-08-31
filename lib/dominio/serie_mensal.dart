@@ -1,6 +1,8 @@
+import 'cascata.dart';
 import 'models/ganho.dart';
 import 'models/gasto.dart';
 import 'models/mes_ref.dart';
+import 'totais.dart';
 
 /// Um ponto da serie: um mes e os dois totais daquele mes.
 ///
@@ -75,3 +77,35 @@ List<PontoMensal> montarSerie({
       ),
   ];
 }
+
+/// Um mes e quanto dele ja esta comprometido em parcelas.
+class PontoComprometido {
+  final MesRef mes;
+  final double valor;
+
+  const PontoComprometido({required this.mes, required this.valor});
+}
+
+/// Quanto de cada mes de [meses] ja esta tomado por parcelas (grafico 6 da
+/// spec 10).
+///
+/// [parcelas] sao os gastos parcelados a partir do mes corrente; cada um ja
+/// e um documento no mes em que cai, entao aqui e so somar por mes.
+///
+/// Meses sem parcela entram com zero: a linha precisa cair ate o chao
+/// depois da ultima parcela, e nao terminar no ar.
+List<PontoComprometido> serieComprometimento({
+  required List<MesRef> meses,
+  required List<Gasto> parcelas,
+}) =>
+    [
+      for (final mes in meses)
+        PontoComprometido(
+          mes: mes,
+          valor: comprometidoNoMes(parcelas, mes.valor),
+        ),
+    ];
+
+/// True quando a serie inteira e zero — nada a desenhar.
+bool serieVazia(Iterable<double> valores) =>
+    valores.every((v) => v.abs() <= toleranciaCentavo);

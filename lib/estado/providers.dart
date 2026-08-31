@@ -269,6 +269,18 @@ final fatiasPorMembroProvider =
       );
 });
 
+/// Comprometimento futuro: os proximos [mesesDaSerie] meses a partir do
+/// selecionado, inclusive (grafico 6 da spec 10).
+final serieComprometimentoProvider =
+    Provider.autoDispose<AsyncValue<List<PontoComprometido>>>((ref) {
+  final inicio = ref.watch(mesSelecionadoProvider);
+  final meses = janelaDe(inicio, mesesDaSerie);
+
+  return ref.watch(parceladosDesdeProvider(inicio.valor)).whenData(
+        (parcelas) => serieComprometimento(meses: meses, parcelas: parcelas),
+      );
+});
+
 final parcelasEmAbertoProvider =
     Provider.autoDispose<AsyncValue<List<CompraParcelada>>>((ref) {
   final mes = ref.watch(mesSelecionadoProvider);

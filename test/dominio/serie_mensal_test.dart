@@ -200,4 +200,92 @@ void main() {
       expect(serie[1].gastos, 100);
     });
   });
+
+  group('serieComprometimento', () {
+    Gasto parcela(String mesRef, double valor, {int n = 2}) => Gasto(
+          id: 'p-$mesRef',
+          mesRef: mesRef,
+          membroId: 'marcos',
+          poteId: 'p1',
+          descricao: 'geladeira',
+          valor: valor,
+          criadoEm: DateTime.utc(2026, 1, 1),
+          parcelado: true,
+          compraId: 'c1',
+          parcela: 1,
+          totalParcelas: n,
+        );
+
+    test('soma as parcelas de cada mes', () {
+      final serie = serieComprometimento(
+        meses: janelaDe(const MesRef(2026, 8), 3),
+        parcelas: [
+          parcela('2026-08', 100),
+          parcela('2026-08', 50),
+          parcela('2026-09', 100),
+        ],
+      );
+
+      expect(serie.map((p) => p.valor).toList(), [150, 100, 0]);
+    });
+
+    test('a linha cai a zero depois da ultima parcela', () {
+      final serie = serieComprometimento(
+        meses: janelaDe(const MesRef(2026, 8), 4),
+        parcelas: [parcela('2026-08', 100), parcela('2026-09', 100)],
+      );
+
+      // Sem os zeros a linha terminaria no ar, sugerindo divida perpetua.
+      expect(serie, hasLength(4));
+      expect(serie.last.valor, 0);
+    });
+
+    test('gasto nao parcelado nao entra no comprometimento', () {
+      final simples = Gasto(
+        id: 'x',
+        mesRef: '2026-08',
+        membroId: 'marcos',
+        poteId: 'p1',
+        descricao: 'mercado',
+        valor: 900,
+        criadoEm: DateTime.utc(2026, 8, 1),
+        parcelado: false,
+      );
+
+      final serie = serieComprometimento(
+        meses: janelaDe(const MesRef(2026, 8), 2),
+        parcelas: [simples, parcela('2026-08', 100)],
+      );
+
+      expect(serie.first.valor, 100);
+    });
+
+    test('sem parcela nenhuma devolve a janela toda em zero', () {
+      final serie = serieComprometimento(
+        meses: janelaDe(const MesRef(2026, 8), 3),
+        parcelas: const [],
+      );
+
+      expect(serie, hasLength(3));
+      expect(serie.every((p) => p.valor == 0), isTrue);
+    });
+  });
+
+  group('serieVazia', () {
+    test('tudo zero e vazio', () {
+      expect(serieVazia([0, 0, 0]), isTrue);
+    });
+
+    test('um valor acima da tolerancia ja nao e vazio', () {
+      expect(serieVazia([0, 0, 5]), isFalse);
+    });
+
+    test('centavos abaixo da tolerancia contam como vazio', () {
+      expect(serieVazia([0.001, 0]), isTrue);
+    });
+
+    test('lista vazia e vazia', () {
+      expect(serieVazia(const []), isTrue);
+    });
+  });
 }
