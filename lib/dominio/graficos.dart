@@ -1,22 +1,27 @@
 import 'cascata.dart';
+import 'models/membro.dart';
 import 'models/pote.dart';
 
 /// Cor de "Outros". A mesma que `corDeHex` usa quando nao entende o valor,
 /// para gasto de pote apagado ficar cinza nos dois caminhos.
 const String corNeutra = '#607D8B';
 
-/// Uma fatia do grafico de rosca: um pote e quanto foi gasto nele.
+/// Uma fatia de grafico circular: o que ela representa e quanto vale.
+///
+/// Serve tanto para pote (rosca de gastos) quanto para pessoa (pizza de
+/// ganhos) — a forma e a mesma, entao o tipo tambem e.
 ///
 /// Carrega [cor] como hex, e nao como Color: o dominio nao conhece Flutter.
 /// Quem desenha converte com `corDeHex`.
-class FatiaPote {
-  final String poteId;
+class Fatia {
+  /// Id do pote ou do membro. Vazio na fatia agregada "Outros".
+  final String id;
   final String nome;
   final String cor;
   final double valor;
 
-  const FatiaPote({
-    required this.poteId,
+  const Fatia({
+    required this.id,
     required this.nome,
     required this.cor,
     required this.valor,
@@ -50,45 +55,73 @@ class BarraPote {
 ///
 /// Gasto cujo pote foi apagado nao pode sumir do grafico — o dinheiro saiu
 /// de qualquer jeito — entao vai para uma fatia "Outros" no fim.
-List<FatiaPote> fatiasPorPote({
+List<Fatia> fatiasPorPote({
   required Map<String, double> porPote,
   required List<Pote> potes,
 }) {
   final ordenados = [...potes]..sort((a, b) => a.ordem.compareTo(b.ordem));
-  final conhecidos = {for (final p in ordenados) p.id};
+  return _fatiar(
+    valores: porPote,
+    ids: [for (final p in ordenados) p.id],
+    nome: {for (final p in ordenados) p.id: p.nome},
+    cor: {for (final p in ordenados) p.id: p.cor},
+  );
+}
 
-  final fatias = <FatiaPote>[];
+/// Ganhos por pessoa (grafico 4 da spec 10).
+///
+/// Ganho de um membro que foi removido da casa cai em "Outros" pela mesma
+/// razao do pote apagado: o dinheiro entrou, e sumir com ele faria o total
+/// da pizza discordar do total do mes.
+List<Fatia> fatiasPorMembro({
+  required Map<String, double> porMembro,
+  required List<Membro> membros,
+}) {
+  final ordenados = [...membros]..sort((a, b) => a.ordem.compareTo(b.ordem));
+  return _fatiar(
+    valores: porMembro,
+    ids: [for (final m in ordenados) m.id],
+    nome: {for (final m in ordenados) m.id: m.nome},
+    cor: {for (final m in ordenados) m.id: m.cor},
+  );
+}
 
-  for (final pote in ordenados) {
-    final valor = porPote[pote.id] ?? 0;
+/// O miolo comum das duas: fatia na ordem dada, descarta valor nao positivo
+/// e junta os ids desconhecidos numa fatia "Outros" no fim.
+List<Fatia> _fatiar({
+  required Map<String, double> valores,
+  required List<String> ids,
+  required Map<String, String> nome,
+  required Map<String, String> cor,
+}) {
+  final conhecidos = ids.toSet();
+  final fatias = <Fatia>[];
+
+  for (final id in ids) {
+    final valor = valores[id] ?? 0;
     if (valor <= toleranciaCentavo) continue;
-    fatias.add(FatiaPote(
-      poteId: pote.id,
-      nome: pote.nome,
-      cor: pote.cor,
+    fatias.add(Fatia(
+      id: id,
+      nome: nome[id] ?? id,
+      cor: cor[id] ?? corNeutra,
       valor: valor,
     ));
   }
 
   var orfaos = 0.0;
-  for (final entrada in porPote.entries) {
+  for (final entrada in valores.entries) {
     if (conhecidos.contains(entrada.key)) continue;
     orfaos += entrada.value;
   }
 
   if (orfaos > toleranciaCentavo) {
-    fatias.add(FatiaPote(
-      poteId: '',
-      nome: 'Outros',
-      cor: corNeutra,
-      valor: orfaos,
-    ));
+    fatias.add(Fatia(id: '', nome: 'Outros', cor: corNeutra, valor: orfaos));
   }
 
   return fatias;
 }
 
-double totalDasFatias(List<FatiaPote> fatias) {
+double totalDasFatias(List<Fatia> fatias) {
   var soma = 0.0;
   for (final f in fatias) {
     soma += f.valor;
@@ -129,3 +162,31 @@ double tetoDasBarras(List<BarraPote> barras) {
   }
   return teto;
 }
+
+/// Onde o gasto parou na barra da cascata, como fracao de 0 a 1 do total
+/// previsto (grafico 5 da spec 10).
+///
+/// Sem renda todo previsto e zero e a divisao daria NaN; devolve 0, e quem
+/// desenha ja nao desenha barra nenhuma nesse caso.
+double posicaoDoGasto(ResultadoCascata resumo) {
+  var previsto = 0.0;
+  var consumido = 0.0;
+  for (final linha in resumo.linhas) {
+    previsto += linha.previsto;
+    consumido += linha.consumido;
+  }
+  if (previsto <= toleranciaCentavo) return 0;
+  return (consumido / previsto).clamp(0.0, 1.0);
+}
+
+/// Peso inteiro de cada pote na barra da cascata, para uso como `flex`.
+///
+/// Multiplica por 100 antes de arredondar para nao achatar potes pequenos:
+/// um pote de 5% num mes de renda baixa arredondaria para 0 e sumiria da
+/// barra. Peso minimo 1 pelo mesmo motivo.
+List<int> pesosDaCascata(ResultadoCascata resumo) => [
+      for (final linha in resumo.linhas)
+        linha.previsto <= toleranciaCentavo
+            ? 0
+            : (linha.previsto * 100).round().clamp(1, 1 << 30),
+    ];

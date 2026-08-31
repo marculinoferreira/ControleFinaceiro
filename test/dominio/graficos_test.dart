@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dominio/cascata.dart';
 import 'package:controle_financeiro/dominio/graficos.dart';
+import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 
 const potes = [
@@ -28,7 +29,7 @@ void main() {
         potes: potes,
       );
 
-      expect(fatias.map((f) => f.poteId).toList(), ['p1', 'p2']);
+      expect(fatias.map((f) => f.id).toList(), ['p1', 'p2']);
       expect(fatias.map((f) => f.valor).toList(), [700, 300]);
       expect(fatias.first.nome, 'Custo fixo');
       expect(fatias.first.cor, '#2E7D32');
@@ -41,7 +42,7 @@ void main() {
       );
 
       expect(fatias, hasLength(1));
-      expect(fatias.single.poteId, 'p1');
+      expect(fatias.single.id, 'p1');
     });
 
     test('gasto em pote apagado cai em Outros, no fim', () {
@@ -85,7 +86,7 @@ void main() {
         potes: potes,
       );
 
-      expect(fatias.map((f) => f.poteId).toList(), ['p1']);
+      expect(fatias.map((f) => f.id).toList(), ['p1']);
     });
 
     test('total soma todas as fatias', () {
@@ -194,6 +195,126 @@ void main() {
 
     test('teto de lista vazia e zero, sem lancar', () {
       expect(tetoDasBarras(const []), 0);
+    });
+  });
+
+  group('fatiasPorMembro', () {
+    const membros = [
+      Membro(
+          id: 'marcos',
+          nome: 'Marcos',
+          email: 'm@x.com',
+          cor: '#2E7D32',
+          ordem: 0),
+      Membro(
+          id: 'silvia',
+          nome: 'Silvia',
+          email: 's@x.com',
+          cor: '#6A1B9A',
+          ordem: 1),
+    ];
+
+    test('uma fatia por pessoa, na ordem cadastrada', () {
+      final fatias = fatiasPorMembro(
+        porMembro: const {'silvia': 4000, 'marcos': 6000},
+        membros: membros,
+      );
+
+      expect(fatias.map((f) => f.id).toList(), ['marcos', 'silvia']);
+      expect(fatias.map((f) => f.valor).toList(), [6000, 4000]);
+      expect(fatias.first.cor, '#2E7D32');
+    });
+
+    test('pessoa sem ganho no mes nao vira fatia invisivel', () {
+      final fatias = fatiasPorMembro(
+        porMembro: const {'marcos': 6000},
+        membros: membros,
+      );
+
+      expect(fatias, hasLength(1));
+      expect(fatias.single.nome, 'Marcos');
+    });
+
+    test('ganho de membro removido cai em Outros', () {
+      final fatias = fatiasPorMembro(
+        porMembro: const {'marcos': 6000, 'ex': 1000},
+        membros: membros,
+      );
+
+      expect(fatias.last.nome, 'Outros');
+      expect(fatias.last.valor, 1000);
+    });
+
+    test('sem ganho nenhum devolve lista vazia', () {
+      expect(fatiasPorMembro(porMembro: const {}, membros: membros), isEmpty);
+    });
+  });
+
+  group('posicaoDoGasto', () {
+    ResultadoCascata resumo(
+        {required double ganhos, required double gastos}) {
+      return calcularCascata(
+          potes: potes, totalGanhos: ganhos, totalGastos: gastos);
+    }
+
+    test('metade do previsto consumido fica no meio', () {
+      final p = posicaoDoGasto(resumo(ganhos: 10000, gastos: 5000));
+      expect(p, closeTo(0.5, 0.001));
+    });
+
+    test('nada gasto fica no comeco', () {
+      expect(posicaoDoGasto(resumo(ganhos: 10000, gastos: 0)), 0);
+    });
+
+    test('gasto que passa de tudo trava no fim, sem passar de 1', () {
+      expect(posicaoDoGasto(resumo(ganhos: 10000, gastos: 25000)), 1.0);
+    });
+
+    test('sem renda devolve zero, e nao NaN', () {
+      final p = posicaoDoGasto(resumo(ganhos: 0, gastos: 500));
+      expect(p, 0);
+      expect(p.isNaN, isFalse);
+    });
+  });
+
+  group('pesosDaCascata', () {
+    test('o peso acompanha a proporcao do previsto', () {
+      final resumo =
+          calcularCascata(potes: potes, totalGanhos: 10000, totalGastos: 0);
+      final pesos = pesosDaCascata(resumo);
+
+      expect(pesos, hasLength(2));
+      // 60/40 -> 600000/400000.
+      expect(pesos[0] / pesos[1], closeTo(1.5, 0.001));
+    });
+
+    test('pote pequeno nao arredonda para zero e some da barra', () {
+      const miudos = [
+        Pote(
+            id: 'g',
+            nome: 'Grande',
+            percentual: 99,
+            ordem: 0,
+            cor: '#2E7D32',
+            icone: 'casa'),
+        Pote(
+            id: 'p',
+            nome: 'Pequeno',
+            percentual: 1,
+            ordem: 1,
+            cor: '#1565C0',
+            icone: 'sofa'),
+      ];
+      final resumo =
+          calcularCascata(potes: miudos, totalGanhos: 100, totalGastos: 0);
+
+      expect(pesosDaCascata(resumo)[1], greaterThan(0));
+    });
+
+    test('sem renda todos os pesos sao zero', () {
+      final resumo =
+          calcularCascata(potes: potes, totalGanhos: 0, totalGastos: 0);
+      expect(pesosDaCascata(resumo).every((p) => p == 0), isTrue);
     });
   });
 }

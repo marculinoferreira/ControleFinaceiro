@@ -20,7 +20,7 @@ class RoscaPorPote extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mes = ref.watch(mesSelecionadoProvider).valor;
 
-    return MolduraGrafico<List<FatiaPote>>(
+    return MolduraGrafico<List<Fatia>>(
       titulo: 'Gastos por pote',
       vazio: 'Nenhum gasto neste mês.',
       dados: ref.watch(fatiasPorPoteProvider),
@@ -39,7 +39,7 @@ class RoscaPorPote extends ConsumerWidget {
 }
 
 class _Rosca extends StatelessWidget {
-  final List<FatiaPote> fatias;
+  final List<Fatia> fatias;
   const _Rosca({required this.fatias});
 
   @override

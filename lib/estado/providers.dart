@@ -229,7 +229,7 @@ final gastosPorPoteProvider =
 
 /// Fatias da rosca (grafico 1 da spec 10).
 final fatiasPorPoteProvider =
-    Provider.autoDispose<AsyncValue<List<FatiaPote>>>((ref) {
+    Provider.autoDispose<AsyncValue<List<Fatia>>>((ref) {
   return combinarAsyncValues(
     ref.watch(potesProvider),
     ref.watch(gastosPorPoteProvider),
@@ -249,6 +249,24 @@ final barrasPorPoteProvider =
     (resumo, porPote) =>
         barrasPrevistoGasto(linhas: resumo.linhas, porPote: porPote),
   );
+});
+
+/// Ganhos do mes por pessoa (grafico 4 da spec 10).
+///
+/// NAO le visaoProvider de proposito: "proporcao de ganhos entre Marcos e
+/// Silvia" filtrado por pessoa viraria uma fatia unica de 100%, que nao
+/// responde pergunta nenhuma.
+final fatiasPorMembroProvider =
+    Provider.autoDispose<AsyncValue<List<Fatia>>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+  final membros = ref.watch(membrosProvider);
+
+  return ref.watch(ganhosDoMesProvider(mes)).whenData(
+        (ganhos) => fatiasPorMembro(
+          porMembro: somarGanhosPorMembro(ganhos),
+          membros: membros,
+        ),
+      );
 });
 
 final parcelasEmAbertoProvider =
