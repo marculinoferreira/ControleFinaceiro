@@ -44,6 +44,19 @@ abstract class RepositorioGastos {
   Future<void> adicionar({required Gasto base, required int quantidadeParcelas});
 
   Future<void> atualizar(Gasto gasto);
+
+  /// Edita uma parcela alcancando a compra conforme [alcance], e ajusta o
+  /// tamanho da compra para [novaQuantidade] criando parcelas no fim ou
+  /// apagando as ultimas. Tudo em uma escrita atomica.
+  ///
+  /// A decisao de o que escrever e de `planejarEdicaoCompra`; aqui so se
+  /// executa o plano.
+  Future<void> atualizarCompra({
+    required Gasto editado,
+    required ModoEdicao alcance,
+    required int novaQuantidade,
+  });
+
   Future<void> removerUma(String id);
   Future<void> removerDesta(String compraId, int parcela);
   Future<void> removerCompra(String compraId);
@@ -116,6 +129,30 @@ class RepositorioGastosFake implements RepositorioGastos {
   Future<void> atualizar(Gasto gasto) async {
     final i = _gastos.indexWhere((g) => g.id == gasto.id);
     if (i >= 0) _gastos[i] = gasto;
+    _emitir();
+  }
+
+  @override
+  Future<void> atualizarCompra({
+    required Gasto editado,
+    required ModoEdicao alcance,
+    required int novaQuantidade,
+  }) async {
+    final plano = planejarEdicaoCompra(
+      existentes: _gastos,
+      editado: editado,
+      alcance: alcance,
+      novaQuantidade: novaQuantidade,
+    );
+
+    for (final g in plano.atualizar) {
+      final i = _gastos.indexWhere((x) => x.id == g.id);
+      if (i >= 0) _gastos[i] = g;
+    }
+    _gastos.removeWhere((g) => plano.remover.contains(g.id));
+    for (final g in plano.criar) {
+      _gastos.add(g.copyWith(id: 'gasto-${_sequencia++}'));
+    }
     _emitir();
   }
 

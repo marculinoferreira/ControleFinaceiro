@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../dominio/cascata.dart';
 import '../../dominio/models/gasto.dart';
 import '../../dominio/models/membro.dart';
 import '../../dominio/models/mes_ref.dart';
 import '../../dominio/models/pote.dart';
+import '../../dominio/parcelas.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 import '../widgets/campo_moeda.dart';
+import '../widgets/dialogo_edicao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/formulario_responsivo.dart';
 
@@ -28,7 +31,8 @@ class _ResultadoFormularioGasto {
 /// ordem de `_abrir` em tela_ganhos.dart. Com persistencia offline habilitada
 /// (main.dart), o Future da escrita so completa quando o servidor confirma;
 /// esperar por ele antes de fechar travaria o formulario aberto indefinida-
-/// mente sem rede.
+/// mente sem rede. A pergunta do alcance tambem vem depois do fechamento,
+/// para nao empilhar um dialogo sobre o outro.
 Future<void> abrirFormularioGasto({
   required BuildContext context,
   required WidgetRef ref,
@@ -43,21 +47,50 @@ Future<void> abrirFormularioGasto({
 
   final repo = ref.read(repositorioGastosProvider);
   try {
-    if (existente != null) {
-      // Edicao mexe so neste documento: os tres modos da spec valem para
-      // exclusao, nao para edicao.
-      await repo.atualizar(resultado.gasto);
-    } else {
+    if (existente == null) {
       await repo.adicionar(
         base: resultado.gasto,
         quantidadeParcelas: resultado.quantidadeParcelas,
       );
+      return;
     }
+
+    // Gasto simples: o documento ja e a compra inteira, nao ha alcance a
+    // escolher.
+    if (!existente.parcelado || existente.compraId == null) {
+      await repo.atualizar(resultado.gasto);
+      return;
+    }
+
+    // So o valor abre a pergunta. Descricao, pessoa e pote descrevem a
+    // compra e vao para todas as parcelas sozinhos; a quantidade tambem vale
+    // para a compra inteira em qualquer modo. Perguntar nesses casos seria um
+    // dialogo cujas tres opcoes fazem a mesma coisa.
+    var alcance = ModoEdicao.todas;
+    if (_valorMudou(existente, resultado.gasto)) {
+      if (!context.mounted) return;
+      final escolhido =
+          await perguntarModoEdicao(context: context, gasto: existente);
+      if (escolhido == null) return;
+      alcance = escolhido;
+    }
+
+    await repo.atualizarCompra(
+      editado: resultado.gasto,
+      alcance: alcance,
+      novaQuantidade: resultado.quantidadeParcelas,
+    );
   } catch (e) {
     if (!context.mounted) return;
     avisarErroDeEscrita(context, e);
   }
 }
+
+/// O unico campo cuja propagacao e uma escolha do usuario. Os demais ja
+/// tem resposta: descricao, pessoa e pote vao para a compra inteira; mes,
+/// parcela e total sao aritmetica, nao edicao.
+bool _valorMudou(Gasto antes, Gasto depois) =>
+    (antes.valor - depois.valor).abs() > toleranciaCentavo;
 
 class FormularioGasto extends ConsumerStatefulWidget {
   final Gasto? existente;
@@ -115,6 +148,22 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
   }
 
   int get _quantidadeParcelas => int.tryParse(_quantidade.text) ?? 0;
+
+  /// O menor total que a compra pode ter. Encolher abaixo da parcela aberta
+  /// apagaria o documento que esta sendo editado — a lista e o lugar de
+  /// apagar parcelas, com o dialogo de tres modos que ja existe la.
+  int get _minimoParcelas {
+    final parcela = widget.existente?.parcela ?? 1;
+    return parcela < 2 ? 2 : parcela;
+  }
+
+  /// O mes da parcela 1, que e onde a compra realmente comeca. Editar a
+  /// parcela 3 nao pode fazer o preview dizer que a compra comeca nela.
+  MesRef _inicioDaCompra(MesRef mesSelecionado) {
+    final g = widget.existente;
+    if (g == null) return mesSelecionado;
+    return MesRef.parse(g.mesRef).avancar(-((g.parcela ?? 1) - 1));
+  }
 
   void _salvar() {
     if (_salvando) return;
@@ -242,8 +291,10 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
             key: const Key('gasto_parcelado'),
             title: const Text('Parcelado'),
             value: _parcelado,
-            // Editar parcelamento de um lancamento existente mudaria o
-            // numero de documentos; isso e criacao, nao edicao.
+            // A quantidade de parcelas e editavel, mas o interruptor nao:
+            // transformar um gasto simples em parcelado (ou o contrario)
+            // troca o significado do lancamento, nao o seu tamanho. Para
+            // isso, apague e lance de novo.
             onChanged: widget.existente != null
                 ? null
                 : (v) => setState(() => _parcelado = v),
@@ -260,9 +311,13 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
                 border: OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
-              validator: (_) => _quantidadeParcelas < 2
-                  ? 'Um parcelamento tem pelo menos 2 parcelas.'
-                  : null,
+              validator: (_) {
+                if (_quantidadeParcelas >= _minimoParcelas) return null;
+                return _minimoParcelas > 2
+                    ? 'Você está editando a parcela $_minimoParcelas; '
+                        'use a lista para apagar parcelas.'
+                    : 'Um parcelamento tem pelo menos 2 parcelas.';
+              },
             ),
             const SizedBox(height: 12),
             Container(
@@ -277,7 +332,7 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
                   valorParcela: parsearMoeda(_valor.text) ?? 0,
                   quantidade:
                       _quantidadeParcelas < 1 ? 1 : _quantidadeParcelas,
-                  inicio: MesRef.parse(widget.existente?.mesRef ?? mes.valor),
+                  inicio: _inicioDaCompra(mes),
                 ),
               ),
             ),

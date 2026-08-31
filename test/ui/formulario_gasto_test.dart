@@ -349,6 +349,10 @@ void main() {
     await tester.tap(find.byKey(const Key('gasto_salvar')));
     await tester.pumpAndSettle();
 
+    // A descricao descreve a compra: vai para as 10 sem perguntar nada.
+    expect(find.text('Alterar o valor'), findsNothing);
+    expect(repo.todos.every((g) => g.descricao == 'Geladeira nova'), isTrue);
+
     expect(repo.todos, hasLength(10)); // nenhuma parcela criada ou apagada
     final editado = repo.todos.firstWhere((g) => g.id == original.id);
     expect(editado.descricao, 'Geladeira nova');

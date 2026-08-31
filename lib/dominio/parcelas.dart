@@ -140,3 +140,155 @@ List<CompraParcelada> agruparParcelasEmAberto({
   abertas.sort((a, b) => a.parcelasRestantes.compareTo(b.parcelasRestantes));
   return abertas;
 }
+
+// ---------------------------------------------------------------------------
+// Edicao de uma compra ja parcelada
+// ---------------------------------------------------------------------------
+
+/// A que parcelas o **valor** editado se aplica. Os mesmos tres modos da
+/// exclusao, de proposito: quem ja aprendeu a escolha ao excluir nao precisa
+/// aprender outra ao editar.
+///
+/// So o valor: descricao, pessoa e pote descrevem a compra, e uma compra nao
+/// muda de nome no meio do parcelamento.
+enum ModoEdicao { somenteEsta, estaEFuturas, todas }
+
+/// As escritas necessarias para efetivar uma edicao de compra parcelada.
+///
+/// Existe para manter a decisao fora do repositorio: o que muda, o que nasce
+/// e o que morre e aritmetica de parcelas, nao detalhe de Firestore.
+class PlanoEdicaoCompra {
+  /// Documentos existentes cujo conteudo mudou. Ja trazem o `id`.
+  final List<Gasto> atualizar;
+
+  /// Parcelas novas, sem `id` — quem grava atribui.
+  final List<Gasto> criar;
+
+  /// Ids a apagar.
+  final List<String> remover;
+
+  const PlanoEdicaoCompra({
+    this.atualizar = const [],
+    this.criar = const [],
+    this.remover = const [],
+  });
+
+  bool get vazio => atualizar.isEmpty && criar.isEmpty && remover.isEmpty;
+}
+
+/// Planeja a edicao de uma parcela de [editado] sobre a compra inteira.
+///
+/// Descricao, pessoa e pote sao atributos da **compra**: mudam em todas as
+/// parcelas, sempre, sem perguntar. Corrigir o nome de uma compra deixando
+/// as outras onze parcelas com o nome errado nunca e o que se quis fazer.
+///
+/// [alcance] governa apenas o **valor**, que e o unico campo que pode
+/// legitimamente diferir entre parcelas (o arredondamento da ultima, um mes
+/// renegociado).
+///
+/// [novaQuantidade] vale **sempre** para a compra inteira, em qualquer modo:
+/// "quantas parcelas a compra tem" nao e propriedade de uma parcela isolada.
+/// Aumentar cria parcelas no fim; diminuir apaga as ultimas.
+///
+/// O mes da parcela 1 e a ancora, reconstruido a partir de qualquer parcela
+/// sobrevivente — nao do [editado]. Editar a parcela 3 de uma compra que
+/// comecou em agosto nao pode fazer a compra "recomecar" em outubro.
+///
+/// Encolher abaixo da parcela de [editado] apaga o proprio documento editado.
+/// A funcao obedece; e a UI que impede, validando o minimo no formulario.
+PlanoEdicaoCompra planejarEdicaoCompra({
+  required List<Gasto> existentes,
+  required Gasto editado,
+  required ModoEdicao alcance,
+  required int novaQuantidade,
+}) {
+  if (novaQuantidade < 1) {
+    throw ArgumentError.value(
+        novaQuantidade, 'novaQuantidade', 'precisa ser maior que zero');
+  }
+
+  final compraId = editado.compraId;
+  final daCompra = compraId == null
+      ? <Gasto>[]
+      : (existentes
+          .where((g) => g.compraId == compraId && g.parcela != null)
+          .toList()
+        ..sort((a, b) => a.parcela!.compareTo(b.parcela!)));
+
+  // Sem contexto da compra nao ha o que propagar nem como ancorar: cai para
+  // a edicao do documento solto, que e o comportamento honesto.
+  if (daCompra.isEmpty || editado.parcela == null) {
+    return PlanoEdicaoCompra(atualizar: [editado]);
+  }
+
+  final primeira = daCompra.first;
+  final inicio = MesRef.parse(primeira.mesRef).avancar(-(primeira.parcela! - 1));
+
+  // A parcela mais alta manda sobre o campo totalParcelas: se uma parcela do
+  // fim ja foi apagada individualmente, o total gravado pode estar adiante
+  // dela, e recriar o que foi apagado de proposito seria pior que o gap.
+  var totalAtual = 0;
+  for (final g in daCompra) {
+    final candidatos = [g.parcela!, g.totalParcelas ?? 0];
+    for (final c in candidatos) {
+      if (c > totalAtual) totalAtual = c;
+    }
+  }
+
+  bool herdaValor(Gasto g) => switch (alcance) {
+        ModoEdicao.somenteEsta => g.parcela == editado.parcela,
+        ModoEdicao.estaEFuturas => g.parcela! >= editado.parcela!,
+        ModoEdicao.todas => true,
+      };
+
+  final atualizar = <Gasto>[];
+  final remover = <String>[];
+
+  for (final g in daCompra) {
+    if (g.parcela! > novaQuantidade) {
+      remover.add(g.id);
+      continue;
+    }
+    // Identidade da compra e o total: valem para todas as parcelas.
+    var alvo = g.copyWith(
+      descricao: editado.descricao,
+      membroId: editado.membroId,
+      poteId: editado.poteId,
+      totalParcelas: novaQuantidade,
+    );
+    if (herdaValor(g)) alvo = alvo.copyWith(valor: editado.valor);
+
+    if (!_mesmoConteudo(alvo, g)) atualizar.add(alvo);
+  }
+
+  final criar = <Gasto>[
+    for (var k = totalAtual + 1; k <= novaQuantidade; k++)
+      Gasto(
+        id: '',
+        mesRef: inicio.avancar(k - 1).valor,
+        membroId: editado.membroId,
+        poteId: editado.poteId,
+        descricao: editado.descricao,
+        valor: editado.valor,
+        // Herda o carimbo da compra para as parcelas novas nao aparecerem
+        // separadas das irmas na lista, que ordena por criadoEm.
+        criadoEm: primeira.criadoEm,
+        parcelado: true,
+        compraId: compraId,
+        parcela: k,
+        totalParcelas: novaQuantidade,
+      ),
+  ];
+
+  return PlanoEdicaoCompra(
+      atualizar: atualizar, criar: criar, remover: remover);
+}
+
+/// Compara so o que esta edicao pode mexer, para nao gerar escrita inutil.
+bool _mesmoConteudo(Gasto a, Gasto b) =>
+    a.descricao == b.descricao &&
+    a.membroId == b.membroId &&
+    a.poteId == b.poteId &&
+    (a.valor - b.valor).abs() <= 0.005 &&
+    a.totalParcelas == b.totalParcelas &&
+    a.mesRef == b.mesRef;

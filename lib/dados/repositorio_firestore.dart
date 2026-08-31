@@ -130,6 +130,42 @@ class GastosFirestore implements RepositorioGastos {
   Future<void> atualizar(Gasto gasto) =>
       _col.doc(gasto.id).update(gasto.toMap());
 
+  /// Le a compra inteira, planeja e grava tudo num lote so: ou a compra
+  /// muda por completo, ou nao muda.
+  @override
+  Future<void> atualizarCompra({
+    required Gasto editado,
+    required ModoEdicao alcance,
+    required int novaQuantidade,
+  }) async {
+    final compraId = editado.compraId;
+    if (compraId == null) return atualizar(editado);
+
+    final snap = await _col.where('compraId', isEqualTo: compraId).get();
+    final existentes =
+        snap.docs.map((d) => Gasto.fromMap(d.id, d.data())).toList();
+
+    final plano = planejarEdicaoCompra(
+      existentes: existentes,
+      editado: editado,
+      alcance: alcance,
+      novaQuantidade: novaQuantidade,
+    );
+    if (plano.vazio) return;
+
+    final lote = db.batch();
+    for (final g in plano.atualizar) {
+      lote.update(_col.doc(g.id), g.toMap());
+    }
+    for (final id in plano.remover) {
+      lote.delete(_col.doc(id));
+    }
+    for (final g in plano.criar) {
+      lote.set(_col.doc(), g.toMap());
+    }
+    await lote.commit();
+  }
+
   @override
   Future<void> removerUma(String id) => _col.doc(id).delete();
 
