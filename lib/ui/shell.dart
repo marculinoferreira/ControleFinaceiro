@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'telas/tela_ganhos.dart';
+import 'telas/tela_gastos.dart';
+import 'telas/tela_parcelas.dart';
+import 'telas/tela_potes.dart';
 import 'widgets/barra_totais.dart';
 import 'widgets/seletor_mes.dart';
 
@@ -35,13 +39,16 @@ class _ShellState extends ConsumerState<Shell> {
   Widget build(BuildContext context) {
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
 
-    // Substituido pelas telas reais no plano das Fases 3 e 4.
-    final conteudo = Center(
-      child: Text(
-        _destinos[_indice].rotulo,
-        style: Theme.of(context).textTheme.headlineMedium,
-      ),
-    );
+    // Resumo e Graficos entram na Fase 4; os quatro do meio ja sao reais.
+    const telas = <Widget>[
+      _ProximaFase('Resumo dos Potes'),
+      TelaGanhos(),
+      TelaGastos(),
+      TelaPotes(),
+      TelaParcelas(),
+      _ProximaFase('Gráficos'),
+    ];
+    final conteudo = telas[_indice];
 
     final corpo = Column(
       children: [
@@ -89,6 +96,37 @@ class _ShellState extends ConsumerState<Shell> {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// Placeholder honesto: diz que a tela existe e quando chega, em vez de
+/// mostrar so o nome do destino e parecer uma tela quebrada.
+class _ProximaFase extends StatelessWidget {
+  final String nome;
+  const _ProximaFase(this.nome);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.construction,
+                size: 40, color: Theme.of(context).colorScheme.outline),
+            const SizedBox(height: 12),
+            Text(nome, style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text(
+              'Esta tela chega na próxima fase.',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -5,9 +5,14 @@ import 'package:controle_financeiro/dados/repositorios.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/shell.dart';
+import 'package:controle_financeiro/ui/telas/tela_ganhos.dart';
+import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
+import 'package:controle_financeiro/ui/telas/tela_parcelas.dart';
+import 'package:controle_financeiro/ui/telas/tela_potes.dart';
 
 Widget montar() => ProviderScope(
       overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
         repositorioPotesProvider.overrideWithValue(RepositorioPotesFake()),
         repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
         repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
@@ -72,5 +77,44 @@ void main() {
     expect(find.byKey(const Key('total_ganhos')), findsOneWidget);
     expect(find.byKey(const Key('total_gastos')), findsOneWidget);
     expect(find.byKey(const Key('total_saldo')), findsOneWidget);
+  });
+
+  testWidgets('cada destino abre a tela real correspondente', (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montar());
+    await tester.pumpAndSettle();
+
+    // Ganhos
+    await tester.tap(find.text('Ganhos').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaGanhos), findsOneWidget);
+
+    // Gastos
+    await tester.tap(find.text('Gastos').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaGastos), findsOneWidget);
+
+    // Potes
+    await tester.tap(find.text('Potes').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaPotes), findsOneWidget);
+
+    // Parcelas
+    await tester.tap(find.text('Parcelas').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaParcelas), findsOneWidget);
+  });
+
+  testWidgets('Resumo e Graficos avisam que sao da proxima fase',
+      (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montar());
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('próxima fase'), findsOneWidget);
+
+    await tester.tap(find.text('Graficos').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('próxima fase'), findsOneWidget);
   });
 }
