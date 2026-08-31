@@ -44,10 +44,14 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
   /// cascata leria como configuracao real.
   List<Pote>? _rascunho;
   final _controladores = <int, TextEditingController>{};
+  final _controladoresNome = <int, TextEditingController>{};
 
   @override
   void dispose() {
     for (final c in _controladores.values) {
+      c.dispose();
+    }
+    for (final c in _controladoresNome.values) {
       c.dispose();
     }
     super.dispose();
@@ -60,11 +64,26 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
     );
   }
 
+  // Mesma razao do controlador de percentual: com Key('pote_$i') sendo
+  // posicional, o Element de uma linha e reaproveitado apos reordenar ou
+  // remover, e TextFormField.didUpdateWidget so re-semeia o texto quando a
+  // referencia do controller muda — initialValue sozinho fica obsoleto.
+  TextEditingController _controladorNome(int indice, String nome) {
+    return _controladoresNome.putIfAbsent(
+      indice,
+      () => TextEditingController(text: nome),
+    );
+  }
+
   void _resincronizarControladores() {
     for (final c in _controladores.values) {
       c.dispose();
     }
     _controladores.clear();
+    for (final c in _controladoresNome.values) {
+      c.dispose();
+    }
+    _controladoresNome.clear();
   }
 
   double get _soma =>
@@ -173,7 +192,8 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
             const SizedBox(width: 12),
             Expanded(
               child: TextFormField(
-                initialValue: pote.nome,
+                key: Key('nome_$i'),
+                controller: _controladorNome(i, pote.nome),
                 decoration: const InputDecoration(
                   labelText: 'Nome',
                   border: OutlineInputBorder(),

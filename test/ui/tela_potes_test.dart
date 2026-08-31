@@ -133,6 +133,60 @@ void main() {
     expect(repo.todos.fold<double>(0, (a, p) => a + p.percentual), 100);
   });
 
+  testWidgets(
+      'reordenar atualiza o nome renderizado na linha, sem ficar obsoleto',
+      (tester) async {
+    await montar(tester);
+
+    // Move o terceiro pote (Prazer) para o topo.
+    lista(tester).onReorder(2, 0);
+    await tester.pump();
+
+    // O campo de nome na posicao 0 deve mostrar o pote que agora ocupa essa
+    // posicao ("Prazer"), nao o que ocupava antes ("Custo fixo"). Ler pelo
+    // texto renderizado no campo, nao pelo _rascunho, porque o bug e de
+    // exibicao: o dado interno ja estava correto.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('nome_0')),
+        matching: find.text('Prazer'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('nome_0')),
+        matching: find.text('Custo fixo'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('remover atualiza o nome renderizado na linha que sobe',
+      (tester) async {
+    await montar(tester);
+
+    await tester.tap(find.byKey(const Key('remover_0')));
+    await tester.pump();
+
+    // Depois de remover "Custo fixo" (indice 0), "Conforto" passa a ocupar
+    // a posicao 0. O campo de nome nessa posicao deve refletir isso.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('nome_0')),
+        matching: find.text('Conforto'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('nome_0')),
+        matching: find.text('Custo fixo'),
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('nao passa de 6 potes', (tester) async {
     await montar(tester, iniciais: const [
       Pote(id: 'a', nome: 'A', percentual: 50, ordem: 0,
