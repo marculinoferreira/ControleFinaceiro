@@ -9,6 +9,7 @@ import 'package:controle_financeiro/ui/telas/tela_ganhos.dart';
 import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
 import 'package:controle_financeiro/ui/telas/tela_parcelas.dart';
 import 'package:controle_financeiro/ui/telas/tela_potes.dart';
+import 'package:controle_financeiro/ui/telas/tela_resumo.dart';
 
 Widget montar() => ProviderScope(
       overrides: [
@@ -103,15 +104,27 @@ void main() {
     await tester.tap(find.text('Parcelas').first);
     await tester.pumpAndSettle();
     expect(find.byType(TelaParcelas), findsOneWidget);
+
+    // Resumo
+    await tester.tap(find.text('Resumo').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaResumo), findsOneWidget);
   });
 
-  testWidgets('Resumo e Gráficos avisam que sao da proxima fase',
+  testWidgets('o Resumo ja abre real, sem aviso de proxima fase',
       (tester) async {
     await comLargura(tester, 1400);
     await tester.pumpWidget(montar());
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('próxima fase'), findsOneWidget);
+    expect(find.byType(TelaResumo), findsOneWidget);
+    expect(find.textContaining('próxima fase'), findsNothing);
+  });
+
+  testWidgets('Gráficos ainda avisa que e da proxima tarefa', (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montar());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Gráficos').first);
     await tester.pumpAndSettle();

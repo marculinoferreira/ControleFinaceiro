@@ -5,6 +5,7 @@ import 'telas/tela_ganhos.dart';
 import 'telas/tela_gastos.dart';
 import 'telas/tela_parcelas.dart';
 import 'telas/tela_potes.dart';
+import 'telas/tela_resumo.dart';
 import 'widgets/barra_totais.dart';
 import 'widgets/seletor_mes.dart';
 
@@ -39,9 +40,9 @@ class _ShellState extends ConsumerState<Shell> {
   Widget build(BuildContext context) {
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
 
-    // Resumo e Gráficos entram na Fase 4; os quatro do meio ja sao reais.
+    // Graficos ainda entra nesta fase; o resto ja e real.
     const telas = <Widget>[
-      _ProximaFase('Resumo dos Potes'),
+      TelaResumo(),
       TelaGanhos(),
       TelaGastos(),
       TelaPotes(),

@@ -10,11 +10,19 @@ class LinhaResponsiva {
   final VoidCallback? aoTocar;
   final VoidCallback? aoExcluir;
 
+  /// Widget opcional colado ao primeiro valor -- uma barra de progresso, por
+  /// exemplo. Aparece nas duas formas: sob o primeiro valor no DataTable e
+  /// sob o titulo no card. Existe porque o Resumo dos Potes precisa de uma
+  /// barra por linha, e uma tela nao pode repetir a decisao de largura so
+  /// para conseguir desenhar isso.
+  final Widget? indicador;
+
   const LinhaResponsiva({
     required this.chave,
     required this.valores,
     this.aoTocar,
     this.aoExcluir,
+    this.indicador,
   });
 }
 
@@ -75,7 +83,20 @@ class TabelaResponsiva extends StatelessWidget {
                 onSelectChanged:
                     l.aoTocar == null ? null : (_) => l.aoTocar!(),
                 cells: [
-                  for (final v in l.valores) DataCell(Text(v)),
+                  for (final (i, v) in l.valores.indexed)
+                    DataCell(
+                      i == 0 && l.indicador != null
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(v),
+                                const SizedBox(height: 4),
+                                SizedBox(width: 160, child: l.indicador),
+                              ],
+                            )
+                          : Text(v),
+                    ),
                   if (_temAcoes)
                     DataCell(
                       l.aoExcluir == null
@@ -105,8 +126,19 @@ class TabelaResponsiva extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: ListTile(
             title: Text(l.valores.first),
-            subtitle: l.valores.length > 1
-                ? Text(l.valores.skip(1).join(' · '))
+            subtitle: l.valores.length > 1 || l.indicador != null
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (l.valores.length > 1)
+                        Text(l.valores.skip(1).join(' · ')),
+                      if (l.indicador != null) ...[
+                        const SizedBox(height: 6),
+                        l.indicador!,
+                      ],
+                    ],
+                  )
                 : null,
             onTap: l.aoTocar,
             trailing: l.aoExcluir == null
