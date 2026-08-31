@@ -9,6 +9,7 @@ import '../tema/formatadores.dart';
 import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/tabela_responsiva.dart';
+import 'formulario_gasto.dart';
 
 class TelaGastos extends ConsumerWidget {
   const TelaGastos({super.key});
@@ -23,8 +24,7 @@ class TelaGastos extends ConsumerWidget {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('novo_gasto'),
-        // Ligado ao formulario na Task 9.
-        onPressed: null,
+        onPressed: () => abrirFormularioGasto(context: context, ref: ref),
         icon: const Icon(Icons.add),
         label: const Text('Novo gasto'),
       ),
@@ -69,6 +69,8 @@ class TelaGastos extends ConsumerWidget {
               g.rotuloParcela,
               formatarReais(g.valor),
             ],
+            aoTocar: () =>
+                abrirFormularioGasto(context: context, ref: ref, existente: g),
             aoExcluir: () => _excluir(context, ref, g),
           ),
       ],
