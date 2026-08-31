@@ -66,7 +66,14 @@ class MolduraGrafico<T> extends StatelessWidget {
                     ?.copyWith(color: tema.colorScheme.outline),
               ),
             const SizedBox(height: 12),
-            SizedBox(height: altura, child: _corpo(context)),
+            // O erro fica FORA da altura fixa: ele tem icone, duas linhas de
+            // texto e um botao, e nao cabe no slot de um grafico baixo como
+            // a barra da cascata. Espremer a explicacao da falha e o pior
+            // lugar para economizar pixel.
+            if (dados.hasError)
+              ErroComRecarregar(erro: dados.error!, aoRecarregar: aoRecarregar)
+            else
+              SizedBox(height: altura, child: _corpo(context)),
             ..._legenda(),
           ],
         ),
@@ -74,9 +81,10 @@ class MolduraGrafico<T> extends StatelessWidget {
     );
   }
 
+  /// Sem o ramo de erro: ele e tratado antes, fora da altura fixa.
   Widget _corpo(BuildContext context) => dados.when(
         loading: () => const CarregandoLista(linhas: 3),
-        error: (e, _) => ErroComRecarregar(erro: e, aoRecarregar: aoRecarregar),
+        error: (e, _) => const SizedBox.shrink(),
         data: (valor) => estaVazio(valor)
             ? Center(
                 child: Padding(

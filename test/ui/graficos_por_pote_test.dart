@@ -253,12 +253,23 @@ void main() {
       expect(find.textContaining('Cadastre seus potes'), findsOneWidget);
     });
 
-    testWidgets('mes sem renda nem gasto nao quebra a escala', (tester) async {
+    testWidgets('mes sem renda nem gasto mostra a frase, sem barras zeradas',
+        (tester) async {
       await montar(tester, const BarrasPrevistoGasto(), ganho: 0);
 
-      // Todos os previstos sao zero; o eixo precisa continuar valido.
+      // Um grafico de barras de altura zero parece defeito.
+      expect(find.byType(BarChart), findsNothing);
+      expect(find.textContaining('Cadastre seus potes'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('previsto sem gasto nenhum ainda desenha, com escala valida',
+        (tester) async {
+      await montar(tester, const BarrasPrevistoGasto());
+
       final dados = tester.widget<BarChart>(find.byType(BarChart)).data;
       expect(dados.maxY, greaterThan(0));
+      expect(grupos(tester)[0].barRods[1].toY, 0); // gasto zero
       expect(tester.takeException(), isNull);
     });
 

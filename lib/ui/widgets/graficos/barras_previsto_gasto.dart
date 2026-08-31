@@ -25,7 +25,13 @@ class BarrasPrevistoGasto extends ConsumerWidget {
       titulo: 'Previsto × Gasto por pote',
       vazio: 'Cadastre seus potes e lance ganhos para ver o previsto.',
       dados: ref.watch(barrasPorPoteProvider),
-      estaVazio: (b) => b.isEmpty,
+      // Mes sem renda e sem gasto daria um grafico de barras de altura
+      // zero, que parece defeito. A frase diz mais.
+      estaVazio: (b) =>
+          b.isEmpty ||
+          serieVazia([
+            for (final x in b) ...[x.previsto, x.gasto],
+          ]),
       aoRecarregar: () {
         ref.invalidate(potesProvider);
         ref.invalidate(gastosDoMesProvider(mes));

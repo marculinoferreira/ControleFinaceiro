@@ -6,6 +6,7 @@ import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/shell.dart';
 import 'package:controle_financeiro/ui/telas/tela_ganhos.dart';
+import 'package:controle_financeiro/ui/telas/tela_graficos.dart';
 import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
 import 'package:controle_financeiro/ui/telas/tela_parcelas.dart';
 import 'package:controle_financeiro/ui/telas/tela_potes.dart';
@@ -121,13 +122,16 @@ void main() {
     expect(find.textContaining('próxima fase'), findsNothing);
   });
 
-  testWidgets('Gráficos ainda avisa que e da proxima tarefa', (tester) async {
+  testWidgets('Gráficos abre real: o shell nao tem mais placeholder',
+      (tester) async {
     await comLargura(tester, 1400);
     await tester.pumpWidget(montar());
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Gráficos').first);
     await tester.pumpAndSettle();
-    expect(find.textContaining('próxima fase'), findsOneWidget);
+
+    expect(find.byType(TelaGraficos), findsOneWidget);
+    expect(find.textContaining('próxima fase'), findsNothing);
   });
 }

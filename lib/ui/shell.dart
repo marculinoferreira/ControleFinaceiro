@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'telas/tela_ganhos.dart';
+import 'telas/tela_graficos.dart';
 import 'telas/tela_gastos.dart';
 import 'telas/tela_parcelas.dart';
 import 'telas/tela_potes.dart';
@@ -40,14 +41,13 @@ class _ShellState extends ConsumerState<Shell> {
   Widget build(BuildContext context) {
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
 
-    // Graficos ainda entra nesta fase; o resto ja e real.
     const telas = <Widget>[
       TelaResumo(),
       TelaGanhos(),
       TelaGastos(),
       TelaPotes(),
       TelaParcelas(),
-      _ProximaFase('Gráficos'),
+      TelaGraficos(),
     ];
     final conteudo = telas[_indice];
 
@@ -97,37 +97,6 @@ class _ShellState extends ConsumerState<Shell> {
                   ),
               ],
             ),
-    );
-  }
-}
-
-/// Placeholder honesto: diz que a tela existe e quando chega, em vez de
-/// mostrar so o nome do destino e parecer uma tela quebrada.
-class _ProximaFase extends StatelessWidget {
-  final String nome;
-  const _ProximaFase(this.nome);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.construction,
-                size: 40, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(nome, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              'Esta tela chega na próxima fase.',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

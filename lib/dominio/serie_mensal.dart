@@ -1,4 +1,3 @@
-import 'cascata.dart';
 import 'models/ganho.dart';
 import 'models/gasto.dart';
 import 'models/mes_ref.dart';
@@ -105,7 +104,3 @@ List<PontoComprometido> serieComprometimento({
           valor: comprometidoNoMes(parcelas, mes.valor),
         ),
     ];
-
-/// True quando a serie inteira e zero — nada a desenhar.
-bool serieVazia(Iterable<double> valores) =>
-    valores.every((v) => v.abs() <= toleranciaCentavo);

@@ -190,3 +190,9 @@ List<int> pesosDaCascata(ResultadoCascata resumo) => [
             ? 0
             : (linha.previsto * 100).round().clamp(1, 1 << 30),
     ];
+
+/// True quando tudo que seria desenhado e zero. Tres graficos precisam
+/// disto para preferir a frase ao desenho: duas retas coladas no eixo, ou
+/// barras de altura zero, nao dizem nada a quem olha.
+bool serieVazia(Iterable<double> valores) =>
+    valores.every((v) => v.abs() <= toleranciaCentavo);

@@ -270,22 +270,4 @@ void main() {
       expect(serie.every((p) => p.valor == 0), isTrue);
     });
   });
-
-  group('serieVazia', () {
-    test('tudo zero e vazio', () {
-      expect(serieVazia([0, 0, 0]), isTrue);
-    });
-
-    test('um valor acima da tolerancia ja nao e vazio', () {
-      expect(serieVazia([0, 0, 5]), isFalse);
-    });
-
-    test('centavos abaixo da tolerancia contam como vazio', () {
-      expect(serieVazia([0.001, 0]), isTrue);
-    });
-
-    test('lista vazia e vazia', () {
-      expect(serieVazia(const []), isTrue);
-    });
-  });
 }

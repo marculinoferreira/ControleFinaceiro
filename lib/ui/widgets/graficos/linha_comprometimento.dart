@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../dominio/graficos.dart';
 import '../../../dominio/serie_mensal.dart';
 import '../../../estado/providers.dart';
 import '../../tema/formatadores.dart';
