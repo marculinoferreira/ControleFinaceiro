@@ -174,3 +174,44 @@ final parcelasEmAbertoProvider =
         (gastos) => agruparParcelasEmAberto(gastos: gastos, mesAtual: mes),
       );
 });
+
+// --- Filtros da tela de Gastos ------------------------------------------
+
+/// Null significa "Casal": sem filtro de pessoa.
+class FiltroMembroNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void selecionar(String? membroId) => state = membroId;
+}
+
+final filtroMembroProvider =
+    NotifierProvider<FiltroMembroNotifier, String?>(FiltroMembroNotifier.new);
+
+/// Null significa "Todos os potes".
+class FiltroPoteNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void selecionar(String? poteId) => state = poteId;
+}
+
+final filtroPoteProvider =
+    NotifierProvider<FiltroPoteNotifier, String?>(FiltroPoteNotifier.new);
+
+/// Os gastos do mes ja passados pelos dois filtros. O filtro acontece aqui,
+/// e nao numa query do Firestore, porque combinar duas igualdades opcionais
+/// exigiria um indice para cada combinacao — e o volume de um mes cabe
+/// folgado em memoria.
+final gastosFiltradosProvider =
+    Provider.autoDispose<AsyncValue<List<Gasto>>>((ref) {
+  final mesRef = ref.watch(mesSelecionadoProvider).valor;
+  final membroId = ref.watch(filtroMembroProvider);
+  final poteId = ref.watch(filtroPoteProvider);
+
+  return ref.watch(gastosDoMesProvider(mesRef)).whenData(
+        (lista) => lista
+            .where((g) =>
+                (membroId == null || g.membroId == membroId) &&
+                (poteId == null || g.poteId == poteId))
+            .toList(),
+      );
+});

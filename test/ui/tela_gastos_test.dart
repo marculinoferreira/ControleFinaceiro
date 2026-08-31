@@ -1,0 +1,192 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:controle_financeiro/dados/repositorios.dart';
+import 'package:controle_financeiro/dominio/models/casa.dart';
+import 'package:controle_financeiro/dominio/models/gasto.dart';
+import 'package:controle_financeiro/dominio/models/membro.dart';
+import 'package:controle_financeiro/dominio/models/mes_ref.dart';
+import 'package:controle_financeiro/dominio/models/pote.dart';
+import 'package:controle_financeiro/estado/providers.dart';
+import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
+
+const casa = Casa(
+  id: 'principal',
+  nome: 'Casa',
+  membros: [
+    Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+        cor: '#2E7D32', ordem: 0),
+    Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+        cor: '#6A1B9A', ordem: 1),
+  ],
+);
+
+const potes = [
+  Pote(id: 'p1', nome: 'Custo fixo', percentual: 60, ordem: 0,
+      cor: '#2E7D32', icone: 'casa'),
+  Pote(id: 'p2', nome: 'Conforto', percentual: 40, ordem: 1,
+      cor: '#1565C0', icone: 'sofa'),
+];
+
+Gasto simples(String membroId, String poteId, double valor, String desc) =>
+    Gasto(
+      id: '',
+      mesRef: '2026-08',
+      membroId: membroId,
+      poteId: poteId,
+      descricao: desc,
+      valor: valor,
+      criadoEm: DateTime.utc(2026, 8, 2),
+      parcelado: false,
+    );
+
+Future<(ProviderContainer, RepositorioGastosFake)> montar(
+  WidgetTester tester, {
+  List<Gasto> simplesIniciais = const [],
+  Gasto? parceladoBase,
+  int parcelas = 0,
+}) async {
+  tester.view.physicalSize = const Size(1400, 1200);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  final repo = RepositorioGastosFake();
+  for (final g in simplesIniciais) {
+    await repo.adicionar(base: g, quantidadeParcelas: 1);
+  }
+  if (parceladoBase != null) {
+    await repo.adicionar(base: parceladoBase, quantidadeParcelas: parcelas);
+  }
+
+  final container = ProviderContainer(overrides: [
+    repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+    repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+    repositorioGastosProvider.overrideWithValue(repo),
+  ]);
+  addTearDown(container.dispose);
+  container.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+
+  await tester.pumpWidget(UncontrolledProviderScope(
+    container: container,
+    child: const MaterialApp(home: TelaGastos()),
+  ));
+  await tester.pumpAndSettle();
+  return (container, repo);
+}
+
+void main() {
+  testWidgets('lista os gastos do mes', (tester) async {
+    await montar(tester, simplesIniciais: [
+      simples('marcos', 'p1', 1200, 'Aluguel'),
+      simples('silvia', 'p2', 300, 'Cinema'),
+    ]);
+
+    expect(find.text('Aluguel'), findsOneWidget);
+    expect(find.text('Cinema'), findsOneWidget);
+  });
+
+  testWidgets('mes vazio mostra a mensagem de lista vazia', (tester) async {
+    await montar(tester);
+
+    expect(find.textContaining('Nenhum gasto'), findsOneWidget);
+  });
+
+  testWidgets('itens parcelados exibem a parcela', (tester) async {
+    await montar(
+      tester,
+      parceladoBase: simples('marcos', 'p2', 100, 'Geladeira'),
+      parcelas: 10,
+    );
+
+    expect(find.text('1/10'), findsOneWidget);
+  });
+
+  testWidgets('filtrar por pessoa esconde os gastos da outra',
+      (tester) async {
+    final (container, _) = await montar(tester, simplesIniciais: [
+      simples('marcos', 'p1', 1200, 'Aluguel'),
+      simples('silvia', 'p2', 300, 'Cinema'),
+    ]);
+
+    container.read(filtroMembroProvider.notifier).selecionar('marcos');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aluguel'), findsOneWidget);
+    expect(find.text('Cinema'), findsNothing);
+  });
+
+  testWidgets('filtrar por pote esconde os outros potes', (tester) async {
+    final (container, _) = await montar(tester, simplesIniciais: [
+      simples('marcos', 'p1', 1200, 'Aluguel'),
+      simples('silvia', 'p2', 300, 'Cinema'),
+    ]);
+
+    container.read(filtroPoteProvider.notifier).selecionar('p2');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cinema'), findsOneWidget);
+    expect(find.text('Aluguel'), findsNothing);
+  });
+
+  testWidgets('os dois filtros se somam', (tester) async {
+    final (container, _) = await montar(tester, simplesIniciais: [
+      simples('marcos', 'p1', 1200, 'Aluguel'),
+      simples('marcos', 'p2', 200, 'Sofa'),
+      simples('silvia', 'p2', 300, 'Cinema'),
+    ]);
+
+    container.read(filtroMembroProvider.notifier).selecionar('marcos');
+    container.read(filtroPoteProvider.notifier).selecionar('p2');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sofa'), findsOneWidget);
+    expect(find.text('Aluguel'), findsNothing);
+    expect(find.text('Cinema'), findsNothing);
+  });
+
+  testWidgets('filtro nulo volta a mostrar o casal inteiro', (tester) async {
+    final (container, _) = await montar(tester, simplesIniciais: [
+      simples('marcos', 'p1', 1200, 'Aluguel'),
+      simples('silvia', 'p2', 300, 'Cinema'),
+    ]);
+
+    container.read(filtroMembroProvider.notifier).selecionar('marcos');
+    await tester.pumpAndSettle();
+    container.read(filtroMembroProvider.notifier).selecionar(null);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aluguel'), findsOneWidget);
+    expect(find.text('Cinema'), findsOneWidget);
+  });
+
+  testWidgets('excluir gasto simples apaga sem perguntar nada',
+      (tester) async {
+    final (_, repo) = await montar(tester,
+        simplesIniciais: [simples('marcos', 'p1', 1200, 'Aluguel')]);
+    expect(repo.todos, hasLength(1));
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, isEmpty);
+  });
+
+  testWidgets('excluir parcelado abre o dialogo dos tres modos',
+      (tester) async {
+    final (_, repo) = await montar(
+      tester,
+      parceladoBase: simples('marcos', 'p2', 100, 'Geladeira'),
+      parcelas: 10,
+    );
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todas as parcelas'), findsOneWidget);
+
+    await tester.tap(find.text('Todas as parcelas'));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, isEmpty);
+  });
+}
