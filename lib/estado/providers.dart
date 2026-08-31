@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../dados/repositorios.dart';
 import '../dados/servico_auth.dart';
 import '../dominio/cascata.dart';
+import '../dominio/graficos.dart';
 import '../dominio/models/casa.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
@@ -212,6 +213,41 @@ final serieMensalProvider =
       gastos: gastos,
       membroId: membroId,
     ),
+  );
+});
+
+/// Gastos do mes somados por pote, ja respeitando a visao selecionada.
+final gastosPorPoteProvider =
+    Provider.autoDispose<AsyncValue<Map<String, double>>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+  final membroId = ref.watch(visaoProvider);
+
+  return ref
+      .watch(gastosDoMesProvider(mes))
+      .whenData((gastos) => somarGastosPorPote(gastos, membroId: membroId));
+});
+
+/// Fatias da rosca (grafico 1 da spec 10).
+final fatiasPorPoteProvider =
+    Provider.autoDispose<AsyncValue<List<FatiaPote>>>((ref) {
+  return combinarAsyncValues(
+    ref.watch(potesProvider),
+    ref.watch(gastosPorPoteProvider),
+    (potes, porPote) => fatiasPorPote(porPote: porPote, potes: potes),
+  );
+});
+
+/// Barras de Previsto x Gasto (grafico 2 da spec 10).
+///
+/// O previsto vem das linhas da cascata, nao de uma multiplicacao refeita
+/// aqui: ha um lugar so no app que sabe transformar percentual em dinheiro.
+final barrasPorPoteProvider =
+    Provider.autoDispose<AsyncValue<List<BarraPote>>>((ref) {
+  return combinarAsyncValues(
+    ref.watch(resumoCascataProvider),
+    ref.watch(gastosPorPoteProvider),
+    (resumo, porPote) =>
+        barrasPrevistoGasto(linhas: resumo.linhas, porPote: porPote),
   );
 });
 
