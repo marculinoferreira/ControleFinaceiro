@@ -22,7 +22,7 @@ const List<_Destino> _destinos = [
   _Destino('Gastos', Icons.receipt_long),
   _Destino('Potes', Icons.pie_chart_outline),
   _Destino('Parcelas', Icons.event_repeat),
-  _Destino('Graficos', Icons.insights),
+  _Destino('Gráficos', Icons.insights),
 ];
 
 class Shell extends ConsumerStatefulWidget {
@@ -39,7 +39,7 @@ class _ShellState extends ConsumerState<Shell> {
   Widget build(BuildContext context) {
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
 
-    // Resumo e Graficos entram na Fase 4; os quatro do meio ja sao reais.
+    // Resumo e Gráficos entram na Fase 4; os quatro do meio ja sao reais.
     const telas = <Widget>[
       _ProximaFase('Resumo dos Potes'),
       TelaGanhos(),

@@ -3,25 +3,60 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dominio/models/gasto.dart';
+import '../../dominio/models/membro.dart';
 import '../../dominio/models/mes_ref.dart';
 import '../../dominio/models/pote.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 import '../widgets/campo_moeda.dart';
+import '../widgets/estados_async.dart';
 import '../widgets/formulario_responsivo.dart';
+
+/// O que o formulario devolve ao ser fechado: os dados prontos para gravar,
+/// sem que o formulario em si precise saber de repositorio. [existente] nulo
+/// no `abrirFormularioGasto` que chamou decide entre adicionar e atualizar.
+class _ResultadoFormularioGasto {
+  final Gasto gasto;
+  final int quantidadeParcelas;
+  const _ResultadoFormularioGasto(this.gasto, this.quantidadeParcelas);
+}
 
 /// Abre o formulario na moldura certa para a largura atual e grava o
 /// resultado. [existente] nulo significa novo lancamento.
+///
+/// Fecha o dialogo/folha PRIMEIRO e so entao escreve no repositorio — mesma
+/// ordem de `_abrir` em tela_ganhos.dart. Com persistencia offline habilitada
+/// (main.dart), o Future da escrita so completa quando o servidor confirma;
+/// esperar por ele antes de fechar travaria o formulario aberto indefinida-
+/// mente sem rede.
 Future<void> abrirFormularioGasto({
   required BuildContext context,
   required WidgetRef ref,
   Gasto? existente,
-}) {
-  return mostrarFormulario<void>(
+}) async {
+  final resultado = await mostrarFormulario<_ResultadoFormularioGasto>(
     context: context,
     titulo: existente == null ? 'Novo gasto' : 'Editar gasto',
     construir: (c) => FormularioGasto(existente: existente),
   );
+  if (resultado == null) return;
+
+  final repo = ref.read(repositorioGastosProvider);
+  try {
+    if (existente != null) {
+      // Edicao mexe so neste documento: os tres modos da spec valem para
+      // exclusao, nao para edicao.
+      await repo.atualizar(resultado.gasto);
+    } else {
+      await repo.adicionar(
+        base: resultado.gasto,
+        quantidadeParcelas: resultado.quantidadeParcelas,
+      );
+    }
+  } catch (e) {
+    if (!context.mounted) return;
+    avisarErroDeEscrita(context, e);
+  }
 }
 
 class FormularioGasto extends ConsumerStatefulWidget {
@@ -40,6 +75,13 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
   late String _membroId;
   String? _poteId;
   late bool _parcelado;
+
+  /// Guarda de reentrancia: sem ela, dois toques rapidos no Salvar antes do
+  /// primeiro pop surtir efeito na arvore de widgets chamariam validate() e
+  /// Navigator.pop() duas vezes -- o classico bug do "duplo pop" que fecha
+  /// uma tela a mais, ou (antes desta correcao mover a escrita para depois
+  /// do fechamento) enfileiraria dois commits offline duplicando o lancamento.
+  bool _salvando = false;
 
   @override
   void initState() {
@@ -74,8 +116,10 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
 
   int get _quantidadeParcelas => int.tryParse(_quantidade.text) ?? 0;
 
-  Future<void> _salvar() async {
+  void _salvar() {
+    if (_salvando) return;
     if (!_chave.currentState!.validate()) return;
+    _salvando = true;
 
     final mes = ref.read(mesSelecionadoProvider);
     final base = widget.existente;
@@ -93,28 +137,48 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
       totalParcelas: base?.totalParcelas,
     );
 
-    final repo = ref.read(repositorioGastosProvider);
-    if (base != null) {
-      // Edicao mexe so neste documento: os tres modos da spec valem para
-      // exclusao, nao para edicao.
-      await repo.atualizar(gasto);
-    } else {
-      await repo.adicionar(
-        base: gasto,
-        quantidadeParcelas: _parcelado ? _quantidadeParcelas : 1,
-      );
-    }
-
-    if (mounted) Navigator.of(context).pop();
+    Navigator.of(context).pop(
+      _ResultadoFormularioGasto(
+        gasto,
+        _parcelado ? _quantidadeParcelas : 1,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final membros = ref.watch(membrosProvider);
-    final potes = ref.watch(potesProvider).value ?? const <Pote>[];
 
+    // AsyncValue.when com os tres ramos, sem excecao: `.value ?? []` faria o
+    // validador do pote acusar "Cadastre um pote antes." enquanto os potes
+    // ainda estao carregando, mesmo quando eles existem.
+    return ref.watch(potesProvider).when(
+          loading: () => const CarregandoLista(linhas: 3),
+          error: (e, _) => ErroComRecarregar(
+            erro: e,
+            aoRecarregar: () => ref.invalidate(potesProvider),
+          ),
+          data: (potes) => _formulario(context, membros, potes),
+        );
+  }
+
+  Widget _formulario(
+    BuildContext context,
+    List<Membro> membros,
+    List<Pote> potes,
+  ) {
     // Preenche os defaults na primeira construcao em que os dados chegaram.
     if (_membroId.isEmpty && membros.isNotEmpty) _membroId = membros.first.id;
+
+    // Se o pote apontado nao existe mais (foi apagado enquanto o formulario
+    // estava aberto, ou o lancamento editado aponta para um pote ja
+    // removido), reseta em vez de manter um id orfao: sem isso o
+    // DropdownButtonFormField derruba o assert de "exactly one item with
+    // [DropdownButton]'s value", e reenviar o id orfao no Salvar deixaria o
+    // gasto preso a um pote que nao existe mais.
+    if (_poteId != null && !potes.any((p) => p.id == _poteId)) {
+      _poteId = null;
+    }
     _poteId ??= potes.isEmpty ? null : potes.first.id;
 
     final mes = ref.watch(mesSelecionadoProvider);
@@ -149,6 +213,8 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
                 DropdownMenuItem(value: m.id, child: Text(m.nome)),
             ],
             onChanged: (v) => setState(() => _membroId = v ?? _membroId),
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Selecione quem gastou.' : null,
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -219,7 +285,7 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
           const SizedBox(height: 20),
           FilledButton(
             key: const Key('gasto_salvar'),
-            onPressed: _salvar,
+            onPressed: _salvando ? null : _salvar,
             child: const Text('Salvar'),
           ),
         ],

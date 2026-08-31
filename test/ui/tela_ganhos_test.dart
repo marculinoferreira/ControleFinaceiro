@@ -29,6 +29,21 @@ const casa = Casa(
   ],
 );
 
+/// Fake cujas escritas falham enquanto `falhar` for true -- achado 6
+/// (nenhum caminho de escrita tinha tratamento de erro). Comeca em true;
+/// desligue para semear dados antes de montar a tela.
+class _GanhosFakeQueFalha extends RepositorioGanhosFake {
+  bool falhar = true;
+
+  @override
+  Future<void> adicionar(Ganho ganho) =>
+      falhar ? Future.error(Exception('offline')) : super.adicionar(ganho);
+
+  @override
+  Future<void> remover(String id) =>
+      falhar ? Future.error(Exception('offline')) : super.remover(id);
+}
+
 Ganho ganho(String id, String membroId, double valor) => Ganho(
       id: id,
       mesRef: '2026-08',
@@ -242,5 +257,67 @@ void main() {
     await montar(tester);
 
     expect(find.byKey(const Key('secoes_empilhadas')), findsNothing);
+  });
+
+  testWidgets(
+      'achado 6 — erro ao adicionar ganho mostra um aviso em vez de nao '
+      'fazer nada', (tester) async {
+    await comLargura(tester, 1400);
+    final repo = _GanhosFakeQueFalha();
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+      repositorioGanhosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaGanhos()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('novo_ganho')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('form_descricao')), 'Freela');
+    await tester.enterText(find.byType(TextFormField).last, '120000');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('form_salvar')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  testWidgets(
+      'achado 6 — erro ao excluir ganho mostra um aviso em vez de nao '
+      'fazer nada', (tester) async {
+    await comLargura(tester, 1400);
+    final repo = _GanhosFakeQueFalha()..falhar = false;
+    await repo.adicionar(ganho('', 'marcos', 4000));
+    repo.falhar = true;
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+      repositorioGanhosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaGanhos()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(repo.todos, hasLength(1)); // nao apagou
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

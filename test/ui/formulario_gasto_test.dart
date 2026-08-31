@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,62 @@ import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/telas/formulario_gasto.dart';
 import 'package:controle_financeiro/ui/tema/formatadores.dart';
+
+/// Fake cujo observar() so emite quando `emitir` e chamado -- deixa o teste
+/// capturar o estado de loading do potesProvider (achado 5).
+class _PotesFakeControlavel implements RepositorioPotes {
+  final _controlador = StreamController<List<Pote>>();
+
+  @override
+  Stream<List<Pote>> observar() => _controlador.stream;
+
+  @override
+  Future<void> salvarTodos(List<Pote> potes) async {}
+
+  @override
+  Future<void> remover(String id) async {}
+
+  void emitir(List<Pote> lista) => _controlador.add(lista);
+
+  Future<void> fechar() => _controlador.close();
+}
+
+/// Fake cujo adicionar() fica preso ate o teste chamar `liberar` -- sem
+/// nenhum Future.delayed, entao nao depende do relogio falso. Usado para
+/// os achados 3 (fecha antes de escrever) e 3b (guarda de reentrancia).
+class _GastosFakeComEspera extends RepositorioGastosFake {
+  int chamadasAdicionar = 0;
+  final _pendentes = <Completer<void>>[];
+
+  @override
+  Future<void> adicionar({
+    required Gasto base,
+    required int quantidadeParcelas,
+  }) async {
+    chamadasAdicionar++;
+    final completer = Completer<void>();
+    _pendentes.add(completer);
+    await completer.future;
+    await super.adicionar(base: base, quantidadeParcelas: quantidadeParcelas);
+  }
+
+  void liberar() {
+    for (final c in _pendentes) {
+      if (!c.isCompleted) c.complete();
+    }
+    _pendentes.clear();
+  }
+}
+
+/// Fake cujo adicionar() sempre falha -- achado 6.
+class _GastosFakeQueFalha extends RepositorioGastosFake {
+  @override
+  Future<void> adicionar({
+    required Gasto base,
+    required int quantidadeParcelas,
+  }) =>
+      Future.error(Exception('offline'));
+}
 
 const casa = Casa(
   id: 'principal',
@@ -29,7 +87,11 @@ const potes = [
       cor: '#1565C0', icone: 'sofa'),
 ];
 
-/// Monta o formulario isolado, num Scaffold, com os fakes injetados.
+/// Monta o formulario ABERTO por `abrirFormularioGasto` (dialogo, na largura
+/// de desktop usada aqui), e nao mais direto num Scaffold: desde que o
+/// formulario passou a fechar primeiro e escrever depois (mesma ordem de
+/// tela_ganhos), quem grava e o chamador que recebe o resultado do pop --
+/// so existe se o formulario for aberto pelo fluxo real.
 Future<RepositorioGastosFake> montar(
   WidgetTester tester, {
   Gasto? existente,
@@ -53,10 +115,28 @@ Future<RepositorioGastosFake> montar(
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
     child: MaterialApp(
-      home: Scaffold(body: FormularioGasto(existente: existente)),
+      home: Consumer(
+        builder: (context, ref, _) => Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              key: const Key('abrir_formulario'),
+              onPressed: () => abrirFormularioGasto(
+                context: context,
+                ref: ref,
+                existente: existente,
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ),
     ),
   ));
   await tester.pumpAndSettle();
+
+  await tester.tap(find.byKey(const Key('abrir_formulario')));
+  await tester.pumpAndSettle();
+
   return repo;
 }
 
@@ -301,5 +381,183 @@ void main() {
     final switchTile = tester.widget<SwitchListTile>(
         find.byKey(const Key('gasto_parcelado')));
     expect(switchTile.onChanged, isNull);
+  });
+
+  testWidgets(
+      'achado 2 — editar um gasto cujo pote foi apagado nao derruba a tela',
+      (tester) async {
+    final gastoComPoteOrfao = Gasto(
+      id: 'g1',
+      mesRef: '2026-08',
+      membroId: 'marcos',
+      poteId: 'pote-fantasma',
+      descricao: 'Conta antiga',
+      valor: 50,
+      criadoEm: DateTime.utc(2026, 8, 2),
+      parcelado: false,
+    );
+
+    // Sem a correcao, montar isto lanca o assert do DropdownButtonFormField
+    // de "gasto_pote" durante o pump.
+    await montar(tester, existente: gastoComPoteOrfao);
+
+    expect(tester.takeException(), isNull);
+    // A tela nao trava com o pote orfao: reseta para um pote valido (o
+    // primeiro da lista) em vez de manter o id que nao existe mais.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('gasto_pote')),
+        matching: find.text('Custo fixo'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'achado 4 — sem membros cadastrados, o validador de "De quem" '
+      'bloqueia o salvar', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const casaSemMembros = Casa(id: 'principal', nome: 'Casa', membros: []);
+    final repo = RepositorioGastosFake();
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider
+          .overrideWithValue(RepositorioCasaFake(casaSemMembros)),
+      repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+    container.listen(potesProvider, (_, _) {});
+    container.listen(casaProvider, (_, _) {});
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+        home: Scaffold(body: FormularioGasto()),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await preencher(tester, descricao: 'Teste sem membro');
+    await tester.tap(find.byKey(const Key('gasto_salvar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, isEmpty);
+    expect(find.text('Selecione quem gastou.'), findsOneWidget);
+  });
+
+  testWidgets(
+      'achado 5 — enquanto potes carrega, nao mostra o formulario nem o '
+      'validador de pote indevidamente', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final potesFake = _PotesFakeControlavel();
+    addTearDown(potesFake.fechar);
+    final repo = RepositorioGastosFake();
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+      repositorioPotesProvider.overrideWithValue(potesFake),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+    container.listen(casaProvider, (_, _) {});
+    // De proposito NAO aquecemos potesProvider aqui: queremos capturar o
+    // estado de loading antes de qualquer emissao.
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+        home: Scaffold(body: FormularioGasto()),
+      ),
+    ));
+    await tester.pump();
+
+    // Sem a correcao (`.value ?? []`), o dropdown de pote e o validador
+    // "Cadastre um pote antes." apareceriam mesmo com os potes ainda
+    // carregando.
+    expect(find.byKey(const Key('gasto_pote')), findsNothing);
+    expect(find.textContaining('Cadastre um pote antes'), findsNothing);
+
+    potesFake.emitir(potes);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('gasto_pote')), findsOneWidget);
+  });
+
+  testWidgets(
+      'achado 3 — fecha o formulario antes da escrita completar (nao trava '
+      'offline)', (tester) async {
+    final repo = _GastosFakeComEspera();
+    await montar(tester, comRepo: repo);
+    await preencher(tester);
+
+    await tester.tap(find.byKey(const Key('gasto_salvar')));
+    // pumpAndSettle so se importa com frames/animacoes pendentes, nao com
+    // Futures soltos -- ele assenta a transicao de fechamento do dialogo
+    // mesmo com a escrita ainda presa no Completer.
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('gasto_descricao')), findsNothing);
+    expect(repo.todos, isEmpty); // a escrita ainda nao completou
+
+    repo.liberar();
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, hasLength(1));
+  });
+
+  testWidgets('achado 3b — dois toques rapidos no salvar gravam uma vez so',
+      (tester) async {
+    final repo = _GastosFakeComEspera();
+    await montar(tester, comRepo: repo);
+    await preencher(tester);
+
+    // Chama onPressed direto duas vezes em sequencia, em vez de dois
+    // tester.tap(): o primeiro pop() ja torna o botao inalcancavel por
+    // hit-test antes de qualquer pump (o dialogo comeca a fechar), entao um
+    // segundo tap "de verdade" nao reproduziria o toque duplo. Chamando o
+    // mesmo callback que um toque real dispararia, reentramos em _salvar()
+    // exatamente como dois toques quase simultaneos fariam.
+    final botao =
+        tester.widget<FilledButton>(find.byKey(const Key('gasto_salvar')));
+    botao.onPressed?.call();
+    botao.onPressed?.call();
+
+    // O pop() resolve a Future de mostrarFormulario via microtask: um pump
+    // deixa abrirFormularioGasto retomar e chamar repo.adicionar (que entao
+    // registra o Completer que liberar() completa).
+    await tester.pump();
+    repo.liberar();
+    await tester.pumpAndSettle();
+
+    expect(repo.chamadasAdicionar, 1);
+    expect(repo.todos, hasLength(1));
+    // Sem a guarda, o segundo Navigator.pop() nao e um no-op inofensivo:
+    // ele fecha a TELA POR TRAS do formulario tambem (o classico bug do
+    // "duplo pop"), deixando a tela que abriu o formulario inacessivel.
+    expect(find.byKey(const Key('abrir_formulario')), findsOneWidget);
+  });
+
+  testWidgets('achado 6 — erro ao salvar gasto mostra um aviso',
+      (tester) async {
+    final repo = _GastosFakeQueFalha();
+    await montar(tester, comRepo: repo);
+    await preencher(tester);
+
+    await tester.tap(find.byKey(const Key('gasto_salvar')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

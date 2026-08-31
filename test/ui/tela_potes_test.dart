@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +7,113 @@ import 'package:controle_financeiro/dados/repositorios.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/telas/tela_potes.dart';
+
+/// Fake que cunha ids como o Firestore faz em PotesFirestore.salvarTodos:
+/// um pote com id vazio ganha um id novo a cada chamada, e qualquer
+/// documento existente cujo id nao esteja entre os enviados e apagado. O
+/// RepositorioPotesFake normal (lib/dados/repositorios.dart) so faz
+/// `_potes = [...potes]` -- preserva `id: ''` tal e qual, entao nao consegue
+/// reproduzir o bug de troca de id descrito no achado 1.
+class _PotesFakeComCunhagemDeId implements RepositorioPotes {
+  List<Pote> _potes;
+  final _controlador = StreamController<void>.broadcast();
+  var _seq = 0;
+
+  _PotesFakeComCunhagemDeId([List<Pote> iniciais = const []])
+      : _potes = [...iniciais];
+
+  List<Pote> get todos => List.unmodifiable(_potes);
+
+  @override
+  Stream<List<Pote>> observar() => Stream.multi((assinante) {
+        assinante.add(List<Pote>.unmodifiable(_potes));
+        final assinatura = _controlador.stream
+            .listen((_) => assinante.add(List<Pote>.unmodifiable(_potes)));
+        assinante.onCancel = assinatura.cancel;
+      });
+
+  @override
+  Future<void> salvarTodos(List<Pote> potes) async {
+    // Mesma logica de PotesFirestore.salvarTodos: apaga os documentos
+    // atuais cujo id nao esta entre os enviados, e cunha um id novo para
+    // cada pote que chega com id vazio.
+    final mantidos = potes.map((p) => p.id).toSet();
+    _potes.removeWhere((p) => !mantidos.contains(p.id));
+    _potes = [
+      for (final p in potes)
+        p.id.isEmpty ? p.copyWith(id: 'pote-${_seq++}') : p,
+    ];
+    _controlador.add(null);
+  }
+
+  @override
+  Future<void> remover(String id) async {
+    _potes.removeWhere((p) => p.id == id);
+    _controlador.add(null);
+  }
+}
+
+/// Fake cujo salvarTodos sempre falha -- simula permissao negada ou um
+/// commit que nunca chega ao servidor.
+class _PotesFakeQueFalha implements RepositorioPotes {
+  final List<Pote> _potes;
+  _PotesFakeQueFalha(this._potes);
+
+  @override
+  Stream<List<Pote>> observar() => Stream.value(List<Pote>.unmodifiable(_potes));
+
+  @override
+  Future<void> salvarTodos(List<Pote> potes) =>
+      Future.error(Exception('permissao negada'));
+
+  @override
+  Future<void> remover(String id) async {}
+}
+
+/// Fake que so conta quantas vezes salvarTodos foi chamado e deixa o
+/// chamador controlar quando cada chamada completa via Completer -- sem
+/// nenhum Future.delayed, entao nao depende do relogio falso dos testes.
+class _PotesFakeContandoChamadas implements RepositorioPotes {
+  List<Pote> _potes;
+  final _controlador = StreamController<void>.broadcast();
+  int chamadas = 0;
+  final _pendentes = <Completer<void>>[];
+
+  _PotesFakeContandoChamadas([List<Pote> iniciais = const []])
+      : _potes = [...iniciais];
+
+  @override
+  Stream<List<Pote>> observar() => Stream.multi((assinante) {
+        assinante.add(List<Pote>.unmodifiable(_potes));
+        final assinatura = _controlador.stream
+            .listen((_) => assinante.add(List<Pote>.unmodifiable(_potes)));
+        assinante.onCancel = assinatura.cancel;
+      });
+
+  @override
+  Future<void> salvarTodos(List<Pote> potes) async {
+    chamadas++;
+    final completer = Completer<void>();
+    _pendentes.add(completer);
+    await completer.future;
+    _potes = [...potes];
+    _controlador.add(null);
+  }
+
+  /// Libera todas as chamadas pendentes ate agora.
+  void completarPendentes() {
+    for (final c in _pendentes) {
+      if (!c.isCompleted) c.complete();
+    }
+    _pendentes.clear();
+  }
+
+  @override
+  Future<void> remover(String id) async {
+    _potes.removeWhere((p) => p.id == id);
+    _controlador.add(null);
+  }
+}
 
 const tresPotes = [
   Pote(id: 'p1', nome: 'Custo fixo', percentual: 55, ordem: 0,
@@ -236,5 +345,159 @@ void main() {
     final botao =
         tester.widget<FilledButton>(find.byKey(const Key('salvar_potes')));
     expect(botao.onPressed, isNull); // 85%, nao fecha
+  });
+
+  group('achado 1 (critico) — rascunho nao re-semeado apos salvar', () {
+    Future<_PotesFakeComCunhagemDeId> montarComCunhagem(
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final fake = _PotesFakeComCunhagemDeId(tresPotes);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [repositorioPotesProvider.overrideWithValue(fake)],
+        child: const MaterialApp(home: TelaPotes()),
+      ));
+      await tester.pumpAndSettle();
+      return fake;
+    }
+
+    testWidgets('salvar duas vezes seguidas mantem os mesmos ids',
+        (tester) async {
+      final fake = await montarComCunhagem(tester);
+
+      // Adiciona um pote novo: entra com id vazio, exatamente como a UI faz
+      // (tela_potes.dart:_adicionarPote). A soma continua 100% (entra com
+      // 0%), entao o Salvar permanece habilitado.
+      await tester.tap(find.byKey(const Key('adicionar_pote')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('salvar_potes')));
+      await tester.pumpAndSettle();
+      final idsAposPrimeiro = fake.todos.map((p) => p.id).toSet();
+      expect(idsAposPrimeiro, hasLength(4)); // 3 originais + 1 novo cunhado
+
+      // O SnackBar de sucesso cobre a linha do Salvar (achado 8); avanca o
+      // relogio falso (nao e Future.delayed real) ate o timer dele disparar
+      // e depois assenta a animacao de saida, para o segundo toque nao ser
+      // engolido por um SnackBar ainda em transicao de saida.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('salvar_potes')));
+      await tester.pumpAndSettle();
+      final idsAposSegundo = fake.todos.map((p) => p.id).toSet();
+
+      // Sem a correcao, o pote novo troca de id a cada Salvar (o antigo e
+      // apagado e um outro e cunhado), entao os dois conjuntos diferem.
+      expect(idsAposSegundo, idsAposPrimeiro);
+      expect(fake.todos, hasLength(4)); // ninguem ficou orfao
+    });
+
+    testWidgets(
+        'uma emissao nova do stream depois de salvar aparece na tela',
+        (tester) async {
+      final fake = await montarComCunhagem(tester);
+
+      // Toca Salvar mas NAO assenta a tela ainda: o objetivo e capturar a
+      // janela entre o `setState(() => _rascunho = null)` (agendado pelo
+      // Salvar) e o proximo rebuild de verdade. Se assentarmos aqui, o
+      // rebuild pendente ja re-semeia o rascunho com os dados atuais (ainda
+      // sem a renomeacao) antes da escrita externa acontecer.
+      await tester.tap(find.byKey(const Key('salvar_potes')));
+
+      // Simula a outra pessoa renomeando um pote enquanto esta aba
+      // continua aberta: uma escrita direta no repositorio, sem passar
+      // pela UI local, ANTES do primeiro rebuild pos-Salvar acontecer.
+      final renomeados = [
+        for (final p in fake.todos)
+          p.id == 'p1' ? p.copyWith(nome: 'Custo fixo (renomeado)') : p,
+      ];
+      await fake.salvarTodos(renomeados);
+      await tester.pumpAndSettle();
+
+      // Sem a correcao, _rascunho continua com o valor semeado antes do
+      // primeiro Salvar e a renomeacao externa nunca aparece.
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('nome_0')),
+          matching: find.text('Custo fixo (renomeado)'),
+        ),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('achado 3b — guarda de reentrancia no Salvar', () {
+    testWidgets('dois toques rapidos no salvar gravam uma vez so',
+        (tester) async {
+      tester.view.physicalSize = const Size(1400, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final fake = _PotesFakeContandoChamadas(tresPotes);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [repositorioPotesProvider.overrideWithValue(fake)],
+        child: const MaterialApp(home: TelaPotes()),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('salvar_potes')));
+      // Um pump (nao pumpAndSettle): a escrita esta presa no Completer, so
+      // o suficiente para o setState do inicio de _salvar reconstruir a
+      // tela e desabilitar o botao.
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('salvar_potes')));
+      await tester.pump();
+
+      fake.completarPendentes();
+      await tester.pumpAndSettle();
+
+      expect(fake.chamadas, 1);
+    });
+  });
+
+  testWidgets('o SnackBar de sucesso usa comportamento floating',
+      (tester) async {
+    await montar(tester);
+
+    await tester.tap(find.byKey(const Key('salvar_potes')));
+    await tester.pumpAndSettle();
+
+    final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
+    expect(snackBar.behavior, SnackBarBehavior.floating);
+  });
+
+  group('achado 6 — tratamento de erro na escrita', () {
+    testWidgets(
+        'salvarTodos falhando mostra um aviso em vez de nao fazer nada',
+        (tester) async {
+      tester.view.physicalSize = const Size(1400, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final fake = _PotesFakeQueFalha([...tresPotes]);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [repositorioPotesProvider.overrideWithValue(fake)],
+        child: const MaterialApp(home: TelaPotes()),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('salvar_potes')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.text('Potes salvos.'), findsNothing);
+
+      // O botao volta a ficar habilitado depois do erro: a guarda de
+      // reentrancia nao pode travar o usuario para sempre so porque a
+      // ultima tentativa falhou.
+      final botao =
+          tester.widget<FilledButton>(find.byKey(const Key('salvar_potes')));
+      expect(botao.onPressed, isNotNull);
+    });
   });
 }

@@ -46,6 +46,13 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
   final _controladores = <int, TextEditingController>{};
   final _controladoresNome = <int, TextEditingController>{};
 
+  /// Guarda de reentrancia: sem ela, um toque duplo no Salvar (facil de
+  /// acontecer enquanto a escrita ainda esta em voo, ex. offline) dispara
+  /// dois `salvarTodos` concorrentes com o mesmo rascunho — inclusive um
+  /// pote novo com id vazio nos dois, o que o Firestore cunha como dois
+  /// documentos em vez de um.
+  bool _salvando = false;
+
   @override
   void dispose() {
     for (final c in _controladores.values) {
@@ -163,7 +170,7 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
               const SizedBox(width: 12),
               FilledButton(
                 key: const Key('salvar_potes'),
-                onPressed: fecha ? _salvar : null,
+                onPressed: fecha && !_salvando ? _salvar : null,
                 child: const Text('Salvar'),
               ),
             ],
@@ -254,17 +261,42 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
   }
 
   Future<void> _salvar() async {
+    if (_salvando) return;
+    setState(() => _salvando = true);
+
     // A posicao na lista e a prioridade da cascata: normaliza a ordem
     // antes de gravar, para nao depender do que veio do banco.
     final normalizados = <Pote>[
       for (var i = 0; i < _rascunho!.length; i++)
         _rascunho![i].copyWith(ordem: i),
     ];
-    await ref.read(repositorioPotesProvider).salvarTodos(normalizados);
+
+    try {
+      await ref.read(repositorioPotesProvider).salvarTodos(normalizados);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _salvando = false);
+      avisarErroDeEscrita(context, e);
+      return;
+    }
 
     if (!mounted) return;
+    // Limpa o rascunho: sem isso ele nunca e re-semeado (`_rascunho ??=` so
+    // age quando e null), entao um pote novo continua com o id vazio local
+    // mesmo depois do Firestore ja ter cunhado um id de verdade — o proximo
+    // Salvar manda '' de novo e salvarTodos apaga o documento cunhado para
+    // criar outro do zero. Nulificar tambem deixa uma renomeacao feita pela
+    // outra pessoa aparecer na proxima emissao do stream.
+    setState(() {
+      _rascunho = null;
+      _resincronizarControladores();
+      _salvando = false;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Potes salvos.')),
+      const SnackBar(
+        content: Text('Potes salvos.'),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

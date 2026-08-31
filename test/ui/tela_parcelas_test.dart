@@ -10,6 +10,19 @@ import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/telas/tela_parcelas.dart';
 
+/// Fake cujo observar() emite erro -- achado 5 (leitura assincrona sem os
+/// tres ramos de AsyncValue.when).
+class _PotesFakeQueErra implements RepositorioPotes {
+  @override
+  Stream<List<Pote>> observar() => Stream.error(Exception('sem permissao'));
+
+  @override
+  Future<void> salvarTodos(List<Pote> potes) async {}
+
+  @override
+  Future<void> remover(String id) async {}
+}
+
 const casa = Casa(
   id: 'principal',
   nome: 'Casa',
@@ -100,5 +113,43 @@ void main() {
         .map((t) => t.data ?? '')
         .toList();
     expect(textos.indexOf('Curta'), lessThan(textos.indexOf('Longa')));
+  });
+
+  testWidgets(
+      'achado 5 — erro ao carregar potes mostra aviso em vez de ids crus',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = RepositorioGastosFake();
+    await repo.adicionar(base: base('Geladeira'), quantidadeParcelas: 10);
+
+    final container = ProviderContainer(
+      // Sem isto, o StreamProvider agenda retries automaticos com Timer
+      // apos o erro, e o teste falharia com "Timer is still pending" apos
+      // o dispose.
+      retry: (_, _) => null,
+      overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+        repositorioPotesProvider.overrideWithValue(_PotesFakeQueErra()),
+        repositorioGastosProvider.overrideWithValue(repo),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaParcelas()),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Nao foi possivel carregar'), findsOneWidget);
+    // Sem a correcao, a compra aparece com o id cru do pote em vez de sumir
+    // atras de um estado de erro.
+    expect(find.text('p2'), findsNothing);
   });
 }

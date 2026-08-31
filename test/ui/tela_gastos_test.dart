@@ -40,6 +40,26 @@ Gasto simples(String membroId, String poteId, double valor, String desc) =>
       parcelado: false,
     );
 
+/// Fake cujo observar() emite erro -- simula uma permissao negada no
+/// Firestore para o achado 5 (leitura assincrona sem os tres ramos).
+class _PotesFakeQueErra implements RepositorioPotes {
+  @override
+  Stream<List<Pote>> observar() => Stream.error(Exception('sem permissao'));
+
+  @override
+  Future<void> salvarTodos(List<Pote> potes) async {}
+
+  @override
+  Future<void> remover(String id) async {}
+}
+
+/// Fake cujo removerUma sempre falha -- simula o achado 6 (nenhum caminho de
+/// escrita tinha tratamento de erro).
+class _GastosFakeQueFalhaAoExcluir extends RepositorioGastosFake {
+  @override
+  Future<void> removerUma(String id) => Future.error(Exception('offline'));
+}
+
 Future<(ProviderContainer, RepositorioGastosFake)> montar(
   WidgetTester tester, {
   List<Gasto> simplesIniciais = const [],
@@ -188,5 +208,148 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.todos, isEmpty);
+  });
+
+  testWidgets(
+      'filtro apontando para pote ou membro que nao existe mais nao '
+      'derruba a tela', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = RepositorioGastosFake();
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+      repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+    // Simula a outra pessoa apagando o pote/membro enquanto esta aba
+    // estava aberta com o filtro apontado para eles.
+    container.read(filtroPoteProvider.notifier).selecionar('pote-fantasma');
+    container
+        .read(filtroMembroProvider.notifier)
+        .selecionar('membro-fantasma');
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaGastos()),
+    ));
+
+    // Sem a correcao, o pump acima lanca "There should be exactly one item
+    // with [DropdownButton]'s value" (o assert do Flutter, em debug).
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TelaGastos), findsOneWidget);
+  });
+
+  testWidgets('FAB de novo gasto fica desabilitado sem membros cadastrados',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const casaSemMembros = Casa(id: 'principal', nome: 'Casa', membros: []);
+    final repo = RepositorioGastosFake();
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider
+          .overrideWithValue(RepositorioCasaFake(casaSemMembros)),
+      repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaGastos()),
+    ));
+    await tester.pumpAndSettle();
+
+    final fab = tester
+        .widget<FloatingActionButton>(find.byKey(const Key('novo_gasto')));
+    expect(fab.onPressed, isNull);
+  });
+
+  testWidgets(
+      'erro ao carregar potes mostra aviso de erro em vez de ids crus',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = RepositorioGastosFake();
+    await repo.adicionar(
+      base: simples('marcos', 'p1', 1200, 'Aluguel'),
+      quantidadeParcelas: 1,
+    );
+    final container = ProviderContainer(
+      // Sem isto, o StreamProvider agenda retries automaticos com Timer
+      // apos o erro; o teste falharia com "Timer is still pending" no
+      // dispose, por um comportamento (retry/backoff) que nao e o foco
+      // deste achado.
+      retry: (_, _) => null,
+      overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+        repositorioPotesProvider.overrideWithValue(_PotesFakeQueErra()),
+        repositorioGastosProvider.overrideWithValue(repo),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaGastos()),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Nao foi possivel carregar'), findsOneWidget);
+    // Sem a correcao, o gasto aparece com o id cru do pote em vez de sumir
+    // atras de um estado de erro.
+    expect(find.text('p1'), findsNothing);
+  });
+
+  testWidgets('erro ao excluir gasto mostra um aviso em vez de nao fazer nada',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = _GastosFakeQueFalhaAoExcluir();
+    await repo.adicionar(
+      base: simples('marcos', 'p1', 1200, 'Aluguel'),
+      quantidadeParcelas: 1,
+    );
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+      repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaGastos()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(repo.todos, hasLength(1)); // nao apagou
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

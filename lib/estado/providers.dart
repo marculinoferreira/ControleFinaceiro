@@ -114,8 +114,12 @@ final parceladosDesdeProvider =
 
 // --- Derivados ------------------------------------------------------------
 
-/// Combina dois AsyncValue preservando loading e erro.
-AsyncValue<R> _combinar<A, B, R>(
+/// Combina dois AsyncValue preservando loading e erro. Publica (nao mais
+/// privada a este arquivo) porque as telas de Gastos, Parcelas e o
+/// formulario de Gasto tambem precisam compor potesProvider com outro
+/// AsyncValue sem violar a regra de que toda leitura assincrona passa pelos
+/// tres ramos de AsyncValue.when.
+AsyncValue<R> combinarAsyncValues<A, B, R>(
   AsyncValue<A> a,
   AsyncValue<B> b,
   R Function(A, B) juntar,
@@ -130,7 +134,7 @@ final totaisDoMesProvider = Provider.autoDispose<AsyncValue<TotaisMes>>((ref) {
   final mes = ref.watch(mesSelecionadoProvider).valor;
   final membroId = ref.watch(visaoProvider);
 
-  return _combinar(
+  return combinarAsyncValues(
     ref.watch(ganhosDoMesProvider(mes)),
     ref.watch(gastosDoMesProvider(mes)),
     (ganhos, gastos) =>
@@ -144,7 +148,7 @@ final totaisDoCasalProvider =
     Provider.autoDispose<AsyncValue<TotaisMes>>((ref) {
   final mes = ref.watch(mesSelecionadoProvider).valor;
 
-  return _combinar(
+  return combinarAsyncValues(
     ref.watch(ganhosDoMesProvider(mes)),
     ref.watch(gastosDoMesProvider(mes)),
     (ganhos, gastos) => calcularTotais(ganhos: ganhos, gastos: gastos),
@@ -156,7 +160,7 @@ final resumoCascataProvider =
   final potes = ref.watch(potesProvider);
   final totais = ref.watch(totaisDoMesProvider);
 
-  return _combinar(
+  return combinarAsyncValues(
     potes,
     totais,
     (listaPotes, t) => calcularCascata(

@@ -62,10 +62,15 @@ Future<void> _abrir(
   if (resultado == null) return;
 
   final repo = ref.read(repositorioGanhosProvider);
-  if (existente == null) {
-    await repo.adicionar(resultado);
-  } else {
-    await repo.atualizar(resultado);
+  try {
+    if (existente == null) {
+      await repo.adicionar(resultado);
+    } else {
+      await repo.atualizar(resultado);
+    }
+  } catch (e) {
+    if (!context.mounted) return;
+    avisarErroDeEscrita(context, e);
   }
 }
 
@@ -197,9 +202,16 @@ class _ColunaMembro extends ConsumerWidget {
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete_outline),
                                 tooltip: 'Excluir',
-                                onPressed: () => ref
-                                    .read(repositorioGanhosProvider)
-                                    .remover(g.id),
+                                onPressed: () async {
+                                  try {
+                                    await ref
+                                        .read(repositorioGanhosProvider)
+                                        .remover(g.id);
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    avisarErroDeEscrita(context, e);
+                                  }
+                                },
                               ),
                             );
                           },

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../dominio/models/pote.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 import '../widgets/estados_async.dart';
@@ -14,18 +13,29 @@ class TelaParcelas extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final abertas = ref.watch(parcelasEmAbertoProvider);
     final membros = ref.watch(membrosProvider);
-    final potes = ref.watch(potesProvider).value ?? const <Pote>[];
     final mesRef = ref.watch(mesSelecionadoProvider).valor;
 
-    return abertas.when(
+    // Combina com potesProvider em vez de `.value ?? []`: a regra global
+    // e que toda leitura assincrona passa pelos tres ramos de
+    // AsyncValue.when, sem excecao.
+    final combinado = combinarAsyncValues(
+      ref.watch(potesProvider),
+      ref.watch(parcelasEmAbertoProvider),
+      (potes, compras) => (potes, compras),
+    );
+
+    return combinado.when(
       loading: () => const CarregandoLista(),
       error: (e, _) => ErroComRecarregar(
         erro: e,
-        aoRecarregar: () => ref.invalidate(parceladosDesdeProvider(mesRef)),
+        aoRecarregar: () {
+          ref.invalidate(potesProvider);
+          ref.invalidate(parceladosDesdeProvider(mesRef));
+        },
       ),
-      data: (compras) {
+      data: (par) {
+        final (potes, compras) = par;
         return TabelaResponsiva(
           colunas: const [
             'Compra',

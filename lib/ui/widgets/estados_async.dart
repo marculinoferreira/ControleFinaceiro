@@ -24,6 +24,22 @@ class CarregandoLista extends StatelessWidget {
   }
 }
 
+/// Mostra um SnackBar de erro para uma escrita que falhou -- permissao
+/// negada, commit que nunca chega ao servidor offline etc. A spec so
+/// especifica o tratamento de falha de LEITURA (o par loading/error do
+/// AsyncValue.when); escrita nao tem uma contrapartida estruturada, entao
+/// isto e o minimo: avisar em portugues em vez de deixar a tela parada sem
+/// explicacao nenhuma.
+void avisarErroDeEscrita(BuildContext context, Object erro) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text('Não foi possível salvar. Verifique sua conexão e '
+          'tente novamente.'),
+    ),
+  );
+}
+
 class ErroComRecarregar extends StatelessWidget {
   final Object erro;
   final VoidCallback aoRecarregar;

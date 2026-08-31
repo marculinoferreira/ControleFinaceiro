@@ -105,7 +105,7 @@ void main() {
     expect(find.byType(TelaParcelas), findsOneWidget);
   });
 
-  testWidgets('Resumo e Graficos avisam que sao da proxima fase',
+  testWidgets('Resumo e Gráficos avisam que sao da proxima fase',
       (tester) async {
     await comLargura(tester, 1400);
     await tester.pumpWidget(montar());
@@ -113,7 +113,7 @@ void main() {
 
     expect(find.textContaining('próxima fase'), findsOneWidget);
 
-    await tester.tap(find.text('Graficos').first);
+    await tester.tap(find.text('Gráficos').first);
     await tester.pumpAndSettle();
     expect(find.textContaining('próxima fase'), findsOneWidget);
   });
