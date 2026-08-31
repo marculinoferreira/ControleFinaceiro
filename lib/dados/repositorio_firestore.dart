@@ -74,6 +74,14 @@ class GanhosFirestore implements RepositorioGanhos {
       .map((s) => s.docs.map((d) => Ganho.fromMap(d.id, d.data())).toList());
 
   @override
+  Stream<List<Ganho>> observarIntervalo(String inicio, String fim) => _col
+      .where('mesRef', isGreaterThanOrEqualTo: inicio)
+      .where('mesRef', isLessThanOrEqualTo: fim)
+      .orderBy('mesRef')
+      .snapshots()
+      .map((s) => s.docs.map((d) => Ganho.fromMap(d.id, d.data())).toList());
+
+  @override
   Future<void> adicionar(Ganho ganho) => _col.add(ganho.toMap());
 
   @override
@@ -97,6 +105,14 @@ class GastosFirestore implements RepositorioGastos {
   Stream<List<Gasto>> observarMes(String mesRef) => _col
       .where('mesRef', isEqualTo: mesRef)
       .orderBy('criadoEm', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map((d) => Gasto.fromMap(d.id, d.data())).toList());
+
+  @override
+  Stream<List<Gasto>> observarIntervalo(String inicio, String fim) => _col
+      .where('mesRef', isGreaterThanOrEqualTo: inicio)
+      .where('mesRef', isLessThanOrEqualTo: fim)
+      .orderBy('mesRef')
       .snapshots()
       .map((s) => s.docs.map((d) => Gasto.fromMap(d.id, d.data())).toList());
 

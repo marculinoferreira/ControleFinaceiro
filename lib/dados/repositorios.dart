@@ -27,6 +27,15 @@ abstract class RepositorioPotes {
 
 abstract class RepositorioGanhos {
   Stream<List<Ganho>> observarMes(String mesRef);
+
+  /// Lancamentos com mesRef entre [inicio] e [fim], ambos inclusive.
+  /// Alimenta a serie mensal dos graficos de evolucao.
+  ///
+  /// Uma query de intervalo, e nao N assinaturas de observarMes: "YYYY-MM"
+  /// ordena lexicograficamente na mesma ordem em que ordena
+  /// cronologicamente, entao a comparacao de strings basta e nao custa um
+  /// indice composto novo.
+  Stream<List<Ganho>> observarIntervalo(String inicio, String fim);
   Future<void> adicionar(Ganho ganho);
   Future<void> atualizar(Ganho ganho);
   Future<void> remover(String id);
@@ -34,6 +43,10 @@ abstract class RepositorioGanhos {
 
 abstract class RepositorioGastos {
   Stream<List<Gasto>> observarMes(String mesRef);
+
+  /// Lancamentos com mesRef entre [inicio] e [fim], ambos inclusive.
+  /// Cada parcela conta no mes em que cai, nao no mes da compra.
+  Stream<List<Gasto>> observarIntervalo(String inicio, String fim);
 
   /// Parcelas com mesRef >= [mesRef]. Alimenta "Parcelas em aberto" e o
   /// grafico de comprometimento futuro.
@@ -82,6 +95,11 @@ Stream<T> _correnteEDepois<T>(Stream<void> atualizacoes, T Function() ler) =>
       assinante.onCancel = assinatura.cancel;
     });
 
+/// Comparacao de janela nos fakes. Igual a do Firestore: "YYYY-MM" ordena
+/// como texto na mesma ordem em que ordena no tempo, extremos inclusive.
+bool _dentro(String mesRef, String inicio, String fim) =>
+    mesRef.compareTo(inicio) >= 0 && mesRef.compareTo(fim) <= 0;
+
 class RepositorioGastosFake implements RepositorioGastos {
   final List<Gasto> _gastos = [];
   final _controlador = StreamController<void>.broadcast();
@@ -106,6 +124,13 @@ class RepositorioGastosFake implements RepositorioGastos {
                 g.parcelado &&
                 MesRef.parse(g.mesRef).compareTo(MesRef.parse(mesRef)) >= 0)
             .toList(),
+      );
+
+  @override
+  Stream<List<Gasto>> observarIntervalo(String inicio, String fim) =>
+      _correnteEDepois(
+        _controlador.stream,
+        () => _gastos.where((g) => _dentro(g.mesRef, inicio, fim)).toList(),
       );
 
   @override
@@ -189,6 +214,13 @@ class RepositorioGanhosFake implements RepositorioGanhos {
   Stream<List<Ganho>> observarMes(String mesRef) => _correnteEDepois(
         _controlador.stream,
         () => _ganhos.where((g) => g.mesRef == mesRef).toList(),
+      );
+
+  @override
+  Stream<List<Ganho>> observarIntervalo(String inicio, String fim) =>
+      _correnteEDepois(
+        _controlador.stream,
+        () => _ganhos.where((g) => _dentro(g.mesRef, inicio, fim)).toList(),
       );
 
   @override

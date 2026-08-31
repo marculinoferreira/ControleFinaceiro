@@ -11,6 +11,7 @@ import '../dominio/models/membro.dart';
 import '../dominio/models/mes_ref.dart';
 import '../dominio/models/pote.dart';
 import '../dominio/parcelas.dart';
+import '../dominio/serie_mensal.dart';
 import '../dominio/totais.dart';
 
 // --- Infraestrutura: sobrescrita em main.dart ------------------------------
@@ -112,6 +113,24 @@ final parceladosDesdeProvider =
       ref.watch(repositorioGastosProvider).observarParceladosDesde(mesRef),
 );
 
+/// Uma janela (inicio, fim) de meses, ambos inclusive. O registro e a chave
+/// da family: dois pedidos da mesma janela compartilham uma assinatura so.
+typedef JanelaMeses = ({String inicio, String fim});
+
+final ganhosDoIntervaloProvider =
+    StreamProvider.autoDispose.family<List<Ganho>, JanelaMeses>(
+  (ref, janela) => ref
+      .watch(repositorioGanhosProvider)
+      .observarIntervalo(janela.inicio, janela.fim),
+);
+
+final gastosDoIntervaloProvider =
+    StreamProvider.autoDispose.family<List<Gasto>, JanelaMeses>(
+  (ref, janela) => ref
+      .watch(repositorioGastosProvider)
+      .observarIntervalo(janela.inicio, janela.fim),
+);
+
 // --- Derivados ------------------------------------------------------------
 
 /// Combina dois AsyncValue preservando loading e erro. Publica (nao mais
@@ -167,6 +186,31 @@ final resumoCascataProvider =
       potes: listaPotes,
       totalGanhos: t.ganhos,
       totalGastos: t.gastos,
+    ),
+  );
+});
+
+/// Quantos meses a serie de evolucao cobre, terminando no mes selecionado.
+/// Doze fecha o ciclo anual e ainda cabe no eixo sem embolar os rotulos.
+const int mesesDaSerie = 12;
+
+/// Ganhos e gastos dos ultimos [mesesDaSerie] meses, respeitando a visao.
+/// Alimenta o grafico 3 da spec.
+final serieMensalProvider =
+    Provider.autoDispose<AsyncValue<List<PontoMensal>>>((ref) {
+  final fim = ref.watch(mesSelecionadoProvider);
+  final membroId = ref.watch(visaoProvider);
+  final meses = janelaAte(fim, mesesDaSerie);
+  final janela = (inicio: meses.first.valor, fim: fim.valor);
+
+  return combinarAsyncValues(
+    ref.watch(ganhosDoIntervaloProvider(janela)),
+    ref.watch(gastosDoIntervaloProvider(janela)),
+    (ganhos, gastos) => montarSerie(
+      meses: meses,
+      ganhos: ganhos,
+      gastos: gastos,
+      membroId: membroId,
     ),
   );
 });
