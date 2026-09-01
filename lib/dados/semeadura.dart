@@ -1,3 +1,4 @@
+import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
 import '../dominio/models/membro.dart';
 import '../dominio/models/pote.dart';
@@ -18,6 +19,16 @@ List<Pote> potesPadrao() => const [
           cor: '#AD1457', icone: 'presente'),
       Pote(id: '', nome: 'Conhecimento', percentual: 5, ordem: 5,
           cor: '#4527A0', icone: 'livro'),
+    ];
+
+/// Cartoes e carteiras que a casa ja usa. E so um ponto de partida: a tela
+/// de Cartoes permite renomear, remover e acrescentar.
+List<Cartao> cartoesPadrao() => const [
+      Cartao(id: '', nome: 'Inter', ordem: 0),
+      Cartao(id: '', nome: 'Mercado Pago', ordem: 1),
+      Cartao(id: '', nome: 'Nubank', ordem: 2),
+      Cartao(id: '', nome: 'Magazine Luiza', ordem: 3),
+      Cartao(id: '', nome: 'Sicoob', ordem: 4),
     ];
 
 Casa casaPadrao() => const Casa(
@@ -49,11 +60,18 @@ Casa casaPadrao() => const Casa(
 Future<void> semear({
   required RepositorioCasa casa,
   required RepositorioPotes potes,
+  RepositorioCartoes? cartoes,
 }) async {
   if (await casa.observar().first == null) {
     await casa.criar(casaPadrao());
   }
   if ((await potes.observar().first).isEmpty) {
     await potes.salvarTodos(potesPadrao());
+  }
+  // Opcional para nao quebrar quem ja chamava semear com dois argumentos.
+  if (cartoes != null && (await cartoes.observar().first).isEmpty) {
+    for (final cartao in cartoesPadrao()) {
+      await cartoes.salvar(cartao);
+    }
   }
 }

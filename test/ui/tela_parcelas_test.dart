@@ -62,6 +62,7 @@ Future<void> montar(
   final container = ProviderContainer(overrides: [
     repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
     repositorioGastosProvider.overrideWithValue(repo),
   ]);
   addTearDown(container.dispose);
@@ -69,7 +70,7 @@ Future<void> montar(
 
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
-    child: const MaterialApp(home: TelaParcelas()),
+    child: const MaterialApp(home: Scaffold(body: TelaParcelas())),
   ));
   await tester.pumpAndSettle();
 }
@@ -101,13 +102,16 @@ void main() {
     expect(find.textContaining('Nenhuma compra parcelada'), findsOneWidget);
   });
 
-  testWidgets('ordena da que quita primeiro para a que quita por ultimo',
-      (tester) async {
+  testWidgets('a ordem padrao agora e por data de vencimento', (tester) async {
     await montar(tester, (repo) async {
       await repo.adicionar(base: base('Longa'), quantidadeParcelas: 12);
       await repo.adicionar(base: base('Curta'), quantidadeParcelas: 3);
     });
 
+    // Antes a tela vinha ordenada por parcelas restantes ("quita primeiro").
+    // Com o seletor de ordem, o padrao passou a ser Data, como em Gastos.
+    // As duas compras tem a mesma data aqui, entao caem no mesmo grupo e a
+    // ordem interna e alfabetica.
     final textos = tester
         .widgetList<Text>(find.byType(Text))
         .map((t) => t.data ?? '')
@@ -133,6 +137,7 @@ void main() {
       overrides: [
         repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
         repositorioPotesProvider.overrideWithValue(_PotesFakeQueErra()),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGastosProvider.overrideWithValue(repo),
       ],
     );
@@ -143,7 +148,7 @@ void main() {
 
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: TelaParcelas()),
+      child: const MaterialApp(home: Scaffold(body: TelaParcelas())),
     ));
     await tester.pumpAndSettle();
 

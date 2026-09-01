@@ -14,18 +14,20 @@ List<Gasto> compraDe({
   String compraId = 'c1',
   String prefixoId = 'g',
 }) {
-  final base = MesRef.parse(inicio);
+  final inicioRef = MesRef.parse(inicio);
   return List.generate(
     total,
     (i) => Gasto(
       id: '$prefixoId${i + 1}',
-      mesRef: base.avancar(i).valor,
+      mesRef: inicioRef.avancar(i).valor,
       membroId: membroId,
       poteId: poteId,
       descricao: descricao,
       valor: valor,
       criadoEm: DateTime(2026, 8, 1),
+      data: DateTime(inicioRef.avancar(i).ano, inicioRef.avancar(i).mes, 12),
       parcelado: true,
+      cartaoId: 'ct1',
       compraId: compraId,
       parcela: i + 1,
       totalParcelas: total,
@@ -361,6 +363,169 @@ void main() {
       );
 
       expect(plano.remover, containsAll(['g4', 'g5']));
+    });
+  });
+
+  group('planejarEdicaoCompra — data', () {
+    test('mudar a data propaga o dia para todas, cada uma no seu mes', () {
+      final existentes = compraDe(total: 3); // Ago, Set, Out, todas dia 12
+      final editado = existentes.first.copyWith(data: DateTime(2026, 8, 17));
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 3,
+      );
+
+      expect(plano.atualizar, hasLength(3));
+      expect(plano.atualizar.map((g) => g.data).toList(), [
+        DateTime(2026, 8, 17),
+        DateTime(2026, 9, 17),
+        DateTime(2026, 10, 17),
+      ]);
+    });
+
+    test('editar a parcela do meio ancora nela, e as irmas se alinham', () {
+      final existentes = compraDe(total: 3);
+      // Parcela 2 (Set) passa para 17/09.
+      final editado = existentes[1].copyWith(data: DateTime(2026, 9, 17));
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 3,
+      );
+
+      expect(plano.atualizar.map((g) => g.data).toList(), [
+        DateTime(2026, 8, 17),
+        DateTime(2026, 9, 17), // a editada, exatamente como digitada
+        DateTime(2026, 10, 17),
+      ]);
+    });
+
+    test('dia 31 encolhe para o ultimo dia dos meses curtos', () {
+      final existentes = compraDe(total: 4, inicio: '2026-01'); // Jan..Abr
+      final editado = existentes.first.copyWith(data: DateTime(2026, 1, 31));
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 4,
+      );
+
+      expect(plano.atualizar.map((g) => g.data).toList(), [
+        DateTime(2026, 1, 31),
+        DateTime(2026, 2, 28), // fevereiro nao tem 31
+        DateTime(2026, 3, 31),
+        DateTime(2026, 4, 30), // abril tem 30
+      ]);
+    });
+
+    test('so mudar a data ja gera escrita, sem mexer no valor', () {
+      final existentes = compraDe(total: 2);
+      final editado = existentes.first.copyWith(data: DateTime(2026, 8, 20));
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 2,
+      );
+
+      expect(plano.atualizar, isNotEmpty);
+      expect(plano.atualizar.every((g) => g.valor == 126), isTrue);
+    });
+
+    test('parcela nova nasce alinhada a data editada', () {
+      final existentes = compraDe(total: 2);
+      final editado = existentes.first.copyWith(data: DateTime(2026, 8, 17));
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 3,
+      );
+
+      expect(plano.criar.single.data, DateTime(2026, 10, 17));
+    });
+
+    test('a data nao muda quando nao foi tocada', () {
+      final existentes = compraDe(total: 3);
+      final editado = existentes.first.copyWith(descricao: 'pneus novos');
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 3,
+      );
+
+      expect(plano.atualizar.map((g) => g.data.day).toList(), [12, 12, 12]);
+    });
+  });
+
+  group('planejarEdicaoCompra — cartao', () {
+    test('trocar o cartao vale para a compra inteira, sem perguntar', () {
+      final existentes = compraDe(total: 3);
+      final editado = existentes[1].copyWith(cartaoId: 'ct2');
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        // Mesmo com o alcance mais restrito: cartao e da compra, nao da
+        // parcela. Um parcelamento nao troca de cartao no meio.
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 3,
+      );
+
+      expect(plano.atualizar, hasLength(3));
+      expect(plano.atualizar.every((g) => g.cartaoId == 'ct2'), isTrue);
+    });
+
+    test('parcela nova nasce no cartao da compra', () {
+      final existentes = compraDe(total: 2);
+      final editado = existentes.first.copyWith(cartaoId: 'ct2');
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 3,
+      );
+
+      expect(plano.criar.single.cartaoId, 'ct2');
+    });
+
+    test('so mudar o cartao ja gera escrita', () {
+      final existentes = compraDe(total: 2);
+      final editado = existentes.first.copyWith(cartaoId: 'ct9');
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 2,
+      );
+
+      expect(plano.atualizar, isNotEmpty);
+    });
+
+    test('o cartao nao muda quando nao foi tocado', () {
+      final existentes = compraDe(total: 3);
+      final editado = existentes.first.copyWith(descricao: 'outro nome');
+
+      final plano = planejarEdicaoCompra(
+        existentes: existentes,
+        editado: editado,
+        alcance: ModoEdicao.somenteEsta,
+        novaQuantidade: 3,
+      );
+
+      expect(plano.atualizar.every((g) => g.cartaoId == 'ct1'), isTrue);
     });
   });
 }

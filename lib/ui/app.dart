@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../estado/providers.dart';
@@ -17,6 +18,17 @@ class App extends ConsumerWidget {
       theme: temaClaro(),
       darkTheme: temaEscuro(),
       debugShowCheckedModeBanner: false,
+      // Sem isto os widgets do proprio Flutter (o calendario do
+      // showDatePicker, os rotulos de acessibilidade) saem em ingles.
+      // Uma unica locale suportada: o app e de uma casa brasileira, e
+      // deixar o sistema escolher outra so traria uma tela meio traduzida.
+      locale: const Locale('pt', 'BR'),
+      supportedLocales: const [Locale('pt', 'BR')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const _Roteador(),
     );
   }

@@ -5,12 +5,14 @@ import '../dados/repositorios.dart';
 import '../dados/servico_auth.dart';
 import '../dominio/cascata.dart';
 import '../dominio/graficos.dart';
+import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
 import '../dominio/models/membro.dart';
 import '../dominio/models/mes_ref.dart';
 import '../dominio/models/pote.dart';
+import '../dominio/ordem_gastos.dart';
 import '../dominio/parcelas.dart';
 import '../dominio/serie_mensal.dart';
 import '../dominio/totais.dart';
@@ -30,6 +32,10 @@ final repositorioCasaProvider = Provider<RepositorioCasa>(
 );
 
 final repositorioPotesProvider = Provider<RepositorioPotes>(
+  (ref) => throw UnimplementedError('sobrescrito em main.dart'),
+);
+
+final repositorioCartoesProvider = Provider<RepositorioCartoes>(
   (ref) => throw UnimplementedError('sobrescrito em main.dart'),
 );
 
@@ -96,6 +102,10 @@ final visaoProvider =
 
 final potesProvider = StreamProvider<List<Pote>>(
   (ref) => ref.watch(repositorioPotesProvider).observar(),
+);
+
+final cartoesProvider = StreamProvider<List<Cartao>>(
+  (ref) => ref.watch(repositorioCartoesProvider).observar(),
 );
 
 final ganhosDoMesProvider =
@@ -289,7 +299,49 @@ final parcelasEmAbertoProvider =
       );
 });
 
-// --- Filtros da tela de Gastos ------------------------------------------
+/// As compras em aberto passadas pelos mesmos tres filtros da tela de Gastos.
+final comprasFiltradasProvider =
+    Provider.autoDispose<AsyncValue<List<CompraParcelada>>>((ref) {
+  final membroId = ref.watch(filtroMembroProvider);
+  final poteId = ref.watch(filtroPoteProvider);
+  final cartaoId = ref.watch(filtroCartaoProvider);
+
+  return ref.watch(parcelasEmAbertoProvider).whenData(
+        (compras) => compras
+            .where((c) =>
+                (membroId == null || c.membroId == membroId) &&
+                (poteId == null || c.poteId == poteId) &&
+                _passaNoCartao(c.cartaoId, cartaoId))
+            .toList(),
+      );
+});
+
+/// As compras filtradas, ja agrupadas conforme `ordemGastosProvider`.
+final comprasAgrupadasProvider =
+    Provider.autoDispose<AsyncValue<List<Grupo<CompraParcelada>>>>((ref) {
+  final ordem = ref.watch(ordemGastosProvider);
+
+  return combinarAsyncValues(
+    combinarAsyncValues(
+      ref.watch(potesProvider),
+      ref.watch(cartoesProvider),
+      (potes, cartoes) => (potes, cartoes),
+    ),
+    ref.watch(comprasFiltradasProvider),
+    (par, compras) => agruparCompras(
+      compras: compras,
+      ordem: ordem,
+      potes: par.$1,
+      cartoes: par.$2,
+    ),
+  );
+});
+
+// --- Filtros e ordem, compartilhados por Gastos e Parcelas ---------------
+//
+// Compartilhados de proposito: "estou olhando o Nubank" e um estado da
+// pessoa, nao de uma tela. Os dropdowns aparecem nas duas, entao a escolha
+// continua visivel depois de trocar de aba.
 
 /// Null significa "Casal": sem filtro de pessoa.
 class FiltroMembroNotifier extends Notifier<String?> {
@@ -311,6 +363,34 @@ class FiltroPoteNotifier extends Notifier<String?> {
 final filtroPoteProvider =
     NotifierProvider<FiltroPoteNotifier, String?>(FiltroPoteNotifier.new);
 
+/// Null significa "Todos os cartoes"; string vazia significa "Sem cartao",
+/// que e como se olha o que saiu em dinheiro, pix ou debito.
+///
+/// A string vazia e um sentinela, e nao um segundo campo booleano, porque o
+/// DropdownButton ja trabalha com um valor por item — dois campos exigiriam
+/// manter os dois em sincronia a cada troca.
+class FiltroCartaoNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void selecionar(String? cartaoId) => state = cartaoId;
+}
+
+final filtroCartaoProvider =
+    NotifierProvider<FiltroCartaoNotifier, String?>(FiltroCartaoNotifier.new);
+
+/// Como a lista de gastos e organizada. Comeca por data, que e a leitura
+/// mais natural de um extrato.
+class OrdemGastosNotifier extends Notifier<OrdemGastos> {
+  @override
+  OrdemGastos build() => OrdemGastos.data;
+
+  void selecionar(OrdemGastos ordem) => state = ordem;
+}
+
+final ordemGastosProvider =
+    NotifierProvider<OrdemGastosNotifier, OrdemGastos>(
+        OrdemGastosNotifier.new);
+
 /// Os gastos do mes ja passados pelos dois filtros. O filtro acontece aqui,
 /// e nao numa query do Firestore, porque combinar duas igualdades opcionais
 /// exigiria um indice para cada combinacao — e o volume de um mes cabe
@@ -320,12 +400,43 @@ final gastosFiltradosProvider =
   final mesRef = ref.watch(mesSelecionadoProvider).valor;
   final membroId = ref.watch(filtroMembroProvider);
   final poteId = ref.watch(filtroPoteProvider);
+  final cartaoId = ref.watch(filtroCartaoProvider);
 
   return ref.watch(gastosDoMesProvider(mesRef)).whenData(
         (lista) => lista
             .where((g) =>
                 (membroId == null || g.membroId == membroId) &&
-                (poteId == null || g.poteId == poteId))
+                (poteId == null || g.poteId == poteId) &&
+                _passaNoCartao(g.cartaoId, cartaoId))
             .toList(),
       );
 });
+
+/// Os gastos filtrados, ja agrupados e ordenados conforme `ordemGastosProvider`.
+final gastosAgrupadosProvider =
+    Provider.autoDispose<AsyncValue<List<GrupoGastos>>>((ref) {
+  final ordem = ref.watch(ordemGastosProvider);
+
+  return combinarAsyncValues(
+    combinarAsyncValues(
+      ref.watch(potesProvider),
+      ref.watch(cartoesProvider),
+      (potes, cartoes) => (potes, cartoes),
+    ),
+    ref.watch(gastosFiltradosProvider),
+    (par, gastos) => agruparGastos(
+      gastos: gastos,
+      ordem: ordem,
+      potes: par.$1,
+      cartoes: par.$2,
+    ),
+  );
+});
+
+/// Null no filtro deixa tudo passar; a string vazia deixa passar so o que
+/// nao tem cartao; um id deixa passar so aquele cartao.
+bool _passaNoCartao(String? doGasto, String? filtro) {
+  if (filtro == null) return true;
+  if (filtro.isEmpty) return doGasto == null || doGasto.isEmpty;
+  return doGasto == filtro;
+}

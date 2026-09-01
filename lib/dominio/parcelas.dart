@@ -30,6 +30,8 @@ List<Gasto> gerarParcelas({
         descricao: base.descricao,
         valor: base.valor,
         criadoEm: base.criadoEm,
+        data: base.data,
+        cartaoId: base.cartaoId,
         parcelado: false,
       ),
     ];
@@ -44,6 +46,10 @@ List<Gasto> gerarParcelas({
       descricao: base.descricao,
       valor: base.valor,
       criadoEm: base.criadoEm,
+      // Cada parcela cai no mesmo dia do mes dela, nao no dia da compra: a
+      // parcela 3 de uma compra de 31/01 vence em marco, nao em janeiro.
+      data: avancarMesesNoDia(base.data, i),
+      cartaoId: base.cartaoId,
       parcelado: true,
       compraId: compraId,
       parcela: i + 1,
@@ -52,12 +58,34 @@ List<Gasto> gerarParcelas({
   });
 }
 
+/// Avanca [meses] mantendo o dia, encolhendo para o ultimo dia do mes de
+/// destino quando ele nao existe la.
+///
+/// Sem o encolhimento, 31/01 + 1 mes viraria 03/03 no DateTime do Dart, que
+/// normaliza o excesso para o mes seguinte — a parcela pularia fevereiro.
+DateTime avancarMesesNoDia(DateTime data, int meses) {
+  final total = data.year * 12 + (data.month - 1) + meses;
+  final ano = total ~/ 12;
+  final mes = total % 12 + 1;
+  // Dia 0 do mes seguinte e o ultimo dia deste.
+  final ultimoDia = DateTime(ano, mes + 1, 0).day;
+  return DateTime(ano, mes, data.day < ultimoDia ? data.day : ultimoDia);
+}
+
 /// Uma compra parcelada vista do mes atual.
 class CompraParcelada {
   final String compraId;
   final String descricao;
   final String membroId;
   final String poteId;
+
+  /// Cartao da compra. Nulo quando saiu em dinheiro, pix ou debito.
+  final String? cartaoId;
+
+  /// Data da parcela **corrente**, nao a da compra: e o vencimento que
+  /// interessa a quem esta olhando o que ainda falta pagar.
+  final DateTime data;
+
   final double valorParcela;
   final int parcelaAtual;
   final int totalParcelas;
@@ -70,6 +98,8 @@ class CompraParcelada {
     required this.valorParcela,
     required this.parcelaAtual,
     required this.totalParcelas,
+    required this.data,
+    this.cartaoId,
   });
 
   int get parcelasRestantes => totalParcelas - parcelaAtual;
@@ -131,6 +161,8 @@ List<CompraParcelada> agruparParcelasEmAberto({
       descricao: corrente.descricao,
       membroId: corrente.membroId,
       poteId: corrente.poteId,
+      cartaoId: corrente.cartaoId,
+      data: corrente.data,
       valorParcela: corrente.valor,
       parcelaAtual: corrente.parcela!,
       totalParcelas: corrente.totalParcelas!,
@@ -178,9 +210,15 @@ class PlanoEdicaoCompra {
 
 /// Planeja a edicao de uma parcela de [editado] sobre a compra inteira.
 ///
-/// Descricao, pessoa e pote sao atributos da **compra**: mudam em todas as
-/// parcelas, sempre, sem perguntar. Corrigir o nome de uma compra deixando
-/// as outras onze parcelas com o nome errado nunca e o que se quis fazer.
+/// Descricao, pessoa, pote, cartao e data sao atributos da **compra**: mudam em
+/// todas as parcelas, sempre, sem perguntar. Corrigir o nome de uma compra
+/// deixando as outras onze parcelas com o nome errado nunca e o que se quis
+/// fazer.
+///
+/// A data propaga de um jeito proprio: o DIA vale para a compra inteira, mas
+/// cada parcela fica no seu proprio mes. Trocar a data da parcela 3 para
+/// 17/10 poe a 1 em 17/08 e a 2 em 17/09 — a parcela editada recebe
+/// exatamente a data digitada, e as irmas se alinham a ela.
 ///
 /// [alcance] governa apenas o **valor**, que e o unico campo que pode
 /// legitimamente diferir entre parcelas (o arredondamento da ultima, um mes
@@ -254,7 +292,11 @@ PlanoEdicaoCompra planejarEdicaoCompra({
       descricao: editado.descricao,
       membroId: editado.membroId,
       poteId: editado.poteId,
+      cartaoId: editado.cartaoId,
       totalParcelas: novaQuantidade,
+      // O deslocamento e relativo a parcela editada, entao ela mesma recebe
+      // a data digitada sem alteracao.
+      data: avancarMesesNoDia(editado.data, g.parcela! - editado.parcela!),
     );
     if (herdaValor(g)) alvo = alvo.copyWith(valor: editado.valor);
 
@@ -273,6 +315,10 @@ PlanoEdicaoCompra planejarEdicaoCompra({
         // Herda o carimbo da compra para as parcelas novas nao aparecerem
         // separadas das irmas na lista, que ordena por criadoEm.
         criadoEm: primeira.criadoEm,
+        // Ancorada na parcela EDITADA, nao na primeira: se a data mudou
+        // nesta mesma edicao, a parcela nova precisa nascer ja alinhada.
+        data: avancarMesesNoDia(editado.data, k - editado.parcela!),
+        cartaoId: editado.cartaoId,
         parcelado: true,
         compraId: compraId,
         parcela: k,
@@ -289,6 +335,10 @@ bool _mesmoConteudo(Gasto a, Gasto b) =>
     a.descricao == b.descricao &&
     a.membroId == b.membroId &&
     a.poteId == b.poteId &&
+    a.cartaoId == b.cartaoId &&
+    // Sem comparar a data, uma edicao que so mexe nela nao geraria escrita
+    // nenhuma e o Salvar pareceria nao ter funcionado.
+    a.data == b.data &&
     (a.valor - b.valor).abs() <= 0.005 &&
     a.totalParcelas == b.totalParcelas &&
     a.mesRef == b.mesRef;

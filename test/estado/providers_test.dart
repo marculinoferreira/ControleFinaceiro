@@ -44,6 +44,7 @@ Future<ProviderContainer> montar() async {
 
   final container = ProviderContainer(overrides: [
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
     repositorioGanhosProvider.overrideWithValue(ganhos),
     repositorioGastosProvider.overrideWithValue(gastos),
   ]);
@@ -110,6 +111,7 @@ void main() {
   test('enquanto o repositorio nao emitiu, o resumo fica em loading', () {
     final c = ProviderContainer(overrides: [
       repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
       repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
       repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
     ]);
@@ -167,6 +169,7 @@ void main() {
 
       final c = ProviderContainer(overrides: [
         repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGanhosProvider.overrideWithValue(ganhos),
         repositorioGastosProvider.overrideWithValue(gastos),
       ]);

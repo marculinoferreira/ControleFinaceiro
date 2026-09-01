@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
+import 'package:controle_financeiro/dominio/models/cartao.dart';
 import 'package:controle_financeiro/dominio/models/casa.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/membro.dart';
@@ -80,6 +81,11 @@ const casa = Casa(
   ],
 );
 
+const cartoes = [
+  Cartao(id: 'ct1', nome: 'Nubank', ordem: 0),
+  Cartao(id: 'ct2', nome: 'Inter', ordem: 1),
+];
+
 const potes = [
   Pote(id: 'p1', nome: 'Custo fixo', percentual: 60, ordem: 0,
       cor: '#2E7D32', icone: 'casa'),
@@ -96,6 +102,7 @@ Future<RepositorioGastosFake> montar(
   WidgetTester tester, {
   Gasto? existente,
   RepositorioGastosFake? comRepo,
+  MesRef mes = const MesRef(2026, 8),
 }) async {
   tester.view.physicalSize = const Size(1400, 1200);
   tester.view.devicePixelRatio = 1.0;
@@ -105,10 +112,11 @@ Future<RepositorioGastosFake> montar(
   final container = ProviderContainer(overrides: [
     repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake(cartoes)),
     repositorioGastosProvider.overrideWithValue(repo),
   ]);
   addTearDown(container.dispose);
-  container.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+  container.read(mesSelecionadoProvider.notifier).irPara(mes);
   container.listen(potesProvider, (_, _) {});
   container.listen(casaProvider, (_, _) {});
 
@@ -430,6 +438,7 @@ void main() {
       repositorioCasaProvider
           .overrideWithValue(RepositorioCasaFake(casaSemMembros)),
       repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake(cartoes)),
       repositorioGastosProvider.overrideWithValue(repo),
     ]);
     addTearDown(container.dispose);
@@ -468,6 +477,7 @@ void main() {
     final container = ProviderContainer(overrides: [
       repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
       repositorioPotesProvider.overrideWithValue(potesFake),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake(cartoes)),
       repositorioGastosProvider.overrideWithValue(repo),
     ]);
     addTearDown(container.dispose);
@@ -563,5 +573,222 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  group('data do gasto', () {
+    testWidgets('no mes corrente o campo sugere hoje', (tester) async {
+      final hoje = DateTime.now();
+      await montar(tester, mes: MesRef(hoje.year, hoje.month));
+
+      expect(find.byKey(const Key('gasto_data')), findsOneWidget);
+      expect(find.text(formatarData(DateTime(hoje.year, hoje.month, hoje.day))),
+          findsOneWidget);
+    });
+
+    testWidgets('em outro mes sugere o dia 1 daquele mes', (tester) async {
+      // Um mes fixo no passado: sugerir "hoje" enquanto se navega por marco
+      // de 2020 daria uma data que nunca e a desejada.
+      await montar(tester, mes: const MesRef(2020, 3));
+
+      expect(find.text('01/03/2020'), findsOneWidget);
+    });
+
+    testWidgets('a data sugerida e a que vai para o gasto', (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo, mes: const MesRef(2020, 3));
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Feira');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '10000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.data.year, 2020);
+      expect(repo.todos.single.data.month, 3);
+      expect(repo.todos.single.data.day, 1);
+    });
+
+    testWidgets('editar mostra a data gravada, nao a de hoje', (tester) async {
+      final repo = RepositorioGastosFake();
+      await repo.adicionar(
+        base: Gasto(
+          id: '',
+          mesRef: '2026-08',
+          membroId: 'marcos',
+          poteId: 'p1',
+          descricao: 'Feira',
+          valor: 300,
+          criadoEm: DateTime.utc(2026, 8, 1),
+          data: DateTime(2026, 8, 17),
+          parcelado: false,
+        ),
+        quantidadeParcelas: 1,
+      );
+
+      await montar(tester, existente: repo.todos.single, comRepo: repo);
+
+      expect(find.text('17/08/2026'), findsOneWidget);
+    });
+
+    testWidgets('a data sobrevive a uma edicao que nao a toca',
+        (tester) async {
+      final repo = RepositorioGastosFake();
+      await repo.adicionar(
+        base: Gasto(
+          id: '',
+          mesRef: '2026-08',
+          membroId: 'marcos',
+          poteId: 'p1',
+          descricao: 'Feira',
+          valor: 300,
+          criadoEm: DateTime.utc(2026, 8, 1),
+          data: DateTime(2026, 8, 17),
+          parcelado: false,
+        ),
+        quantidadeParcelas: 1,
+      );
+
+      await montar(tester, existente: repo.todos.single, comRepo: repo);
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Feira grande');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.data.day, 17);
+    });
+
+    testWidgets('cada parcela recebe a data do proprio mes', (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo, mes: const MesRef(2020, 3));
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Geladeira');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '10000');
+      await tester.tap(find.byKey(const Key('gasto_parcelado')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('gasto_quantidade')), '3');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      final parcelas = [...repo.todos]
+        ..sort((a, b) => a.parcela!.compareTo(b.parcela!));
+      expect(parcelas.map((g) => g.data.month).toList(), [3, 4, 5]);
+      expect(parcelas.every((g) => g.data.day == 1), isTrue);
+    });
+  });
+
+  group('cartao do gasto', () {
+    testWidgets('o seletor lista os cartoes cadastrados', (tester) async {
+      await montar(tester);
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nubank'), findsWidgets);
+      expect(find.text('Inter'), findsWidgets);
+      expect(find.text('Nenhum / dinheiro'), findsWidgets);
+    });
+
+    testWidgets('comeca sem cartao: nem todo gasto passa por um',
+        (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo);
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Padaria');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '1000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.cartaoId, isNull);
+    });
+
+    testWidgets('o cartao escolhido e gravado', (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo);
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Feira');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '10000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.cartaoId, 'ct1');
+    });
+
+    testWidgets('todas as parcelas nascem no mesmo cartao', (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo);
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Inter').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Geladeira');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '10000');
+      await tester.tap(find.byKey(const Key('gasto_parcelado')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('gasto_quantidade')), '3');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos, hasLength(3));
+      expect(repo.todos.every((g) => g.cartaoId == 'ct2'), isTrue);
+    });
+
+    testWidgets('editar mostra o cartao gravado', (tester) async {
+      final repo = RepositorioGastosFake();
+      await repo.adicionar(
+        base: Gasto(
+          id: '',
+          mesRef: '2026-08',
+          membroId: 'marcos',
+          poteId: 'p1',
+          descricao: 'Feira',
+          valor: 300,
+          criadoEm: DateTime.utc(2026, 8, 1),
+          cartaoId: 'ct2',
+          parcelado: false,
+        ),
+        quantidadeParcelas: 1,
+      );
+
+      await montar(tester, existente: repo.todos.single, comRepo: repo);
+
+      expect(find.text('Inter'), findsWidgets);
+    });
+
+    testWidgets('cartao removido nao derruba o formulario', (tester) async {
+      final repo = RepositorioGastosFake();
+      await repo.adicionar(
+        base: Gasto(
+          id: '',
+          mesRef: '2026-08',
+          membroId: 'marcos',
+          poteId: 'p1',
+          descricao: 'Feira',
+          valor: 300,
+          criadoEm: DateTime.utc(2026, 8, 1),
+          cartaoId: 'fantasma',
+          parcelado: false,
+        ),
+        quantidadeParcelas: 1,
+      );
+
+      await montar(tester, existente: repo.todos.single, comRepo: repo);
+
+      // Coage para "Nenhum" em vez de derrubar o assert do DropdownButton.
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('gasto_cartao')), findsOneWidget);
+    });
   });
 }

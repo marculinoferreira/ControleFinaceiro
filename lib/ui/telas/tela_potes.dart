@@ -8,6 +8,7 @@ import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 import '../tema/tema.dart';
 import '../widgets/estados_async.dart';
+import '../widgets/primeira_maiuscula.dart';
 
 const int maximoPotes = 6;
 
@@ -201,6 +202,8 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
               child: TextFormField(
                 key: Key('nome_$i'),
                 controller: _controladorNome(i, pote.nome),
+                textCapitalization: TextCapitalization.sentences,
+                inputFormatters: const [PrimeiraMaiuscula()],
                 decoration: const InputDecoration(
                   labelText: 'Nome',
                   border: OutlineInputBorder(),

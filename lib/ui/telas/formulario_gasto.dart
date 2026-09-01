@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dominio/cascata.dart';
 import '../../dominio/models/gasto.dart';
+import '../../dominio/models/cartao.dart';
 import '../../dominio/models/membro.dart';
 import '../../dominio/models/mes_ref.dart';
 import '../../dominio/models/pote.dart';
@@ -14,6 +15,7 @@ import '../widgets/campo_moeda.dart';
 import '../widgets/dialogo_edicao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/formulario_responsivo.dart';
+import '../widgets/primeira_maiuscula.dart';
 
 /// O que o formulario devolve ao ser fechado: os dados prontos para gravar,
 /// sem que o formulario em si precise saber de repositorio. [existente] nulo
@@ -108,6 +110,8 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
   late String _membroId;
   String? _poteId;
   late bool _parcelado;
+  late DateTime _data;
+  String? _cartaoId;
 
   /// Guarda de reentrancia: sem ela, dois toques rapidos no Salvar antes do
   /// primeiro pop surtir efeito na arvore de widgets chamariam validate() e
@@ -128,6 +132,8 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     _membroId = g?.membroId ?? '';
     _poteId = g?.poteId;
     _parcelado = g?.parcelado ?? false;
+    _data = g?.data ?? _hojeOuInicioDoMes();
+    _cartaoId = g?.cartaoId;
     // O preview le _valor.text direto no build: sem este listener, digitar
     // um novo valor depois de ligar "Parcelado" nao teria efeito ate algum
     // outro campo forcar um rebuild.
@@ -136,6 +142,34 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
 
   void _aoMudarValor() {
     if (mounted) setState(() {});
+  }
+
+  /// Hoje quando o mes exibido e o corrente; dia 1 do mes exibido nos demais.
+  ///
+  /// Sugerir "hoje" enquanto a pessoa navega em marco de um ano atras daria
+  /// uma data que quase nunca e a que ela quer.
+  DateTime _hojeOuInicioDoMes() {
+    final mes = ref.read(mesSelecionadoProvider);
+    final agora = DateTime.now();
+    if (mes.ano == agora.year && mes.mes == agora.month) {
+      return DateTime(agora.year, agora.month, agora.day);
+    }
+    return DateTime(mes.ano, mes.mes, 1);
+  }
+
+  Future<void> _escolherData() async {
+    final escolhida = await showDatePicker(
+      context: context,
+      initialDate: _data,
+      // Cinco anos para tras e um para a frente cobre lancamento atrasado e
+      // agendamento, sem oferecer um calendario infinito.
+      firstDate: DateTime(DateTime.now().year - 5),
+      lastDate: DateTime(DateTime.now().year + 1, 12, 31),
+      helpText: 'Data do gasto',
+      cancelText: 'Cancelar',
+      confirmText: 'OK',
+    );
+    if (escolhida != null && mounted) setState(() => _data = escolhida);
   }
 
   @override
@@ -180,6 +214,8 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
       descricao: _descricao.text.trim(),
       valor: parsearMoeda(_valor.text) ?? 0,
       criadoEm: base?.criadoEm ?? DateTime.now(),
+      data: _data,
+      cartaoId: _cartaoId,
       parcelado: base?.parcelado ?? false,
       compraId: base?.compraId,
       parcela: base?.parcela,
@@ -201,20 +237,37 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     // AsyncValue.when com os tres ramos, sem excecao: `.value ?? []` faria o
     // validador do pote acusar "Cadastre um pote antes." enquanto os potes
     // ainda estao carregando, mesmo quando eles existem.
-    return ref.watch(potesProvider).when(
-          loading: () => const CarregandoLista(linhas: 3),
-          error: (e, _) => ErroComRecarregar(
-            erro: e,
-            aoRecarregar: () => ref.invalidate(potesProvider),
-          ),
-          data: (potes) => _formulario(context, membros, potes),
-        );
+    // Cartao entra na combinacao para o seletor nao aparecer vazio enquanto
+    // a lista ainda esta chegando, o que faria o usuario achar que nao ha
+    // cartao cadastrado.
+    return combinarAsyncValues(
+      ref.watch(potesProvider),
+      ref.watch(cartoesProvider),
+      (potes, cartoes) => (potes, cartoes),
+    ).when(
+      // Altura fixa: CarregandoLista e um ListView, e o formulario abre
+      // dentro de um dialogo, onde a altura e ilimitada. Sem o limite o
+      // viewport nao consegue se dimensionar e o layout quebra.
+      loading: () => const SizedBox(
+        height: 180,
+        child: CarregandoLista(linhas: 3),
+      ),
+      error: (e, _) => ErroComRecarregar(
+        erro: e,
+        aoRecarregar: () {
+          ref.invalidate(potesProvider);
+          ref.invalidate(cartoesProvider);
+        },
+      ),
+      data: (par) => _formulario(context, membros, par.$1, par.$2),
+    );
   }
 
   Widget _formulario(
     BuildContext context,
     List<Membro> membros,
     List<Pote> potes,
+    List<Cartao> cartoes,
   ) {
     // Preenche os defaults na primeira construcao em que os dados chegaram.
     if (_membroId.isEmpty && membros.isNotEmpty) _membroId = membros.first.id;
@@ -230,6 +283,12 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     }
     _poteId ??= potes.isEmpty ? null : potes.first.id;
 
+    // Mesmo tratamento de id orfao do pote: um cartao removido enquanto o
+    // formulario estava aberto derrubaria o assert do DropdownButton.
+    if (_cartaoId != null && !cartoes.any((c) => c.id == _cartaoId)) {
+      _cartaoId = null;
+    }
+
     final mes = ref.watch(mesSelecionadoProvider);
 
     return Form(
@@ -241,6 +300,8 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
           TextFormField(
             key: const Key('gasto_descricao'),
             controller: _descricao,
+            textCapitalization: TextCapitalization.sentences,
+            inputFormatters: const [PrimeiraMaiuscula()],
             decoration: const InputDecoration(
               labelText: 'Descrição',
               border: OutlineInputBorder(),
@@ -248,6 +309,19 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
             validator: (t) => (t == null || t.trim().isEmpty)
                 ? 'Informe a descrição.'
                 : null,
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            key: const Key('gasto_data'),
+            onTap: _escolherData,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Data do gasto',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.calendar_today, size: 18),
+              ),
+              child: Text(formatarData(_data)),
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -279,6 +353,24 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
             ],
             onChanged: (v) => setState(() => _poteId = v ?? _poteId),
             validator: (v) => v == null ? 'Cadastre um pote antes.' : null,
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            key: const Key('gasto_cartao'),
+            initialValue: _cartaoId,
+            decoration: const InputDecoration(
+              labelText: 'Cartão',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              // Nem todo gasto passa por cartao: dinheiro, pix e debito
+              // caem aqui, e por isso nao ha validador exigindo escolha.
+              const DropdownMenuItem(
+                  value: null, child: Text('Nenhum / dinheiro')),
+              for (final c in cartoes)
+                DropdownMenuItem(value: c.id, child: Text(c.nome)),
+            ],
+            onChanged: (v) => setState(() => _cartaoId = v),
           ),
           const SizedBox(height: 12),
           CampoMoeda(

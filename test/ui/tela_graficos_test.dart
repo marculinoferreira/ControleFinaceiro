@@ -103,6 +103,7 @@ Future<ProviderContainer> montar(
       repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
       repositorioPotesProvider
           .overrideWithValue(repoPotes ?? RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
       repositorioGanhosProvider.overrideWithValue(ganhos),
       repositorioGastosProvider.overrideWithValue(gastos),
     ],
@@ -222,6 +223,7 @@ void main() {
       final container = ProviderContainer(overrides: [
         repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
         repositorioPotesProvider.overrideWithValue(RepositorioPotesFake()),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
         repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
       ]);

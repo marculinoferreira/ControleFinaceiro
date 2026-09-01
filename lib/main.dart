@@ -32,6 +32,7 @@ Future<void> main() async {
 
   final repoCasa = CasaFirestore(db);
   final repoPotes = PotesFirestore(db);
+  final repoCartoes = CartoesFirestore(db);
 
   runApp(
     ProviderScope(
@@ -41,12 +42,14 @@ Future<void> main() async {
             .overrideWithValue(AuthFirebase(FirebaseAuth.instance)),
         repositorioCasaProvider.overrideWithValue(repoCasa),
         repositorioPotesProvider.overrideWithValue(repoPotes),
+        repositorioCartoesProvider.overrideWithValue(repoCartoes),
         repositorioGanhosProvider.overrideWithValue(GanhosFirestore(db)),
         repositorioGastosProvider.overrideWithValue(GastosFirestore(db)),
       ],
       child: _SemearAoLogar(
         casa: repoCasa,
         potes: repoPotes,
+        cartoes: repoCartoes,
         child: const App(),
       ),
     ),
@@ -58,11 +61,13 @@ Future<void> main() async {
 class _SemearAoLogar extends ConsumerStatefulWidget {
   final RepositorioCasa casa;
   final RepositorioPotes potes;
+  final RepositorioCartoes cartoes;
   final Widget child;
 
   const _SemearAoLogar({
     required this.casa,
     required this.potes,
+    required this.cartoes,
     required this.child,
   });
 
@@ -84,7 +89,11 @@ class _SemearAoLogarState extends ConsumerState<_SemearAoLogar> {
       }
       if (_semeado) return;
       _semeado = true;
-      await semear(casa: widget.casa, potes: widget.potes);
+      await semear(
+        casa: widget.casa,
+        potes: widget.potes,
+        cartoes: widget.cartoes,
+      );
     });
 
     return widget.child;

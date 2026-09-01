@@ -8,7 +8,22 @@ class Gasto {
   final String descricao;
   final double valor;
   final DateTime criadoEm;
+
+  /// Dia em que o gasto aconteceu, que nao e o mesmo que [criadoEm] (quando
+  /// o lancamento foi digitado). Usada para agrupar e ordenar a lista.
+  ///
+  /// **Nao decide o mes do orcamento.** Quem decide e [mesRef], que vem do
+  /// mes selecionado na tela: um gasto datado de 31/07 lancado em agosto
+  /// conta em agosto. A data serve para a pessoa se localizar, nao para
+  /// mover dinheiro entre meses.
+  final DateTime data;
+
   final bool parcelado;
+
+  /// Por onde o dinheiro saiu. Nulo quando foi dinheiro, pix ou debito —
+  /// nem todo gasto passa por um cartao, entao o campo e opcional.
+  final String? cartaoId;
+
   final String? compraId;
   final int? parcela;
   final int? totalParcelas;
@@ -22,10 +37,14 @@ class Gasto {
     required this.valor,
     required this.criadoEm,
     required this.parcelado,
+    // Ausente cai para criadoEm: e o que os lancamentos gravados antes deste
+    // campo existir tem de mais proximo do dia da compra.
+    DateTime? data,
+    this.cartaoId,
     this.compraId,
     this.parcela,
     this.totalParcelas,
-  });
+  }) : data = data ?? criadoEm;
 
   factory Gasto.fromMap(String id, Map<String, dynamic> mapa) => Gasto(
         id: id,
@@ -35,7 +54,9 @@ class Gasto {
         descricao: mapa['descricao'] as String,
         valor: (mapa['valor'] as num).toDouble(),
         criadoEm: _lerData(mapa['criadoEm']),
+        data: mapa['data'] == null ? null : _lerData(mapa['data']),
         parcelado: mapa['parcelado'] as bool? ?? false,
+        cartaoId: mapa['cartaoId'] as String?,
         compraId: mapa['compraId'] as String?,
         parcela: (mapa['parcela'] as num?)?.toInt(),
         totalParcelas: (mapa['totalParcelas'] as num?)?.toInt(),
@@ -48,7 +69,9 @@ class Gasto {
         'descricao': descricao,
         'valor': valor,
         'criadoEm': criadoEm,
+        'data': data,
         'parcelado': parcelado,
+        'cartaoId': cartaoId,
         'compraId': compraId,
         'parcela': parcela,
         'totalParcelas': totalParcelas,
@@ -68,7 +91,9 @@ class Gasto {
     String? descricao,
     double? valor,
     DateTime? criadoEm,
+    DateTime? data,
     bool? parcelado,
+    String? cartaoId,
     String? compraId,
     int? parcela,
     int? totalParcelas,
@@ -81,7 +106,9 @@ class Gasto {
         descricao: descricao ?? this.descricao,
         valor: valor ?? this.valor,
         criadoEm: criadoEm ?? this.criadoEm,
+        data: data ?? this.data,
         parcelado: parcelado ?? this.parcelado,
+        cartaoId: cartaoId ?? this.cartaoId,
         compraId: compraId ?? this.compraId,
         parcela: parcela ?? this.parcela,
         totalParcelas: totalParcelas ?? this.totalParcelas,

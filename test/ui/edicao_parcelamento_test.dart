@@ -80,6 +80,7 @@ Future<void> montar(
   final container = ProviderContainer(overrides: [
     repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
     repositorioGastosProvider.overrideWithValue(repo),
   ]);
   addTearDown(container.dispose);
@@ -213,8 +214,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Alterar o valor'), findsNothing);
+      // Digitado em minuscula; PrimeiraMaiuscula sobe a inicial.
       expect(
-          parcelasDe(repo).every((g) => g.descricao == 'pneus novos'), isTrue);
+          parcelasDe(repo).every((g) => g.descricao == 'Pneus novos'), isTrue);
     });
 
     testWidgets('mudar o pote nao pergunta e vale para todas', (tester) async {
@@ -337,7 +339,7 @@ void main() {
 
       final parcelas = parcelasDe(repo);
       expect(parcelas, hasLength(6)); // quantidade: compra inteira
-      expect(parcelas.every((g) => g.descricao == 'pneus novos'), isTrue);
+      expect(parcelas.every((g) => g.descricao == 'Pneus novos'), isTrue);
       // Valor so na 1a, que e a editada; a 6a nasce com o valor novo.
       expect(parcelas.map((g) => g.valor).toList(),
           [200, 126, 126, 126, 126, 200]);
@@ -364,6 +366,52 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Jan/27'), findsOneWidget);
+    });
+  });
+
+  group('data da compra', () {
+    testWidgets('mudar a data nao pergunta nada e vale para todas',
+        (tester) async {
+      final repo = await comCompraParcelada(quantidade: 3);
+      await montar(tester, existente: parcelasDe(repo).first, repo: repo);
+
+      // Abre o calendario e escolhe o dia 17 do mes exibido.
+      await tester.tap(find.byKey(const Key('gasto_data')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('17'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Alterar o valor'), findsNothing);
+
+      final parcelas = parcelasDe(repo);
+      expect(parcelas.every((g) => g.data.day == 17), isTrue);
+      // Cada uma continua no proprio mes.
+      expect(parcelas.map((g) => g.data.month).toList(), [8, 9, 10]);
+    });
+
+    testWidgets('editar a parcela do meio alinha as irmas a ela',
+        (tester) async {
+      final repo = await comCompraParcelada(quantidade: 3);
+      await montar(tester, existente: parcelasDe(repo)[1], repo: repo);
+
+      await tester.tap(find.byKey(const Key('gasto_data')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('17'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      final parcelas = parcelasDe(repo);
+      expect(parcelas.every((g) => g.data.day == 17), isTrue);
+      expect(parcelas.map((g) => g.data.month).toList(), [8, 9, 10]);
     });
   });
 }

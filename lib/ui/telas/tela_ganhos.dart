@@ -11,6 +11,7 @@ import '../tema/tema.dart';
 import '../widgets/campo_moeda.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/formulario_responsivo.dart';
+import '../widgets/primeira_maiuscula.dart';
 
 class TelaGanhos extends ConsumerWidget {
   const TelaGanhos({super.key});
@@ -319,6 +320,8 @@ class _FormularioState extends State<_Formulario> {
           TextFormField(
             key: const Key('form_descricao'),
             controller: _descricao,
+            textCapitalization: TextCapitalization.sentences,
+            inputFormatters: const [PrimeiraMaiuscula()],
             decoration: const InputDecoration(
               labelText: 'Descrição',
               border: OutlineInputBorder(),

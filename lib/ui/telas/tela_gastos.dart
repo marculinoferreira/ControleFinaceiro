@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../dominio/models/cartao.dart';
 import '../../dominio/models/gasto.dart';
 import '../../dominio/models/membro.dart';
 import '../../dominio/models/pote.dart';
+import '../../dominio/ordem_gastos.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 import '../widgets/dialogo_exclusao.dart';
+import '../widgets/filtros_lancamentos.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/tabela_responsiva.dart';
 import 'formulario_gasto.dart';
@@ -25,9 +28,13 @@ class TelaGastos extends ConsumerWidget {
     // ids crus silenciosamente, e o loading dele nao pode ser mascarado de
     // "zero potes cadastrados".
     final combinado = combinarAsyncValues(
-      ref.watch(potesProvider),
-      ref.watch(gastosFiltradosProvider),
-      (potes, gastos) => (potes, gastos),
+      combinarAsyncValues(
+        ref.watch(potesProvider),
+        ref.watch(cartoesProvider),
+        (potes, cartoes) => (potes, cartoes),
+      ),
+      ref.watch(gastosAgrupadosProvider),
+      (par, grupos) => (par.$1, par.$2, grupos),
     );
 
     return Scaffold(
@@ -45,17 +52,20 @@ class TelaGastos extends ConsumerWidget {
           erro: e,
           aoRecarregar: () {
             ref.invalidate(potesProvider);
+            ref.invalidate(cartoesProvider);
             ref.invalidate(gastosDoMesProvider(mesRef));
           },
         ),
-        data: (par) {
-          final (potes, gastos) = par;
+        data: (trio) {
+          final (potes, cartoes, grupos) = trio;
           return Column(
             children: [
-              _Filtros(membros: membros, potes: potes),
+              FiltrosLancamentos(membros: membros, potes: potes, cartoes: cartoes),
+              const SeletorOrdem(),
               const Divider(height: 1),
               Expanded(
-                child: _tabela(context, ref, gastos, membros, potes),
+                child:
+                    _tabela(context, ref, grupos, membros, potes, cartoes),
               ),
             ],
           );
@@ -67,27 +77,44 @@ class TelaGastos extends ConsumerWidget {
   Widget _tabela(
     BuildContext context,
     WidgetRef ref,
-    List<Gasto> gastos,
+    List<GrupoGastos> grupos,
     List<Membro> membros,
     List<Pote> potes,
+    List<Cartao> cartoes,
   ) {
-    return TabelaResponsiva(
-      colunas: const ['Descrição', 'Pessoa', 'Pote', 'Parcela', 'Valor'],
+    return TabelaResponsiva.agrupada(
+      colunas: const [
+        'Descrição',
+        'Data',
+        'Pessoa',
+        'Pote',
+        'Cartão',
+        'Parcela',
+        'Valor',
+      ],
       vazio: 'Nenhum gasto neste mês.',
-      linhas: [
-        for (final g in gastos)
-          LinhaResponsiva(
-            chave: ValueKey('gasto_${g.id}'),
-            valores: [
-              g.descricao,
-              nomeDoMembro(membros, g.membroId),
-              nomeDoPote(potes, g.poteId),
-              g.rotuloParcela,
-              formatarReais(g.valor),
+      grupos: [
+        for (final grupo in grupos)
+          GrupoResponsivo(
+            titulo: grupo.titulo,
+            linhas: [
+              for (final g in grupo.itens)
+                LinhaResponsiva(
+                  chave: ValueKey('gasto_${g.id}'),
+                  valores: [
+                    g.descricao,
+                    formatarData(g.data),
+                    nomeDoMembro(membros, g.membroId),
+                    nomeDoPote(potes, g.poteId),
+                    nomeDoCartao(cartoes, g.cartaoId),
+                    g.rotuloParcela,
+                    formatarReais(g.valor),
+                  ],
+                  aoTocar: () => abrirFormularioGasto(
+                      context: context, ref: ref, existente: g),
+                  aoExcluir: () => _excluir(context, ref, g),
+                ),
             ],
-            aoTocar: () =>
-                abrirFormularioGasto(context: context, ref: ref, existente: g),
-            aoExcluir: () => _excluir(context, ref, g),
           ),
       ],
     );
@@ -112,79 +139,5 @@ class TelaGastos extends ConsumerWidget {
       if (!context.mounted) return;
       avisarErroDeEscrita(context, e);
     }
-  }
-}
-
-class _Filtros extends ConsumerWidget {
-  final List<Membro> membros;
-  final List<Pote> potes;
-
-  const _Filtros({required this.membros, required this.potes});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final membroId = ref.watch(filtroMembroProvider);
-    final poteId = ref.watch(filtroPoteProvider);
-
-    // Coage para null quando o filtro aponta para um id que sumiu da lista
-    // (a outra pessoa apagou o membro ou o pote enquanto esta aba estava
-    // aberta): sem isso o DropdownButtonFormField derruba o assert de
-    // "exactly one item with [DropdownButton]'s value". Null e sempre valido
-    // aqui — e o item "Casal"/"Todos".
-    final membroValido =
-        membroId == null || membros.any((m) => m.id == membroId)
-            ? membroId
-            : null;
-    final poteValido = poteId == null || potes.any((p) => p.id == poteId)
-        ? poteId
-        : null;
-
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        children: [
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String?>(
-              key: const Key('filtro_membro'),
-              initialValue: membroValido,
-              decoration: const InputDecoration(
-                labelText: 'Pessoa',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Casal')),
-                for (final m in membros)
-                  DropdownMenuItem(value: m.id, child: Text(m.nome)),
-              ],
-              onChanged: (v) =>
-                  ref.read(filtroMembroProvider.notifier).selecionar(v),
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String?>(
-              key: const Key('filtro_pote'),
-              initialValue: poteValido,
-              decoration: const InputDecoration(
-                labelText: 'Pote',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Todos')),
-                for (final p in potes)
-                  DropdownMenuItem(value: p.id, child: Text(p.nome)),
-              ],
-              onChanged: (v) =>
-                  ref.read(filtroPoteProvider.notifier).selecionar(v),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

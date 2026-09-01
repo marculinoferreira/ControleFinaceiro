@@ -81,6 +81,7 @@ Future<(ProviderContainer, RepositorioGastosFake)> montar(
   final container = ProviderContainer(overrides: [
     repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
     repositorioGastosProvider.overrideWithValue(repo),
   ]);
   addTearDown(container.dispose);
@@ -221,6 +222,7 @@ void main() {
     final container = ProviderContainer(overrides: [
       repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
       repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
       repositorioGastosProvider.overrideWithValue(repo),
     ]);
     addTearDown(container.dispose);
@@ -259,6 +261,7 @@ void main() {
       repositorioCasaProvider
           .overrideWithValue(RepositorioCasaFake(casaSemMembros)),
       repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
       repositorioGastosProvider.overrideWithValue(repo),
     ]);
     addTearDown(container.dispose);
@@ -298,6 +301,7 @@ void main() {
       overrides: [
         repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
         repositorioPotesProvider.overrideWithValue(_PotesFakeQueErra()),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGastosProvider.overrideWithValue(repo),
       ],
     );
@@ -332,6 +336,7 @@ void main() {
     final container = ProviderContainer(overrides: [
       repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
       repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
       repositorioGastosProvider.overrideWithValue(repo),
     ]);
     addTearDown(container.dispose);

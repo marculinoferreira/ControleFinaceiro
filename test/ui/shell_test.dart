@@ -5,6 +5,7 @@ import 'package:controle_financeiro/dados/repositorios.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/shell.dart';
+import 'package:controle_financeiro/ui/telas/tela_cartoes.dart';
 import 'package:controle_financeiro/ui/telas/tela_ganhos.dart';
 import 'package:controle_financeiro/ui/telas/tela_graficos.dart';
 import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
@@ -16,6 +17,7 @@ Widget montar() => ProviderScope(
       overrides: [
         repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
         repositorioPotesProvider.overrideWithValue(RepositorioPotesFake()),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
         repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
       ],
@@ -105,6 +107,11 @@ void main() {
     await tester.tap(find.text('Parcelas').first);
     await tester.pumpAndSettle();
     expect(find.byType(TelaParcelas), findsOneWidget);
+
+    // Cartoes
+    await tester.tap(find.text('Cartões').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(TelaCartoes), findsOneWidget);
 
     // Resumo
     await tester.tap(find.text('Resumo').first);

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
+import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
@@ -55,6 +56,28 @@ class PotesFirestore implements RepositorioPotes {
     }
     await lote.commit();
   }
+
+  @override
+  Future<void> remover(String id) => _col.doc(id).delete();
+}
+
+class CartoesFirestore implements RepositorioCartoes {
+  final FirebaseFirestore db;
+  CartoesFirestore(this.db);
+
+  CollectionReference<Map<String, dynamic>> get _col =>
+      _casaDoc(db).collection('cartoes');
+
+  @override
+  Stream<List<Cartao>> observar() => _col
+      .orderBy('ordem')
+      .snapshots()
+      .map((s) => s.docs.map((d) => Cartao.fromMap(d.id, d.data())).toList());
+
+  @override
+  Future<void> salvar(Cartao cartao) => cartao.id.isEmpty
+      ? _col.add(cartao.toMap())
+      : _col.doc(cartao.id).update(cartao.toMap());
 
   @override
   Future<void> remover(String id) => _col.doc(id).delete();

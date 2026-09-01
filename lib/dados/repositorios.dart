@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
@@ -21,6 +22,15 @@ abstract class RepositorioPotes {
   /// Substitui a configuracao inteira. A validacao de "soma 100%" e de
   /// "no maximo 6" acontece na UI antes de chamar.
   Future<void> salvarTodos(List<Pote> potes);
+
+  Future<void> remover(String id);
+}
+
+abstract class RepositorioCartoes {
+  Stream<List<Cartao>> observar();
+
+  /// Cria quando o id vem vazio, atualiza quando vem preenchido.
+  Future<void> salvar(Cartao cartao);
 
   Future<void> remover(String id);
 }
@@ -240,6 +250,41 @@ class RepositorioGanhosFake implements RepositorioGanhos {
   Future<void> remover(String id) async {
     _ganhos.removeWhere((g) => g.id == id);
     _emitir();
+  }
+}
+
+class RepositorioCartoesFake implements RepositorioCartoes {
+  final List<Cartao> _cartoes = [];
+  final _controlador = StreamController<void>.broadcast();
+  var _sequencia = 0;
+
+  RepositorioCartoesFake([List<Cartao> iniciais = const []]) {
+    _cartoes.addAll(iniciais);
+  }
+
+  List<Cartao> get todos => List.unmodifiable(_cartoes);
+
+  @override
+  Stream<List<Cartao>> observar() => _correnteEDepois(
+        _controlador.stream,
+        () => [..._cartoes]..sort((a, b) => a.ordem.compareTo(b.ordem)),
+      );
+
+  @override
+  Future<void> salvar(Cartao cartao) async {
+    if (cartao.id.isEmpty) {
+      _cartoes.add(cartao.copyWith(id: 'cartao-${_sequencia++}'));
+    } else {
+      final i = _cartoes.indexWhere((c) => c.id == cartao.id);
+      if (i >= 0) _cartoes[i] = cartao;
+    }
+    _controlador.add(null);
+  }
+
+  @override
+  Future<void> remover(String id) async {
+    _cartoes.removeWhere((c) => c.id == id);
+    _controlador.add(null);
   }
 }
 

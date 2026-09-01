@@ -98,6 +98,7 @@ Future<ProviderContainer> montar(
   final container = ProviderContainer(overrides: [
     repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
     repositorioGanhosProvider.overrideWithValue(ganhos),
     repositorioGastosProvider.overrideWithValue(gastos),
   ]);

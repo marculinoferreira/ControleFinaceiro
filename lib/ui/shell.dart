@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'telas/tela_cartoes.dart';
 import 'telas/tela_ganhos.dart';
 import 'telas/tela_graficos.dart';
 import 'telas/tela_gastos.dart';
@@ -23,6 +24,7 @@ const List<_Destino> _destinos = [
   _Destino('Ganhos', Icons.trending_up),
   _Destino('Gastos', Icons.receipt_long),
   _Destino('Potes', Icons.pie_chart_outline),
+  _Destino('Cartões', Icons.credit_card),
   _Destino('Parcelas', Icons.event_repeat),
   _Destino('Gráficos', Icons.insights),
 ];
@@ -46,6 +48,7 @@ class _ShellState extends ConsumerState<Shell> {
       TelaGanhos(),
       TelaGastos(),
       TelaPotes(),
+      TelaCartoes(),
       TelaParcelas(),
       TelaGraficos(),
     ];

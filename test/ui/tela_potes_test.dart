@@ -134,7 +134,10 @@ Future<RepositorioPotesFake> montar(
 
   final repo = RepositorioPotesFake(iniciais);
   await tester.pumpWidget(ProviderScope(
-    overrides: [repositorioPotesProvider.overrideWithValue(repo)],
+    overrides: [
+      repositorioPotesProvider.overrideWithValue(repo),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+    ],
     child: const MaterialApp(home: TelaPotes()),
   ));
   await tester.pumpAndSettle();
@@ -357,7 +360,10 @@ void main() {
 
       final fake = _PotesFakeComCunhagemDeId(tresPotes);
       await tester.pumpWidget(ProviderScope(
-        overrides: [repositorioPotesProvider.overrideWithValue(fake)],
+        overrides: [
+          repositorioPotesProvider.overrideWithValue(fake),
+          repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        ],
         child: const MaterialApp(home: TelaPotes()),
       ));
       await tester.pumpAndSettle();
@@ -439,7 +445,10 @@ void main() {
 
       final fake = _PotesFakeContandoChamadas(tresPotes);
       await tester.pumpWidget(ProviderScope(
-        overrides: [repositorioPotesProvider.overrideWithValue(fake)],
+        overrides: [
+          repositorioPotesProvider.overrideWithValue(fake),
+          repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        ],
         child: const MaterialApp(home: TelaPotes()),
       ));
       await tester.pumpAndSettle();
@@ -481,7 +490,10 @@ void main() {
 
       final fake = _PotesFakeQueFalha([...tresPotes]);
       await tester.pumpWidget(ProviderScope(
-        overrides: [repositorioPotesProvider.overrideWithValue(fake)],
+        overrides: [
+          repositorioPotesProvider.overrideWithValue(fake),
+          repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        ],
         child: const MaterialApp(home: TelaPotes()),
       ));
       await tester.pumpAndSettle();
