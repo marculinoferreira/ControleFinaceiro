@@ -270,7 +270,19 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     List<Cartao> cartoes,
   ) {
     // Preenche os defaults na primeira construcao em que os dados chegaram.
-    if (_membroId.isEmpty && membros.isNotEmpty) _membroId = membros.first.id;
+    //
+    // "De quem" comeca em quem esta logado: quem abre o formulario quase
+    // sempre esta lancando o proprio gasto. E `read` de proposito — isto
+    // semeia o valor inicial uma vez so; trocar de conta com o formulario
+    // aberto nao deve reescrever o que a pessoa ja escolheu no seletor.
+    if (_membroId.isEmpty && membros.isNotEmpty) {
+      final logado = ref.read(membroLogadoProvider);
+      // Confere que o logado esta mesmo nesta lista antes de usar o id: um
+      // valor sem item correspondente derruba o assert de "exactly one item
+      // with [DropdownButton]'s value".
+      final daCasa = logado != null && membros.any((m) => m.id == logado.id);
+      _membroId = daCasa ? logado.id : membros.first.id;
+    }
 
     // Se o pote apontado nao existe mais (foi apagado enquanto o formulario
     // estava aberto, ou o lancamento editado aponta para um pote ja
