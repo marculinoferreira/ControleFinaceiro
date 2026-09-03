@@ -87,19 +87,52 @@ class _ShellState extends ConsumerState<Shell> {
               ],
             )
           : corpo,
-      bottomNavigationBar: desktop
-          ? null
-          : NavigationBar(
-              selectedIndex: _indice,
-              onDestinationSelected: (i) => setState(() => _indice = i),
-              destinations: [
-                for (final d in _destinos)
-                  NavigationDestination(
-                    icon: Icon(d.icone),
-                    label: d.rotulo,
-                  ),
-              ],
-            ),
+      bottomNavigationBar: desktop ? null : _barraInferior(context),
+    );
+  }
+
+  // Sao 7 destinos dividindo a largura da tela, entao em aparelhos estreitos
+  // (ou com fonte do sistema aumentada) rotulos como "Parcelas" quebravam em
+  // duas linhas enquanto "Gastos" e "Potes" ficavam em uma so, desalinhando os
+  // itens. Aqui o rotulo e dimensionado para caber sempre em uma unica linha.
+  Widget _barraInferior(BuildContext context) {
+    final tema = Theme.of(context);
+    final esquema = tema.colorScheme;
+    final larguraItem = MediaQuery.sizeOf(context).width / _destinos.length;
+    // ~4,2 em de largura para o rotulo mais longo, menos uma folga entre itens.
+    final tamanhoRotulo = ((larguraItem - 6) / 4.2).clamp(9.0, 12.0);
+
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.0,
+      child: DefaultTextStyle.merge(
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            labelTextStyle: WidgetStateProperty.resolveWith((estados) {
+              final selecionado = estados.contains(WidgetState.selected);
+              return tema.textTheme.labelMedium!.copyWith(
+                fontSize: tamanhoRotulo,
+                height: 1.1,
+                color:
+                    selecionado ? esquema.onSurface : esquema.onSurfaceVariant,
+              );
+            }),
+          ),
+          child: NavigationBar(
+            selectedIndex: _indice,
+            onDestinationSelected: (i) => setState(() => _indice = i),
+            destinations: [
+              for (final d in _destinos)
+                NavigationDestination(
+                  icon: Icon(d.icone),
+                  label: d.rotulo,
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
