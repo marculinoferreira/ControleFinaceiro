@@ -27,30 +27,47 @@ class SeletorOrdem extends ConsumerWidget {
     final ordem = ref.watch(ordemGastosProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: Row(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Ordenar por', style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(width: 12),
-          // Expanded limita a largura e o scroll horizontal absorve o resto:
-          // quatro segmentos nao cabem na largura de um telefone, e um Row
-          // solto estoura em vez de rolar.
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<OrdemGastos>(
-                key: const Key('ordem_gastos'),
-                showSelectedIcon: false,
-                segments: [
-                  for (final entrada in _rotulos.entries)
-                    ButtonSegment(
-                        value: entrada.key, label: Text(entrada.value)),
-                ],
-                selected: {ordem},
-                onSelectionChanged: (s) =>
-                    ref.read(ordemGastosProvider.notifier).selecionar(s.first),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+            child: Text(
+              'Ordenar por',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          SegmentedButton<OrdemGastos>(
+            key: const Key('ordem_gastos'),
+            showSelectedIcon: false,
+            // expandedInsets zerado faz os quatro segmentos dividirem a
+            // largura disponivel em partes iguais, de uma borda a outra da
+            // tela, em vez de encolherem ate o texto e rolarem na horizontal.
+            expandedInsets: EdgeInsets.zero,
+            style: const ButtonStyle(
+              // Retangulo reto: sem o raio de pilula do Material 3.
+              shape: WidgetStatePropertyAll(RoundedRectangleBorder()),
+              padding: WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 4, vertical: 10),
               ),
             ),
+            segments: [
+              for (final entrada in _rotulos.entries)
+                ButtonSegment(
+                  value: entrada.key,
+                  // Um quarto da tela e pouco para "Cartão" com a fonte do
+                  // sistema aumentada: o scaleDown encolhe o rotulo o tanto
+                  // que precisar em vez de quebrar em duas linhas.
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(entrada.value, maxLines: 1, softWrap: false),
+                  ),
+                ),
+            ],
+            selected: {ordem},
+            onSelectionChanged: (s) =>
+                ref.read(ordemGastosProvider.notifier).selecionar(s.first),
           ),
         ],
       ),
@@ -62,6 +79,10 @@ class FiltrosLancamentos extends ConsumerWidget {
   final List<Membro> membros;
   final List<Pote> potes;
   final List<Cartao> cartoes;
+
+  /// Acima disto os tres filtros cabem lado a lado; abaixo, Pessoa e Cartao
+  /// dividem a primeira linha e Pote fica sozinho na segunda.
+  static const double _larguraTresColunas = 700;
 
   const FiltrosLancamentos({
     super.key,
@@ -96,72 +117,105 @@ class FiltrosLancamentos extends ConsumerWidget {
         ? cartaoId
         : null;
 
+    final pessoa = _seletor(
+      context,
+      chave: const Key('filtro_membro'),
+      rotulo: 'Pessoa',
+      valor: membroValido,
+      itens: [
+        _item(null, 'Casal'),
+        for (final m in membros) _item(m.id, m.nome),
+      ],
+      aoMudar: (v) => ref.read(filtroMembroProvider.notifier).selecionar(v),
+    );
+
+    final cartao = _seletor(
+      context,
+      chave: const Key('filtro_cartao'),
+      rotulo: 'Cartão',
+      valor: cartaoValido,
+      itens: [
+        _item(null, 'Todos'),
+        _item('', 'Sem cartão'),
+        for (final c in cartoes) _item(c.id, c.nome),
+      ],
+      aoMudar: (v) => ref.read(filtroCartaoProvider.notifier).selecionar(v),
+    );
+
+    final pote = _seletor(
+      context,
+      chave: const Key('filtro_pote'),
+      rotulo: 'Pote',
+      valor: poteValido,
+      itens: [
+        _item(null, 'Todos'),
+        for (final p in potes) _item(p.id, p.nome),
+      ],
+      aoMudar: (v) => ref.read(filtroPoteProvider.notifier).selecionar(v),
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        children: [
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String?>(
-              key: const Key('filtro_membro'),
-              initialValue: membroValido,
-              decoration: const InputDecoration(
-                labelText: 'Pessoa',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Casal')),
-                for (final m in membros)
-                  DropdownMenuItem(value: m.id, child: Text(m.nome)),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: LayoutBuilder(
+        builder: (context, restricoes) {
+          if (restricoes.maxWidth >= _larguraTresColunas) {
+            return Row(
+              children: [
+                Expanded(child: pessoa),
+                const SizedBox(width: 12),
+                Expanded(child: cartao),
+                const SizedBox(width: 12),
+                Expanded(child: pote),
               ],
-              onChanged: (v) =>
-                  ref.read(filtroMembroProvider.notifier).selecionar(v),
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String?>(
-              key: const Key('filtro_cartao'),
-              initialValue: cartaoValido,
-              decoration: const InputDecoration(
-                labelText: 'Cartão',
-                border: OutlineInputBorder(),
-                isDense: true,
+            );
+          }
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: pessoa),
+                  const SizedBox(width: 12),
+                  Expanded(child: cartao),
+                ],
               ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Todos')),
-                const DropdownMenuItem(value: '', child: Text('Sem cartão')),
-                for (final c in cartoes)
-                  DropdownMenuItem(value: c.id, child: Text(c.nome)),
-              ],
-              onChanged: (v) =>
-                  ref.read(filtroCartaoProvider.notifier).selecionar(v),
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String?>(
-              key: const Key('filtro_pote'),
-              initialValue: poteValido,
-              decoration: const InputDecoration(
-                labelText: 'Pote',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Todos')),
-                for (final p in potes)
-                  DropdownMenuItem(value: p.id, child: Text(p.nome)),
-              ],
-              onChanged: (v) =>
-                  ref.read(filtroPoteProvider.notifier).selecionar(v),
-            ),
-          ),
-        ],
+              const SizedBox(height: 8),
+              pote,
+            ],
+          );
+        },
       ),
+    );
+  }
+
+  DropdownMenuItem<String?> _item(String? valor, String texto) =>
+      DropdownMenuItem(
+        value: valor,
+        child: Text(texto, maxLines: 1, overflow: TextOverflow.ellipsis),
+      );
+
+  Widget _seletor(
+    BuildContext context, {
+    required Key chave,
+    required String rotulo,
+    required String? valor,
+    required List<DropdownMenuItem<String?>> itens,
+    required ValueChanged<String?> aoMudar,
+  }) {
+    return DropdownButtonFormField<String?>(
+      key: chave,
+      initialValue: valor,
+      // A caixa acompanha a coluna (Expanded) e isExpanded faz o texto
+      // escolhido ocupar essa largura, cortando com reticencias em vez de
+      // estourar quando o nome do cartao ou do pote e comprido.
+      isExpanded: true,
+      style: Theme.of(context).textTheme.bodyMedium,
+      decoration: InputDecoration(
+        labelText: rotulo,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: itens,
+      onChanged: aoMudar,
     );
   }
 }
