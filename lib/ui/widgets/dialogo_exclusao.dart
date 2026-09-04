@@ -3,6 +3,37 @@ import 'package:flutter/material.dart';
 import '../../dados/repositorios.dart';
 import '../../dominio/models/gasto.dart';
 
+/// Pergunta "quer mesmo excluir?" com dois botoes: Sim e Nao.
+///
+/// Devolve false tambem quando o dialogo e fechado por fora (toque no fundo
+/// ou botao voltar) — na duvida, nao apaga.
+Future<bool> confirmarExclusao({
+  required BuildContext context,
+  required String titulo,
+  required String mensagem,
+}) async {
+  final resposta = await showDialog<bool>(
+    context: context,
+    builder: (dialogo) => AlertDialog(
+      title: Text(titulo),
+      content: Text(mensagem),
+      actions: [
+        TextButton(
+          key: const Key('nao_excluir'),
+          onPressed: () => Navigator.of(dialogo).pop(false),
+          child: const Text('Não'),
+        ),
+        TextButton(
+          key: const Key('sim_excluir'),
+          onPressed: () => Navigator.of(dialogo).pop(true),
+          child: const Text('Sim'),
+        ),
+      ],
+    ),
+  );
+  return resposta ?? false;
+}
+
 /// Pergunta como excluir uma parcela (spec 6.3). Devolve null se cancelar.
 Future<ModoExclusao?> perguntarModoExclusao({
   required BuildContext context,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dominio/models/cartao.dart';
 import '../../estado/providers.dart';
+import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/formulario_responsivo.dart';
 import '../widgets/primeira_maiuscula.dart';
@@ -79,29 +80,17 @@ class TelaCartoes extends ConsumerWidget {
 
   Future<void> _excluir(
       BuildContext context, WidgetRef ref, Cartao cartao) async {
-    final confirmou = await showDialog<bool>(
+    // Avisa em vez de bloquear: gastos antigos guardam o id, e a lista
+    // passa a exibir o id cru no lugar do nome. Impedir a exclusao seria
+    // pior — o cartao pode ter sido de fato encerrado.
+    final confirmou = await confirmarExclusao(
       context: context,
-      builder: (dialogo) => AlertDialog(
-        title: const Text('Excluir cartão'),
-        // Avisa em vez de bloquear: gastos antigos guardam o id, e a lista
-        // passa a exibir o id cru no lugar do nome. Impedir a exclusao seria
-        // pior — o cartao pode ter sido de fato encerrado.
-        content: Text('"${cartao.nome}" sai da lista. Os gastos já lançados '
-            'nele continuam existindo, mas deixam de mostrar o nome.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogo).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            key: const Key('confirmar_exclusao_cartao'),
-            onPressed: () => Navigator.of(dialogo).pop(true),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+      titulo: 'Excluir cartão',
+      mensagem: 'Deseja excluir "${cartao.nome}"? Ele sai da lista. Os '
+          'gastos já lançados nele continuam existindo, mas deixam de '
+          'mostrar o nome.',
     );
-    if (confirmou != true) return;
+    if (!confirmou) return;
 
     try {
       await ref.read(repositorioCartoesProvider).remover(cartao.id);

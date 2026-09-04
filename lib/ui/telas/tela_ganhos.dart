@@ -9,6 +9,7 @@ import '../shell.dart' show breakpointDesktop;
 import '../tema/formatadores.dart';
 import '../tema/tema.dart';
 import '../widgets/campo_moeda.dart';
+import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/formulario_responsivo.dart';
 import '../widgets/primeira_maiuscula.dart';
@@ -204,6 +205,13 @@ class _ColunaMembro extends ConsumerWidget {
                                 icon: const Icon(Icons.delete_outline),
                                 tooltip: 'Excluir',
                                 onPressed: () async {
+                                  final confirmou = await confirmarExclusao(
+                                    context: context,
+                                    titulo: 'Excluir ganho',
+                                    mensagem:
+                                        'Deseja excluir "${g.descricao}"?',
+                                  );
+                                  if (!confirmou) return;
                                   try {
                                     await ref
                                         .read(repositorioGanhosProvider)

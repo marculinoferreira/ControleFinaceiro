@@ -180,7 +180,7 @@ void main() {
     expect(find.text('Cinema'), findsOneWidget);
   });
 
-  testWidgets('excluir gasto simples apaga sem perguntar nada',
+  testWidgets('excluir gasto simples so apaga depois do "Sim"',
       (tester) async {
     final (_, repo) = await montar(tester,
         simplesIniciais: [simples('marcos', 'p1', 1200, 'Aluguel')]);
@@ -189,7 +189,25 @@ void main() {
     await tester.tap(find.byIcon(Icons.delete_outline));
     await tester.pumpAndSettle();
 
+    expect(find.text('Excluir gasto'), findsOneWidget);
+    expect(repo.todos, hasLength(1)); // o dialogo por si nao apaga
+
+    await tester.tap(find.byKey(const Key('sim_excluir')));
+    await tester.pumpAndSettle();
+
     expect(repo.todos, isEmpty);
+  });
+
+  testWidgets('responder "Nao" mantem o gasto simples', (tester) async {
+    final (_, repo) = await montar(tester,
+        simplesIniciais: [simples('marcos', 'p1', 1200, 'Aluguel')]);
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nao_excluir')));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, hasLength(1));
   });
 
   testWidgets('excluir parcelado abre o dialogo dos tres modos',
@@ -351,6 +369,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sim_excluir')));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);

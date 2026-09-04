@@ -279,7 +279,9 @@ void main() {
     await montar(tester);
 
     await tester.tap(find.byKey(const Key('remover_0')));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sim_excluir')));
+    await tester.pumpAndSettle();
 
     // Depois de remover "Custo fixo" (indice 0), "Conforto" passa a ocupar
     // a posicao 0. O campo de nome nessa posicao deve refletir isso.
@@ -342,6 +344,8 @@ void main() {
     await montar(tester);
 
     await tester.tap(find.byKey(const Key('remover_2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sim_excluir')));
     await tester.pumpAndSettle();
 
     expect(lista(tester).itemCount, 2);

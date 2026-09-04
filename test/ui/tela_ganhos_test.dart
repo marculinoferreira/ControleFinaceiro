@@ -210,7 +210,8 @@ void main() {
     expect(find.text('Informe a descrição.'), findsOneWidget);
   });
 
-  testWidgets('excluir remove o lancamento', (tester) async {
+  testWidgets('excluir so remove o lancamento depois do "Sim"',
+      (tester) async {
     await comLargura(tester, 1400);
     final repo = await montar(tester, iniciais: [ganho('', 'marcos', 4000)]);
     expect(repo.todos, hasLength(1));
@@ -218,7 +219,43 @@ void main() {
     await tester.tap(find.byIcon(Icons.delete_outline).first);
     await tester.pumpAndSettle();
 
+    expect(find.text('Excluir ganho'), findsOneWidget);
+    expect(repo.todos, hasLength(1)); // o dialogo por si nao apaga
+
+    await tester.tap(find.byKey(const Key('sim_excluir')));
+    await tester.pumpAndSettle();
+
     expect(repo.todos, isEmpty);
+  });
+
+  testWidgets('no mobile a exclusao tambem pede confirmacao', (tester) async {
+    // 700 fica abaixo do breakpoint (layout empilhado) sem estourar a linha
+    // do total: a fonte de teste desenha cada glifo como um quadrado cheio.
+    await comLargura(tester, 700);
+    final repo = await montar(tester, iniciais: [ganho('', 'marcos', 4000)]);
+
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Excluir ganho'), findsOneWidget);
+    expect(repo.todos, hasLength(1));
+
+    await tester.tap(find.byKey(const Key('sim_excluir')));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, isEmpty);
+  });
+
+  testWidgets('responder "Nao" mantem o ganho', (tester) async {
+    await comLargura(tester, 1400);
+    final repo = await montar(tester, iniciais: [ganho('', 'marcos', 4000)]);
+
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nao_excluir')));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos, hasLength(1));
   });
 
   testWidgets('tocar numa linha abre o formulario preenchido para edicao',
@@ -314,6 +351,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sim_excluir')));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);

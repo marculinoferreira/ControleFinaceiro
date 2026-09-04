@@ -219,20 +219,20 @@ void main() {
 
       expect(find.textContaining('continuam existindo'), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('confirmar_exclusao_cartao')));
+      await tester.tap(find.byKey(const Key('sim_excluir')));
       await tester.pumpAndSettle();
 
       expect(repo.todos, isEmpty);
     });
 
-    testWidgets('cancelar nao apaga', (tester) async {
+    testWidgets('responder "Nao" nao apaga', (tester) async {
       final repo = await montar(tester, iniciais: const [
         Cartao(id: 'c1', nome: 'Nubank', ordem: 0),
       ]);
 
       await tester.tap(find.byIcon(Icons.delete_outline));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancelar'));
+      await tester.tap(find.byKey(const Key('nao_excluir')));
       await tester.pumpAndSettle();
 
       expect(repo.todos, hasLength(1));

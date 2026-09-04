@@ -53,7 +53,71 @@ Future<RepositorioGastosFake> comCompra() async {
   return repo;
 }
 
+Widget montarConfirmacao(List<bool> capturado) => MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () async {
+              capturado.add(await confirmarExclusao(
+                context: context,
+                titulo: 'Excluir gasto',
+                mensagem: 'Deseja excluir "Mercado"?',
+              ));
+            },
+            child: const Text('Excluir'),
+          ),
+        ),
+      ),
+    );
+
 void main() {
+  group('confirmarExclusao', () {
+    testWidgets('mostra a pergunta com os botoes Sim e Nao', (tester) async {
+      await tester.pumpWidget(montarConfirmacao([]));
+      await tester.tap(find.text('Excluir'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Excluir gasto'), findsOneWidget);
+      expect(find.text('Deseja excluir "Mercado"?'), findsOneWidget);
+      expect(find.text('Sim'), findsOneWidget);
+      expect(find.text('Não'), findsOneWidget);
+    });
+
+    testWidgets('"Sim" devolve true', (tester) async {
+      final c = <bool>[];
+      await tester.pumpWidget(montarConfirmacao(c));
+      await tester.tap(find.text('Excluir'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('sim_excluir')));
+      await tester.pumpAndSettle();
+
+      expect(c, [true]);
+    });
+
+    testWidgets('"Nao" devolve false', (tester) async {
+      final c = <bool>[];
+      await tester.pumpWidget(montarConfirmacao(c));
+      await tester.tap(find.text('Excluir'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('nao_excluir')));
+      await tester.pumpAndSettle();
+
+      expect(c, [false]);
+    });
+
+    testWidgets('fechar o dialogo por fora devolve false', (tester) async {
+      final c = <bool>[];
+      await tester.pumpWidget(montarConfirmacao(c));
+      await tester.tap(find.text('Excluir'));
+      await tester.pumpAndSettle();
+      // Toca no fundo escurecido, fora do AlertDialog.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(c, [false]);
+    });
+  });
+
   group('perguntarModoExclusao', () {
     testWidgets('mostra os tres modos e identifica a parcela', (tester) async {
       await tester.pumpWidget(montar([]));

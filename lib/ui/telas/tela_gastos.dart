@@ -120,13 +120,20 @@ class TelaGastos extends ConsumerWidget {
     );
   }
 
-  /// Gasto simples apaga direto; parcelado precisa da escolha do modo.
+  /// Gasto simples pede um sim/nao; parcelado ja pergunta o modo, que faz o
+  /// papel da confirmacao — encadear os dois dialogos so atrapalharia.
   Future<void> _excluir(
       BuildContext context, WidgetRef ref, Gasto gasto) async {
     final repo = ref.read(repositorioGastosProvider);
 
     try {
       if (!gasto.parcelado) {
+        final confirmou = await confirmarExclusao(
+          context: context,
+          titulo: 'Excluir gasto',
+          mensagem: 'Deseja excluir "${gasto.descricao}"?',
+        );
+        if (!confirmou) return;
         await repo.removerUma(gasto.id);
         return;
       }

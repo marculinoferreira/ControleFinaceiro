@@ -7,6 +7,7 @@ import '../../dominio/models/pote.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 import '../tema/tema.dart';
+import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/primeira_maiuscula.dart';
 
@@ -238,10 +239,18 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
               key: Key('remover_$i'),
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Remover pote',
-              onPressed: () => setState(() {
-                _rascunho!.removeAt(i);
-                _resincronizarControladores();
-              }),
+              onPressed: () async {
+                final confirmou = await confirmarExclusao(
+                  context: context,
+                  titulo: 'Remover pote',
+                  mensagem: 'Deseja remover "${pote.nome}" da lista?',
+                );
+                if (!confirmou || !mounted) return;
+                setState(() {
+                  _rascunho!.removeAt(i);
+                  _resincronizarControladores();
+                });
+              },
             ),
           ],
         ),
