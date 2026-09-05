@@ -4,14 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 
-/// Faixa fixa abaixo da AppBar: Ganhos, Gastos e Saldo do casal no mes.
+/// Faixa fixa abaixo da AppBar: Ganhos, Gastos e Saldo no mes, respeitando a
+/// visao selecionada (Casal, Marcos ou Silvia).
 /// Fica visivel em todas as telas autenticadas.
 class BarraTotais extends ConsumerWidget {
   const BarraTotais({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final totais = ref.watch(totaisDoCasalProvider);
+    final totais = ref.watch(totaisDoMesProvider);
     final esquema = Theme.of(context).colorScheme;
 
     return Container(

@@ -93,7 +93,7 @@ class FiltrosLancamentos extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final membroId = ref.watch(filtroMembroProvider);
+    final membroId = ref.watch(visaoProvider);
     final poteId = ref.watch(filtroPoteProvider);
     final cartaoId = ref.watch(filtroCartaoProvider);
 
@@ -126,7 +126,9 @@ class FiltrosLancamentos extends ConsumerWidget {
         _item(null, 'Casal'),
         for (final m in membros) _item(m.id, m.nome),
       ],
-      aoMudar: (v) => ref.read(filtroMembroProvider.notifier).selecionar(v),
+      // Mesmo provider do seletor Marcos / Silvia / Casal do Resumo e dos
+      // Graficos: trocar a pessoa aqui troca la, e vice-versa.
+      aoMudar: (v) => ref.read(visaoProvider.notifier).selecionar(v),
     );
 
     final cartao = _seletor(

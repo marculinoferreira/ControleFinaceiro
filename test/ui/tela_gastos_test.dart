@@ -129,7 +129,7 @@ void main() {
       simples('silvia', 'p2', 300, 'Cinema'),
     ]);
 
-    container.read(filtroMembroProvider.notifier).selecionar('marcos');
+    container.read(visaoProvider.notifier).selecionar('marcos');
     await tester.pumpAndSettle();
 
     expect(find.text('Aluguel'), findsOneWidget);
@@ -156,7 +156,7 @@ void main() {
       simples('silvia', 'p2', 300, 'Cinema'),
     ]);
 
-    container.read(filtroMembroProvider.notifier).selecionar('marcos');
+    container.read(visaoProvider.notifier).selecionar('marcos');
     container.read(filtroPoteProvider.notifier).selecionar('p2');
     await tester.pumpAndSettle();
 
@@ -171,9 +171,9 @@ void main() {
       simples('silvia', 'p2', 300, 'Cinema'),
     ]);
 
-    container.read(filtroMembroProvider.notifier).selecionar('marcos');
+    container.read(visaoProvider.notifier).selecionar('marcos');
     await tester.pumpAndSettle();
-    container.read(filtroMembroProvider.notifier).selecionar(null);
+    container.read(visaoProvider.notifier).selecionar(null);
     await tester.pumpAndSettle();
 
     expect(find.text('Aluguel'), findsOneWidget);
@@ -251,7 +251,7 @@ void main() {
     // estava aberta com o filtro apontado para eles.
     container.read(filtroPoteProvider.notifier).selecionar('pote-fantasma');
     container
-        .read(filtroMembroProvider.notifier)
+        .read(visaoProvider.notifier)
         .selecionar('membro-fantasma');
 
     await tester.pumpWidget(UncontrolledProviderScope(
@@ -376,5 +376,39 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(repo.todos, hasLength(1)); // nao apagou
     expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  group('a pessoa escolhida vem do mesmo provider do Resumo', () {
+    testWidgets('o dropdown Pessoa mostra a visao escolhida em outra tela',
+        (tester) async {
+      final (container, _) = await montar(tester, simplesIniciais: [
+        simples('marcos', 'p1', 1200, 'Aluguel'),
+        simples('silvia', 'p2', 300, 'Cinema'),
+      ]);
+
+      // E o que o seletor Marcos / Silvia / Casal do Resumo faz.
+      container.read(visaoProvider.notifier).selecionar('silvia');
+      await tester.pumpAndSettle();
+
+      final campo = find.byKey(const Key('filtro_membro'));
+      expect(find.descendant(of: campo, matching: find.text('Silvia')),
+          findsOneWidget);
+      expect(find.text('Cinema'), findsOneWidget);
+      expect(find.text('Aluguel'), findsNothing);
+    });
+
+    testWidgets('escolher no dropdown Pessoa vale para o Resumo',
+        (tester) async {
+      final (container, _) = await montar(tester, simplesIniciais: [
+        simples('marcos', 'p1', 1200, 'Aluguel'),
+      ]);
+
+      await tester.tap(find.byKey(const Key('filtro_membro')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Marcos').last);
+      await tester.pumpAndSettle();
+
+      expect(container.read(visaoProvider), 'marcos');
+    });
   });
 }

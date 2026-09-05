@@ -277,7 +277,7 @@ void main() {
 
       await escolherFiltro(tester, const Key('filtro_membro'), 'Marcos');
 
-      expect(c.read(filtroMembroProvider), 'marcos');
+      expect(c.read(visaoProvider), 'marcos');
     });
   });
 }

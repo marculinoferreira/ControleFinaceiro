@@ -87,12 +87,40 @@ class MesNotifier extends Notifier<MesRef> {
 final mesSelecionadoProvider =
     NotifierProvider<MesNotifier, MesRef>(MesNotifier.new);
 
-/// Visao ativa nas telas de analise. Null significa "casal".
+/// De quem sao os numeros que o app esta mostrando. Null significa "casal":
+/// sem filtro de pessoa.
+///
+/// E um so para o app inteiro de proposito. O seletor do Resumo e dos
+/// Graficos e o dropdown "Pessoa" de Gastos e Parcelas fazem a mesma
+/// pergunta, entao respondem do mesmo lugar: escolher "Silvia" no Resumo
+/// deixa Gastos e Parcelas em Silvia ao trocar de aba, que e o que se espera
+/// de quem esta acompanhando os numeros de uma pessoa.
+///
+/// Comeca em quem esta logado: ao abrir o app a pessoa quase sempre quer ver
+/// os proprios numeros primeiro, e o do outro ou o do casal fica a um toque.
+///
+/// A semente e aplicada duas vezes de proposito. O `read` cobre o caso de o
+/// membro logado ja estar em maos quando esta visao e lida pela primeira vez
+/// (trocar de aba depois do app aberto); o `listen` cobre o caso normal do
+/// arranque, em que auth e casa ainda estao a caminho e o membro so chega
+/// depois do primeiro build. O `_escolhido` impede que essa chegada tardia
+/// desfaca uma troca manual — inclusive uma troca para "Casal", que e null e
+/// nao daria para distinguir do estado inicial de outro jeito.
 class VisaoNotifier extends Notifier<String?> {
-  @override
-  String? build() => null;
+  bool _escolhido = false;
 
-  void selecionar(String? membroId) => state = membroId;
+  @override
+  String? build() {
+    ref.listen<Membro?>(membroLogadoProvider, (_, logado) {
+      if (!_escolhido && logado != null) state = logado.id;
+    });
+    return ref.read(membroLogadoProvider)?.id;
+  }
+
+  void selecionar(String? membroId) {
+    _escolhido = true;
+    state = membroId;
+  }
 }
 
 final visaoProvider =
@@ -169,19 +197,6 @@ final totaisDoMesProvider = Provider.autoDispose<AsyncValue<TotaisMes>>((ref) {
     ref.watch(gastosDoMesProvider(mes)),
     (ganhos, gastos) =>
         calcularTotais(ganhos: ganhos, gastos: gastos, membroId: membroId),
-  );
-});
-
-/// Totais do casal, independentes da visao selecionada.
-/// Alimenta a barra fixa de totais do mes.
-final totaisDoCasalProvider =
-    Provider.autoDispose<AsyncValue<TotaisMes>>((ref) {
-  final mes = ref.watch(mesSelecionadoProvider).valor;
-
-  return combinarAsyncValues(
-    ref.watch(ganhosDoMesProvider(mes)),
-    ref.watch(gastosDoMesProvider(mes)),
-    (ganhos, gastos) => calcularTotais(ganhos: ganhos, gastos: gastos),
   );
 });
 
@@ -302,7 +317,7 @@ final parcelasEmAbertoProvider =
 /// As compras em aberto passadas pelos mesmos tres filtros da tela de Gastos.
 final comprasFiltradasProvider =
     Provider.autoDispose<AsyncValue<List<CompraParcelada>>>((ref) {
-  final membroId = ref.watch(filtroMembroProvider);
+  final membroId = ref.watch(visaoProvider);
   final poteId = ref.watch(filtroPoteProvider);
   final cartaoId = ref.watch(filtroCartaoProvider);
 
@@ -341,17 +356,9 @@ final comprasAgrupadasProvider =
 //
 // Compartilhados de proposito: "estou olhando o Nubank" e um estado da
 // pessoa, nao de uma tela. Os dropdowns aparecem nas duas, entao a escolha
-// continua visivel depois de trocar de aba.
-
-/// Null significa "Casal": sem filtro de pessoa.
-class FiltroMembroNotifier extends Notifier<String?> {
-  @override
-  String? build() => null;
-  void selecionar(String? membroId) => state = membroId;
-}
-
-final filtroMembroProvider =
-    NotifierProvider<FiltroMembroNotifier, String?>(FiltroMembroNotifier.new);
+// continua visivel depois de trocar de aba. O filtro de pessoa segue a mesma
+// ideia, so que mais longe: mora em `visaoProvider`, junto com o seletor do
+// Resumo e dos Graficos.
 
 /// Null significa "Todos os potes".
 class FiltroPoteNotifier extends Notifier<String?> {
@@ -398,7 +405,7 @@ final ordemGastosProvider =
 final gastosFiltradosProvider =
     Provider.autoDispose<AsyncValue<List<Gasto>>>((ref) {
   final mesRef = ref.watch(mesSelecionadoProvider).valor;
-  final membroId = ref.watch(filtroMembroProvider);
+  final membroId = ref.watch(visaoProvider);
   final poteId = ref.watch(filtroPoteProvider);
   final cartaoId = ref.watch(filtroCartaoProvider);
 
