@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,74 +13,108 @@ import '../widgets/tabela_responsiva.dart';
 
 /// Resumo dos Potes (spec 8): a cascata da Fase 2 finalmente visivel.
 ///
-/// Nao calcula nada. `resumoCascataProvider` ja entrega as linhas, o pote
-/// ativo, o excedente e ate o texto do rotulo; esta tela so pinta.
+/// A cascata (`resumoCascataProvider`) entrega o previsto de cada pote, o
+/// pote ativo, o excedente e o texto do rotulo. O consumido da tabela, porem,
+/// vem de `gastosPorPoteProvider` -- o gasto real classificado naquele pote,
+/// sem o teto do previsto -- para a tabela responder "quanto gastei em
+/// Lazer" e nao "quanto da cascata sobrou pra Lazer depois dos potes
+/// anteriores absorverem".
 class TelaResumo extends ConsumerWidget {
   const TelaResumo({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membros = ref.watch(membrosProvider);
+    final dados = combinarAsyncValues(
+      ref.watch(resumoCascataProvider),
+      ref.watch(gastosPorPoteProvider),
+      (resumo, porPote) => (resumo, porPote),
+    );
 
-    return ref.watch(resumoCascataProvider).when(
-          loading: () => const CarregandoLista(),
-          error: (e, _) => ErroComRecarregar(
-            erro: e,
-            aoRecarregar: () {
-              ref.invalidate(potesProvider);
-              ref.invalidate(
-                  gastosDoMesProvider(ref.read(mesSelecionadoProvider).valor));
-            },
-          ),
-          data: (resumo) => Column(
-            children: [
-              _SeletorVisao(membros: membros),
-              _Rotulo(resumo: resumo),
-              const Divider(height: 1),
-              Expanded(child: _tabela(resumo)),
-            ],
-          ),
-        );
+    return dados.when(
+      loading: () => const CarregandoLista(),
+      error: (e, _) => ErroComRecarregar(
+        erro: e,
+        aoRecarregar: () {
+          ref.invalidate(potesProvider);
+          ref.invalidate(
+              gastosDoMesProvider(ref.read(mesSelecionadoProvider).valor));
+        },
+      ),
+      data: (par) => Column(
+        children: [
+          _SeletorVisao(membros: membros),
+          _Rotulo(resumo: par.$1),
+          const Divider(height: 1),
+          Expanded(child: _tabela(par.$1, par.$2)),
+        ],
+      ),
+    );
   }
 
-  Widget _tabela(ResultadoCascata resumo) {
+  Widget _tabela(ResultadoCascata resumo, Map<String, double> porPote) {
     return TabelaResponsiva(
-      colunas: const ['Pote', '%', 'Previsto', 'Consumido', 'Sobra'],
+      colunas: const [
+        'Pote',
+        '%',
+        'Previsto',
+        'Consumido',
+        'Ultrapassou',
+        'Sobra',
+      ],
       vazio: 'Cadastre seus potes na Lei dos Potes.',
       linhas: [
-        for (final linha in resumo.linhas)
-          LinhaResponsiva(
-            chave: ValueKey('resumo_${linha.pote.id}'),
-            valores: [
-              linha.pote.nome,
-              formatarPercentual(linha.pote.percentual),
-              formatarReais(linha.previsto),
-              formatarReais(linha.consumido),
-              formatarReais(linha.sobra),
-            ],
-            indicador: _BarraDoPote(linha: linha),
-          ),
+        for (final linha in resumo.linhas) _linha(linha, porPote),
       ],
+    );
+  }
+
+  LinhaResponsiva _linha(LinhaCascata linha, Map<String, double> porPote) {
+    final consumido = porPote[linha.pote.id] ?? 0;
+    final ultrapassou = math.max(0.0, consumido - linha.previsto);
+    final sobra = math.max(0.0, linha.previsto - consumido);
+
+    return LinhaResponsiva(
+      chave: ValueKey('resumo_${linha.pote.id}'),
+      valores: [
+        linha.pote.nome,
+        formatarPercentual(linha.pote.percentual),
+        formatarReais(linha.previsto),
+        formatarReais(consumido),
+        formatarReais(ultrapassou),
+        formatarReais(sobra),
+      ],
+      indicador: _BarraDoPote(
+        previsto: linha.previsto,
+        consumido: consumido,
+        cor: linha.pote.cor,
+      ),
     );
   }
 }
 
 /// Barra de consumo de um pote, na cor dele.
 class _BarraDoPote extends StatelessWidget {
-  final LinhaCascata linha;
-  const _BarraDoPote({required this.linha});
+  final double previsto;
+  final double consumido;
+  final String cor;
+  const _BarraDoPote({
+    required this.previsto,
+    required this.consumido,
+    required this.cor,
+  });
 
   @override
   Widget build(BuildContext context) {
     // Um pote de 0%, ou qualquer pote num mes sem renda, tem previsto zero.
     // Dividir aqui daria NaN e o LinearProgressIndicator lancaria assert.
-    final proporcao = linha.previsto <= toleranciaCentavo
+    final proporcao = previsto <= toleranciaCentavo
         ? 0.0
-        : (linha.consumido / linha.previsto).clamp(0.0, 1.0);
+        : (consumido / previsto).clamp(0.0, 1.0);
 
     return LinearProgressIndicator(
       value: proporcao,
-      color: corDeHex(linha.pote.cor),
+      color: corDeHex(cor),
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
     );
   }

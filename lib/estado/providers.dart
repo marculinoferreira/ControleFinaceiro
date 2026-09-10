@@ -295,14 +295,19 @@ final fatiasPorMembroProvider =
 });
 
 /// Comprometimento futuro: os proximos [mesesDaSerie] meses a partir do
-/// selecionado, inclusive (grafico 6 da spec 10).
+/// selecionado, inclusive, respeitando a visao (grafico 6 da spec 10).
 final serieComprometimentoProvider =
     Provider.autoDispose<AsyncValue<List<PontoComprometido>>>((ref) {
   final inicio = ref.watch(mesSelecionadoProvider);
+  final membroId = ref.watch(visaoProvider);
   final meses = janelaDe(inicio, mesesDaSerie);
 
   return ref.watch(parceladosDesdeProvider(inicio.valor)).whenData(
-        (parcelas) => serieComprometimento(meses: meses, parcelas: parcelas),
+        (parcelas) => serieComprometimento(
+          meses: meses,
+          parcelas: parcelas,
+          membroId: membroId,
+        ),
       );
 });
 

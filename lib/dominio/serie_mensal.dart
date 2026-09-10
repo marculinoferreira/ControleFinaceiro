@@ -86,7 +86,7 @@ class PontoComprometido {
 }
 
 /// Quanto de cada mes de [meses] ja esta tomado por parcelas (grafico 6 da
-/// spec 10).
+/// spec 10), somando so as de [membroId] quando ele nao e nulo.
 ///
 /// [parcelas] sao os gastos parcelados a partir do mes corrente; cada um ja
 /// e um documento no mes em que cai, entao aqui e so somar por mes.
@@ -96,11 +96,12 @@ class PontoComprometido {
 List<PontoComprometido> serieComprometimento({
   required List<MesRef> meses,
   required List<Gasto> parcelas,
+  String? membroId,
 }) =>
     [
       for (final mes in meses)
         PontoComprometido(
           mes: mes,
-          valor: comprometidoNoMes(parcelas, mes.valor),
+          valor: comprometidoNoMes(parcelas, mes.valor, membroId: membroId),
         ),
     ];

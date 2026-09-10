@@ -269,5 +269,29 @@ void main() {
       expect(serie, hasLength(3));
       expect(serie.every((p) => p.valor == 0), isTrue);
     });
+
+    test('com membroId, soma so as parcelas daquela pessoa', () {
+      final deSilvia = Gasto(
+        id: 's-2026-08',
+        mesRef: '2026-08',
+        membroId: 'silvia',
+        poteId: 'p1',
+        descricao: 'geladeira',
+        valor: 200,
+        criadoEm: DateTime.utc(2026, 1, 1),
+        parcelado: true,
+        compraId: 'c2',
+        parcela: 1,
+        totalParcelas: 2,
+      );
+
+      final serie = serieComprometimento(
+        meses: janelaDe(const MesRef(2026, 8), 2),
+        parcelas: [parcela('2026-08', 100), deSilvia],
+        membroId: 'marcos',
+      );
+
+      expect(serie.first.valor, 100);
+    });
   });
 }

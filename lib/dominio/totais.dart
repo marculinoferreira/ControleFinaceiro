@@ -57,11 +57,15 @@ Map<String, double> somarGastosPorPote(List<Gasto> gastos, {String? membroId}) {
 }
 
 /// Quanto de parcela ja esta comprometido em [mesRef].
-/// Alimenta o grafico de comprometimento futuro.
-double comprometidoNoMes(List<Gasto> gastos, String mesRef) {
+/// Alimenta o grafico de comprometimento futuro. Com [membroId] nulo, soma
+/// o casal inteiro.
+double comprometidoNoMes(List<Gasto> gastos, String mesRef,
+    {String? membroId}) {
   var soma = 0.0;
   for (final g in gastos) {
-    if (g.parcelado && g.mesRef == mesRef) soma += g.valor;
+    if (!g.parcelado || g.mesRef != mesRef) continue;
+    if (membroId != null && g.membroId != membroId) continue;
+    soma += g.valor;
   }
   return soma;
 }

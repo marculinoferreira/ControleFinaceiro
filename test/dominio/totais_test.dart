@@ -133,5 +133,13 @@ void main() {
     test('mes sem parcelas devolve zero', () {
       expect(comprometidoNoMes(futuros, '2027-01'), 0);
     });
+
+    test('com membroId, soma so as parcelas daquela pessoa', () {
+      expect(comprometidoNoMes(futuros, '2026-09', membroId: 'silvia'), 250);
+    });
+
+    test('membroId nulo soma o casal inteiro', () {
+      expect(comprometidoNoMes(futuros, '2026-09', membroId: null), 350);
+    });
   });
 }

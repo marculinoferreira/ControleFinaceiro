@@ -300,6 +300,20 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('respeita a visao selecionada', (tester) async {
+      final c =
+          await montar(tester, const LinhaComprometimento(), parcelasDe: 3);
+
+      expect(dadosDaLinha(tester).lineBarsData.single.spots[0].y, 100);
+
+      c.read(visaoProvider.notifier).selecionar('silvia');
+      await tester.pumpAndSettle();
+
+      // Silvia nao tem parcela nenhuma: a serie zera e a moldura passa a
+      // frase.
+      expect(find.textContaining('Nenhuma parcela em aberto'), findsOneWidget);
+    });
+
     testWidgets('o tooltip do comprometimento usa texto branco', (tester) async {
       await montar(tester, const LinhaComprometimento(), parcelasDe: 3);
 

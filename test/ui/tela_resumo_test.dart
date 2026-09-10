@@ -182,9 +182,13 @@ void main() {
       expect(barras[1].value, 0); // p2 intocado
     });
 
-    testWidgets('pote estourado trava a barra em 1.0, sem passar',
+    testWidgets(
+        'pote com gasto real maior que o previsto trava a barra em 1.0, sem passar',
         (tester) async {
-      // 8000 de gasto: enche p1 (6000) e come 2000 de p2.
+      // 8000 de gasto, todos classificados no pote p1 (previsto 6000): passa
+      // 2000 do previsto dele. O consumido e por categoria real, entao p2
+      // (sem nenhum gasto classificado nele) fica intocado -- mesmo a
+      // cascata tendo transbordado 2000 pra ele.
       await montar(tester, ganhoMarcos: 10000, gastoMarcos: 8000);
 
       final barras = tester
@@ -193,7 +197,17 @@ void main() {
           .toList();
 
       expect(barras[0].value, 1.0);
-      expect(barras[1].value, closeTo(0.5, 0.001)); // 2000/4000
+      expect(barras[1].value, 0);
+    });
+
+    testWidgets('gasto real acima do previsto aparece na coluna Ultrapassou',
+        (tester) async {
+      // 8000 de gasto no p1 (previsto 6000): ultrapassou 2000, sobra 0.
+      await montar(tester, ganhoMarcos: 10000, gastoMarcos: 8000);
+
+      expect(find.text('Ultrapassou'), findsOneWidget);
+      expect(find.text(formatarReais(2000)), findsOneWidget); // ultrapassou p1
+      expect(find.text(formatarReais(4000)), findsWidgets); // previsto e sobra p2
     });
 
     testWidgets('pote de 0% nao divide por zero', (tester) async {
