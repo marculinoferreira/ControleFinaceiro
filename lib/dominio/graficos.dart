@@ -1,4 +1,5 @@
 import 'cascata.dart';
+import 'models/cartao.dart';
 import 'models/membro.dart';
 import 'models/pote.dart';
 
@@ -93,6 +94,7 @@ List<Fatia> _fatiar({
   required List<String> ids,
   required Map<String, String> nome,
   required Map<String, String> cor,
+  String nomeOrfaos = 'Outros',
 }) {
   final conhecidos = ids.toSet();
   final fatias = <Fatia>[];
@@ -115,7 +117,7 @@ List<Fatia> _fatiar({
   }
 
   if (orfaos > toleranciaCentavo) {
-    fatias.add(Fatia(id: '', nome: 'Outros', cor: corNeutra, valor: orfaos));
+    fatias.add(Fatia(id: '', nome: nomeOrfaos, cor: corNeutra, valor: orfaos));
   }
 
   return fatias;
@@ -196,3 +198,30 @@ List<int> pesosDaCascata(ResultadoCascata resumo) => [
 /// barras de altura zero, nao dizem nada a quem olha.
 bool serieVazia(Iterable<double> valores) =>
     valores.every((v) => v.abs() <= toleranciaCentavo);
+
+/// Paleta fixa para entidades sem cor propria (Cartao). Mesmos tons de
+/// `tela_potes.dart`, para a rosca de cartao nao destoar do resto do app.
+const List<String> paletaCartoes = [
+  '#2E7D32', '#1565C0', '#00838F', '#EF6C00', '#AD1457', '#4527A0',
+];
+
+/// Fatias da rosca de gastos por cartao (fora da numeracao da spec 10).
+///
+/// Cartao nao tem cor propria como Pote/Membro; a cor de cada fatia vem da
+/// paleta fixa, ciclada pela ordem de cadastro.
+List<Fatia> fatiasPorCartao({
+  required Map<String, double> porCartao,
+  required List<Cartao> cartoes,
+}) {
+  final ordenados = [...cartoes]..sort((a, b) => a.ordem.compareTo(b.ordem));
+  return _fatiar(
+    valores: porCartao,
+    ids: [for (final c in ordenados) c.id],
+    nome: {for (final c in ordenados) c.id: c.nome},
+    cor: {
+      for (final (i, c) in ordenados.indexed)
+        c.id: paletaCartoes[i % paletaCartoes.length]
+    },
+    nomeOrfaos: 'Sem cartão',
+  );
+}

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dominio/cascata.dart';
 import 'package:controle_financeiro/dominio/graficos.dart';
+import 'package:controle_financeiro/dominio/models/cartao.dart';
 import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 
@@ -19,6 +20,11 @@ const potes = [
       ordem: 1,
       cor: '#1565C0',
       icone: 'sofa'),
+];
+
+const cartoes = [
+  Cartao(id: 'nubank', nome: 'Nubank', ordem: 0),
+  Cartao(id: 'inter', nome: 'Inter', ordem: 1),
 ];
 
 void main() {
@@ -247,6 +253,67 @@ void main() {
 
     test('sem ganho nenhum devolve lista vazia', () {
       expect(fatiasPorMembro(porMembro: const {}, membros: membros), isEmpty);
+    });
+  });
+
+  group('fatiasPorCartao', () {
+    test('uma fatia por cartao, na ordem cadastrada, com cor da paleta', () {
+      final fatias = fatiasPorCartao(
+        porCartao: const {'inter': 300, 'nubank': 700},
+        cartoes: cartoes,
+      );
+
+      expect(fatias.map((f) => f.id).toList(), ['nubank', 'inter']);
+      expect(fatias.map((f) => f.valor).toList(), [700, 300]);
+      expect(fatias[0].cor, paletaCartoes[0]);
+      expect(fatias[1].cor, paletaCartoes[1]);
+    });
+
+    test('cartao sem gasto nao vira fatia', () {
+      final fatias = fatiasPorCartao(
+        porCartao: const {'nubank': 700},
+        cartoes: cartoes,
+      );
+
+      expect(fatias, hasLength(1));
+    });
+
+    test('gasto sem cartao (chave vazia) cai em Sem cartao, no fim', () {
+      final fatias = fatiasPorCartao(
+        porCartao: const {'nubank': 700, '': 50},
+        cartoes: cartoes,
+      );
+
+      expect(fatias, hasLength(2));
+      expect(fatias.last.nome, 'Sem cartão');
+      expect(fatias.last.valor, 50);
+    });
+
+    test('gasto de cartao apagado tambem cai em Sem cartao', () {
+      final fatias = fatiasPorCartao(
+        porCartao: const {'nubank': 700, 'fantasma': 30},
+        cartoes: cartoes,
+      );
+
+      expect(fatias.last.nome, 'Sem cartão');
+      expect(fatias.last.valor, 30);
+    });
+
+    test('sem gasto nenhum devolve lista vazia', () {
+      expect(fatiasPorCartao(porCartao: const {}, cartoes: cartoes), isEmpty);
+    });
+
+    test('mais cartoes que cores na paleta cicla de volta ao inicio', () {
+      final muitosCartoes = [
+        for (var i = 0; i < paletaCartoes.length + 1; i++)
+          Cartao(id: 'c$i', nome: 'Cartao $i', ordem: i),
+      ];
+      final porCartao = {for (final c in muitosCartoes) c.id: 10.0};
+
+      final fatias =
+          fatiasPorCartao(porCartao: porCartao, cartoes: muitosCartoes);
+
+      expect(fatias.first.cor, fatias.last.cor);
     });
   });
 
