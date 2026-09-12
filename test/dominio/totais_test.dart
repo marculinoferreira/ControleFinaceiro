@@ -19,6 +19,7 @@ Gasto gasto(
   double valor, {
   String mesRef = '2026-08',
   bool parcelado = false,
+  String? cartaoId,
 }) =>
     Gasto(
       id: 'x${valor.toInt()}',
@@ -29,6 +30,7 @@ Gasto gasto(
       valor: valor,
       criadoEm: DateTime.utc(2026, 8, 1),
       parcelado: parcelado,
+      cartaoId: cartaoId,
       compraId: parcelado ? 'c1' : null,
       parcela: parcelado ? 1 : null,
       totalParcelas: parcelado ? 5 : null,
@@ -111,6 +113,40 @@ void main() {
     test('agrupa por pessoa', () {
       expect(somarGastosPorMembro(gastos),
           {'marcos': 1500.0, 'silvia': 800.0});
+    });
+  });
+
+  group('somarGastosPorCartao', () {
+    test('agrupa por cartao somando o casal', () {
+      final gastosComCartao = [
+        gasto('marcos', 'p1', 1200, cartaoId: 'nubank'),
+        gasto('marcos', 'p2', 300, cartaoId: 'nubank'),
+        gasto('silvia', 'p1', 800, cartaoId: 'inter'),
+      ];
+      expect(somarGastosPorCartao(gastosComCartao),
+          {'nubank': 1500.0, 'inter': 800.0});
+    });
+
+    test('gasto sem cartao cai na chave vazia', () {
+      final gastosComCartao = [
+        gasto('marcos', 'p1', 1200, cartaoId: 'nubank'),
+        gasto('marcos', 'p2', 300),
+      ];
+      expect(somarGastosPorCartao(gastosComCartao),
+          {'nubank': 1200.0, '': 300.0});
+    });
+
+    test('filtra por membro quando pedido', () {
+      final gastosComCartao = [
+        gasto('marcos', 'p1', 1200, cartaoId: 'nubank'),
+        gasto('silvia', 'p1', 800, cartaoId: 'nubank'),
+      ];
+      expect(somarGastosPorCartao(gastosComCartao, membroId: 'marcos'),
+          {'nubank': 1200.0});
+    });
+
+    test('lista vazia devolve mapa vazio', () {
+      expect(somarGastosPorCartao(const []), isEmpty);
     });
   });
 

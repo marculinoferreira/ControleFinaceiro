@@ -56,6 +56,19 @@ Map<String, double> somarGastosPorPote(List<Gasto> gastos, {String? membroId}) {
   return mapa;
 }
 
+/// Soma por cartao, com a mesma convencao de `_passaNoCartao`: gasto sem
+/// cartao (ou com um cartao que foi apagado) cai na chave ''.
+Map<String, double> somarGastosPorCartao(List<Gasto> gastos,
+    {String? membroId}) {
+  final mapa = <String, double>{};
+  for (final g in gastos) {
+    if (membroId != null && g.membroId != membroId) continue;
+    final chave = g.cartaoId ?? '';
+    mapa[chave] = (mapa[chave] ?? 0) + g.valor;
+  }
+  return mapa;
+}
+
 /// Quanto de parcela ja esta comprometido em [mesRef].
 /// Alimenta o grafico de comprometimento futuro. Com [membroId] nulo, soma
 /// o casal inteiro.
