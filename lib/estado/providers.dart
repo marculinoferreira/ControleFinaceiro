@@ -311,6 +311,30 @@ final serieComprometimentoProvider =
       );
 });
 
+/// Gastos do mes somados por cartao, ja respeitando a visao selecionada.
+///
+/// Fora da numeracao da spec 10 (grafico extra).
+final gastosPorCartaoProvider =
+    Provider.autoDispose<AsyncValue<Map<String, double>>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+  final membroId = ref.watch(visaoProvider);
+
+  return ref
+      .watch(gastosDoMesProvider(mes))
+      .whenData((gastos) => somarGastosPorCartao(gastos, membroId: membroId));
+});
+
+/// Fatias da rosca de gastos por cartao (grafico extra, fora da spec 10).
+final fatiasPorCartaoProvider =
+    Provider.autoDispose<AsyncValue<List<Fatia>>>((ref) {
+  return combinarAsyncValues(
+    ref.watch(cartoesProvider),
+    ref.watch(gastosPorCartaoProvider),
+    (cartoes, porCartao) =>
+        fatiasPorCartao(porCartao: porCartao, cartoes: cartoes),
+  );
+});
+
 final parcelasEmAbertoProvider =
     Provider.autoDispose<AsyncValue<List<CompraParcelada>>>((ref) {
   final mes = ref.watch(mesSelecionadoProvider);
