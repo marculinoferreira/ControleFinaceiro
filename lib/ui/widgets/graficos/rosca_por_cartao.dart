@@ -29,7 +29,9 @@ class RoscaPorCartao extends ConsumerWidget {
       vazio: 'Nenhum gasto neste mês.',
       // Anel menor que os outros graficos da tela (que usam o padrao de 240)
       // deixa espaco para a linha + valor de cada fatia sem cortar no card.
-      altura: 260,
+      // Um pouco mais alto que o minimo (280 em vez de 260) porque o rotulo
+      // ganhou mais distancia do anel (raioRotulo maior, ver _Rosca).
+      altura: 280,
       dados: ref.watch(fatiasPorCartaoProvider),
       estaVazio: (f) => f.isEmpty,
       aoRecarregar: () {
@@ -57,9 +59,14 @@ class _Rosca extends StatelessWidget {
   /// Cadeia de raios compartilhada entre o rotulo (`_constroiRotulos`) e a
   /// linha de chamada (`_LinhasDeChamada`) -- uma unica fonte, para que os
   /// dois nunca desalinhem se algum dia o comprimento da linha mudar.
+  ///
+  /// A folga entre `raioLinha` e `raioRotulo` (16, nao so um respiro minimo)
+  /// e de proposito: com pouca distancia o rotulo de uma fatia fina (poucos
+  /// graus de arco) acaba visualmente colado no anel, parecendo que esta
+  /// "em cima" da rosca em vez de apontado para fora dela.
   static const double raioAnel = raioInterno + raioFatia;
-  static const double raioLinha = raioAnel + 12;
-  static const double raioRotulo = raioLinha + 10;
+  static const double raioLinha = raioAnel + 16;
+  static const double raioRotulo = raioLinha + 16;
 
   @override
   Widget build(BuildContext context) {

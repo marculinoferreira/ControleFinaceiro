@@ -224,10 +224,10 @@ void main() {
 
       // Mesma formula de _anguloMedioPorFatia para a primeira fatia (nubank,
       // 700 de 1000 -> 252 graus de arco, comecando em 0 graus): angulo medio
-      // 126 graus. Raio do rotulo: raioInterno(44) + raioFatia(38) + 12 + 10
-      // = 104, os mesmos numeros de _Rosca/_LinhasDeChamada.
+      // 126 graus. Raio do rotulo: raioInterno(44) + raioFatia(38) + 16 + 16
+      // = 114, os mesmos numeros de _Rosca/_LinhasDeChamada.
       const anguloMedioGraus = 126.0;
-      const raioRotulo = 104.0;
+      const raioRotulo = 114.0;
       final radianos = anguloMedioGraus * math.pi / 180;
       final esperado = Offset(
         raioRotulo * math.cos(radianos),
