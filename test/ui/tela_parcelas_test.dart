@@ -169,7 +169,9 @@ void main() {
     // As duas compras usam base(), com a mesma data -> mesmo grupo (ver o
     // teste "a ordem padrao agora e por data de vencimento" acima, que já
     // documenta essa coincidencia). valorParcela de cada uma e 100 (o
-    // valor de base()), total do grupo 200.
-    expect(find.text('Total: ${formatarReais(200)}'), findsOneWidget);
+    // valor de base()), total do grupo 200. No desktop o valor do total vai
+    // sob a coluna Valor/mês (colunaDoTotal), separado da celula "Total".
+    expect(find.text('Total'), findsOneWidget);
+    expect(find.text(formatarReais(200)), findsOneWidget);
   });
 }

@@ -93,6 +93,7 @@ class TelaGastos extends ConsumerWidget {
         'Valor',
       ],
       vazio: 'Nenhum gasto neste mês.',
+      colunaDoTotal: 6,
       grupos: [
         for (final grupo in grupos)
           GrupoResponsivo(

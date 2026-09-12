@@ -54,6 +54,13 @@ class _Rosca extends StatelessWidget {
   static const double raioInterno = 44;
   static const double raioFatia = 38;
 
+  /// Cadeia de raios compartilhada entre o rotulo (`_constroiRotulos`) e a
+  /// linha de chamada (`_LinhasDeChamada`) -- uma unica fonte, para que os
+  /// dois nunca desalinhem se algum dia o comprimento da linha mudar.
+  static const double raioAnel = raioInterno + raioFatia;
+  static const double raioLinha = raioAnel + 12;
+  static const double raioRotulo = raioLinha + 10;
+
   @override
   Widget build(BuildContext context) {
     final total = totalDasFatias(fatias);
@@ -68,7 +75,6 @@ class _Rosca extends StatelessWidget {
             painter: _LinhasDeChamada(
               fatias: fatias,
               total: total,
-              corTexto: corTexto,
             ),
           ),
         ),
@@ -125,21 +131,15 @@ class _Rosca extends StatelessWidget {
       final anguloMedio = angulosPorFatia[i];
       final radianos = anguloMedio * math.pi / 180;
 
-      const raioAnel = raioInterno + raioFatia;
-      const raioRotulo = raioAnel + 12 + 10;
-
       final posicao = Offset(raioRotulo * math.cos(radianos),
           raioRotulo * math.sin(radianos));
 
       rotulos.add(
-        Align(
-          alignment: Alignment.center,
-          child: Transform.translate(
-            offset: posicao,
-            child: Text(
-              formatarReais(f.valor),
-              style: TextStyle(fontSize: 10, color: corTexto),
-            ),
+        Transform.translate(
+          offset: posicao,
+          child: Text(
+            formatarReais(f.valor),
+            style: TextStyle(fontSize: 10, color: corTexto),
           ),
         ),
       );
@@ -150,7 +150,12 @@ class _Rosca extends StatelessWidget {
 
   /// Calcula o angulo medio (em graus) para cada fatia, em ordem.
   /// Implementa a acumulacao de graus comecando em 0 (eixo das 3 horas),
-  /// sentido horario — a mesma formula usada pelo PieChartPainter do fl_chart.
+  /// sentido horario — a mesma formula usada pelo PieChartPainter do
+  /// fl_chart por baixo dos panos. `fatias` precisa ser a mesma lista, na
+  /// mesma ordem, usada para montar as `sections` do PieChart, para o
+  /// angulo calculado aqui sempre bater com o que a biblioteca desenha. Usada
+  /// tanto para posicionar os rotulos de valor (`_constroiRotulos`) quanto
+  /// as linhas de chamada (`_LinhasDeChamada`).
   static List<double> _anguloMedioPorFatia(List<Fatia> fatias, double total) {
     if (total <= 0) return [];
 
@@ -175,29 +180,19 @@ class _Rosca extends StatelessWidget {
   }
 }
 
-/// Desenha, para cada fatia, uma linha saindo da borda do anel ate um
-/// rotulo com o valor em reais — a porcentagem dentro da fatia nao diz
-/// quanto foi gasto em cada cartao.
-///
-/// O angulo de cada fatia e recalculado aqui com a MESMA formula que o
-/// PieChartPainter do fl_chart usa por baixo dos panos (soma cumulativa de
-/// graus, comecando em 0 = eixo das 3 horas, sentido horario). `fatias` e a
-/// mesma lista, na mesma ordem, usada para montar as `sections` do
-/// PieChart logo acima — o angulo calculado aqui sempre bate com o que a
-/// biblioteca desenha.
+/// Desenha, para cada fatia, apenas o TRACO da linha de chamada (da borda
+/// do anel ate o raio onde o rotulo comeca) — o rotulo com o valor em reais
+/// em si NAO e desenhado aqui: e um `Text` widget separado, construido por
+/// `_Rosca._constroiRotulos`, para poder herdar tema/estilo de texto e ser
+/// testado como qualquer outro widget. Esta classe cuida so do traco.
 class _LinhasDeChamada extends CustomPainter {
   final List<Fatia> fatias;
   final double total;
-  final Color corTexto;
 
   const _LinhasDeChamada({
     required this.fatias,
     required this.total,
-    required this.corTexto,
   });
-
-  static const double _raioAnel = _Rosca.raioInterno + _Rosca.raioFatia;
-  static const double _raioLinha = _raioAnel + 12;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -215,8 +210,8 @@ class _LinhasDeChamada extends CustomPainter {
       final direcao = Offset(math.cos(radianos), math.sin(radianos));
 
       canvas.drawLine(
-        centro + direcao * _raioAnel,
-        centro + direcao * _raioLinha,
+        centro + direcao * _Rosca.raioAnel,
+        centro + direcao * _Rosca.raioLinha,
         Paint()
           ..color = corDeHex(f.cor)
           ..strokeWidth = 1.5,
@@ -226,7 +221,5 @@ class _LinhasDeChamada extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _LinhasDeChamada oldDelegate) =>
-      oldDelegate.fatias != fatias ||
-      oldDelegate.total != total ||
-      oldDelegate.corTexto != corTexto;
+      oldDelegate.fatias != fatias || oldDelegate.total != total;
 }

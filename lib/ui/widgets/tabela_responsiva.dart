@@ -56,6 +56,14 @@ class TabelaResponsiva extends StatelessWidget {
   final List<GrupoResponsivo> grupos;
   final String vazio;
 
+  /// Indice da coluna onde o valor do total de cada grupo deve ser
+  /// desenhado no DataTable (desktop). `null` (o padrao) joga o total
+  /// inteiro ("Total: R$ X") na coluna 0 -- so existe para nao quebrar quem
+  /// ainda nao passa este campo. Irrelevante para a lista simples (sem
+  /// agrupamento nunca ha total), por isso nao existe no construtor
+  /// principal.
+  final int? colunaDoTotal;
+
   /// Lista simples, sem agrupamento.
   TabelaResponsiva({
     super.key,
@@ -63,6 +71,7 @@ class TabelaResponsiva extends StatelessWidget {
     required List<LinhaResponsiva> linhas,
     this.vazio = 'Nada lançado neste mês.',
   })  : grupos = [GrupoResponsivo(titulo: '', linhas: linhas)],
+        colunaDoTotal = null,
         assert(
           // Falha cedo em debug: linha torta e bug de quem chama.
           linhas.isEmpty ||
@@ -75,6 +84,7 @@ class TabelaResponsiva extends StatelessWidget {
     required this.colunas,
     required this.grupos,
     this.vazio = 'Nada lançado neste mês.',
+    this.colunaDoTotal,
   });
 
   List<LinhaResponsiva> get _todas =>
@@ -98,10 +108,10 @@ class TabelaResponsiva extends StatelessWidget {
     }
 
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
-    return desktop ? _tabela() : _cards();
+    return desktop ? _tabela(context) : _cards();
   }
 
-  Widget _tabela() {
+  Widget _tabela(BuildContext context) {
     // Tabela larga rola na horizontal em vez de estourar o layout.
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -147,7 +157,7 @@ class TabelaResponsiva extends StatelessWidget {
                 ],
                 ),
               if (grupo.total != null)
-                _rodapeDeGrupo(grupo.titulo, grupo.total!),
+                _rodapeDeGrupo(context, grupo.titulo, grupo.total!),
             ],
           ],
         ),
@@ -170,20 +180,39 @@ class TabelaResponsiva extends StatelessWidget {
         ],
       );
 
-  /// Linha de total ao fim de um grupo. Mesmo truque do cabecalho (texto na
-  /// primeira celula, resto vazio), mas em italico em vez de negrito, para
-  /// nao ser confundida com o titulo do grupo.
-  DataRow _rodapeDeGrupo(String titulo, double total) => DataRow(
-        key: ValueKey('rodape_$titulo'),
-        cells: [
-          DataCell(Text(
-            'Total: ${formatarReais(total)}',
-            style: const TextStyle(fontStyle: FontStyle.italic),
-          )),
-          for (var i = 1; i < colunas.length + (_temAcoes ? 1 : 0); i++)
-            const DataCell(SizedBox.shrink()),
-        ],
-      );
+  /// Linha de total ao fim de um grupo. Mesmo truque do cabecalho (texto
+  /// fora das celulas normais, resto vazio), mas em italico e em cor
+  /// esmaecida em vez de negrito, para nao ser confundida com o titulo do
+  /// grupo. Quando [colunaDoTotal] e informado, o valor vai sob a coluna que
+  /// esta somando (em vez de inflar a coluna 0 com uma string longa) -- so
+  /// a palavra "Total" fica na celula 0.
+  DataRow _rodapeDeGrupo(BuildContext context, String titulo, double total) {
+    final estilo = TextStyle(
+      fontStyle: FontStyle.italic,
+      color: Theme.of(context).colorScheme.outline,
+    );
+    final totalDeQuantasCelulas = colunas.length + (_temAcoes ? 1 : 0);
+
+    Widget celula(int i) {
+      if (i == 0) {
+        return Text(
+          colunaDoTotal == null ? 'Total: ${formatarReais(total)}' : 'Total',
+          style: estilo,
+        );
+      }
+      if (colunaDoTotal != null && i == colunaDoTotal) {
+        return Text(formatarReais(total), style: estilo);
+      }
+      return const SizedBox.shrink();
+    }
+
+    return DataRow(
+      key: ValueKey('rodape_$titulo'),
+      cells: [
+        for (var i = 0; i < totalDeQuantasCelulas; i++) DataCell(celula(i)),
+      ],
+    );
+  }
 
   Widget _cards() {
     // Uma lista plana onde cada item e um titulo (String), uma linha, ou o
@@ -224,10 +253,10 @@ class TabelaResponsiva extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 'Total: ${formatarReais(item.total)}',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(fontStyle: FontStyle.italic),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
               ),
             ),
           );

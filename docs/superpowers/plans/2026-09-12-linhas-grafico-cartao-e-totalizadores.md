@@ -272,6 +272,8 @@ class _LinhasDeChamada extends CustomPainter {
 
 Nota: `_raioAnel` referencia `_Rosca.raioInterno`/`_Rosca.raioFatia` — os dois `static const` ficaram públicos dentro da biblioteca (sem `_` no nome do campo, só a classe `_Rosca` é privada) justamente para o painter reaproveitar os mesmos números sem duplicar literais.
 
+Nota: implementação final desviou disto — ver commits de correção. O rótulo com o valor em reais deixou de ser desenhado no `Canvas` via `TextPainter` (bloco acima) e passou a ser um `Text` widget separado, construído por `_Rosca._constroiRotulos` e posicionado com `Transform.translate` sobre a `Stack` — assim ele herda tema/estilo de texto normalmente e pode ser encontrado e testado como qualquer outro widget (`find.text(...)`), em vez de exigir asserções pixel a pixel sobre o canvas. `_LinhasDeChamada` ficou responsável só pelo traço da linha; `corTexto` foi removido de lá porque deixou de ter uso ali. Os raios (`raioAnel`/`raioLinha`/`raioRotulo`) também foram hoisted para `_Rosca` como fonte única, em vez de recalculados separadamente em cada lugar como no bloco acima.
+
 - [ ] **Step 4: Rodar os testes e confirmar que passam**
 
 Run: `flutter test test/ui/graficos_por_cartao_test.dart`

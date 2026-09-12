@@ -433,8 +433,11 @@ void main() {
       ]);
 
       // Os dois gastos (100 + 100, valor fixo do helper gasto()) caem no
-      // mesmo dia -> total 200.
-      expect(find.text('Total: ${formatarReais(200)}'), findsOneWidget);
+      // mesmo dia -> total 200. No desktop o valor vai sob a coluna Valor
+      // (colunaDoTotal), separado da celula "Total" -- ver Finding 1 do
+      // review final.
+      expect(find.text('Total'), findsOneWidget);
+      expect(find.text(formatarReais(200)), findsOneWidget);
     });
 
     testWidgets('mostra o total por pote', (tester) async {
@@ -446,8 +449,19 @@ void main() {
       await ordenarPor(tester, 'Pote');
 
       // Um gasto de 100 em cada pote -> total 100 em cada um dos dois
-      // grupos.
-      expect(find.text('Total: ${formatarReais(100)}'), findsNWidgets(2));
+      // grupos. No desktop o valor do total vai sob a coluna Valor
+      // (colunaDoTotal), na mesma celula onde o unico gasto do grupo ja
+      // mostra "R$ 100,00" -- entao find.text(formatarReais(100)) sozinho
+      // bateria em 4 celulas (2 linhas + 2 rodapes), nao so nos rodapes. A
+      // key do DataRow do rodape nao vira key de nenhum widget na arvore
+      // (Table/DataTable nao expoe isso), entao a linha de total e
+      // distinguida pelo estilo (italico + cor esmaecida, ver o achado da
+      // Finding 5) em vez de key ou posicao.
+      expect(find.text('Total'), findsNWidgets(2));
+      final valoresEmItalico = tester
+          .widgetList<Text>(find.text(formatarReais(100)))
+          .where((t) => t.style?.fontStyle == FontStyle.italic);
+      expect(valoresEmItalico.length, 2);
     });
 
     testWidgets('nao mostra total na ordem alfabetica', (tester) async {
