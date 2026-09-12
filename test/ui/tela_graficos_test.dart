@@ -140,7 +140,7 @@ void main() {
     testWidgets('mostra os seis graficos da spec', (tester) async {
       await montar(tester);
 
-      expect(molduras, findsNWidgets(6));
+      expect(molduras, findsNWidgets(7));
     });
 
     testWidgets('os titulos aparecem na ordem da spec 10', (tester) async {
@@ -152,6 +152,7 @@ void main() {
       expect(find.text('Ganhos por pessoa'), findsOneWidget);
       expect(find.text('Onde o gasto parou'), findsOneWidget);
       expect(find.textContaining('Comprometido'), findsOneWidget);
+      expect(find.text('Gastos por cartão'), findsOneWidget);
     });
 
     testWidgets('rola sem estourar o layout', (tester) async {
@@ -176,7 +177,7 @@ void main() {
 
       expect(find.byKey(const Key('graficos_coluna_unica')), findsOneWidget);
       expect(find.byKey(const Key('graficos_coluna_esquerda')), findsNothing);
-      expect(molduras, findsNWidgets(6));
+      expect(molduras, findsNWidgets(7));
     });
   });
 
@@ -186,14 +187,14 @@ void main() {
       await montar(tester, repoPotes: _PotesQueFalha());
 
       // Os seis continuam montados.
-      expect(molduras, findsNWidgets(6));
+      expect(molduras, findsNWidgets(7));
 
       // Rosca, barras e cascata dependem de potes e mostram o erro.
       expect(find.text('Tentar de novo'), findsNWidgets(3));
 
       // Os que nao dependem de potes seguem desenhando.
       expect(find.byType(LineChart), findsWidgets);
-      expect(find.byType(PieChart), findsOneWidget); // a pizza de ganhos
+      expect(find.byType(PieChart), findsNWidgets(2)); // pizza de ganhos e rosca por cartao
     });
 
     testWidgets('os titulos continuam legiveis mesmo no erro', (tester) async {
@@ -245,7 +246,7 @@ void main() {
         (tester) async {
       await montar(tester, comDados: false);
 
-      expect(molduras, findsNWidgets(6));
+      expect(molduras, findsNWidgets(7));
       expect(find.byType(PieChart), findsNothing);
       expect(find.byType(LineChart), findsNothing);
       expect(find.byType(BarChart), findsNothing);

@@ -9,6 +9,7 @@ import '../widgets/graficos/barras_previsto_gasto.dart';
 import '../widgets/graficos/linha_comprometimento.dart';
 import '../widgets/graficos/linha_evolucao.dart';
 import '../widgets/graficos/pizza_ganhos.dart';
+import '../widgets/graficos/rosca_por_cartao.dart';
 import '../widgets/graficos/rosca_por_pote.dart';
 
 /// Os seis graficos da spec 10.
@@ -27,6 +28,7 @@ class TelaGraficos extends ConsumerWidget {
     PizzaGanhos(),
     BarraCascata(),
     LinhaComprometimento(),
+    RoscaPorCartao(),
   ];
 
   @override
