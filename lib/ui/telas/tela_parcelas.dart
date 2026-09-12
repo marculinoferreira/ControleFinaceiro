@@ -87,6 +87,9 @@ class TelaParcelas extends ConsumerWidget {
         for (final grupo in grupos)
           GrupoResponsivo(
             titulo: grupo.titulo,
+            total: grupo.titulo.isEmpty
+                ? null
+                : grupo.itens.fold<double>(0.0, (soma, c) => soma + c.valorParcela),
             linhas: [
               for (final c in grupo.itens)
                 LinhaResponsiva(

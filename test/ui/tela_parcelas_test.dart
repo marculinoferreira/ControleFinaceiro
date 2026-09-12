@@ -8,6 +8,7 @@ import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
+import 'package:controle_financeiro/ui/tema/formatadores.dart';
 import 'package:controle_financeiro/ui/telas/tela_parcelas.dart';
 
 /// Fake cujo observar() emite erro -- achado 5 (leitura assincrona sem os
@@ -156,5 +157,19 @@ void main() {
     // Sem a correcao, a compra aparece com o id cru do pote em vez de sumir
     // atras de um estado de erro.
     expect(find.text('p2'), findsNothing);
+  });
+
+  testWidgets('mostra o total do grupo somando o valor por mes de cada compra',
+      (tester) async {
+    await montar(tester, (repo) async {
+      await repo.adicionar(base: base('Geladeira'), quantidadeParcelas: 10);
+      await repo.adicionar(base: base('Sofa'), quantidadeParcelas: 5);
+    });
+
+    // As duas compras usam base(), com a mesma data -> mesmo grupo (ver o
+    // teste "a ordem padrao agora e por data de vencimento" acima, que já
+    // documenta essa coincidencia). valorParcela de cada uma e 100 (o
+    // valor de base()), total do grupo 200.
+    expect(find.text('Total: ${formatarReais(200)}'), findsOneWidget);
   });
 }
