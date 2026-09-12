@@ -10,6 +10,7 @@ import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/dominio/ordem_gastos.dart';
 import 'package:controle_financeiro/estado/providers.dart';
+import 'package:controle_financeiro/ui/tema/formatadores.dart';
 import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
 
 const casa = Casa(
@@ -421,6 +422,40 @@ void main() {
       // assim: a coacao e so visual. Documentado aqui para a inconsistencia
       // nao passar por acidente.
       expect(find.text('Feira'), findsNothing);
+    });
+  });
+
+  group('totalizador por grupo', () {
+    testWidgets('mostra o total do dia', (tester) async {
+      await montar(tester, gastos: [
+        gasto('Feira', 12),
+        gasto('Padaria', 12),
+      ]);
+
+      // Os dois gastos (100 + 100, valor fixo do helper gasto()) caem no
+      // mesmo dia -> total 200.
+      expect(find.text('Total: ${formatarReais(200)}'), findsOneWidget);
+    });
+
+    testWidgets('mostra o total por pote', (tester) async {
+      await montar(tester, gastos: [
+        gasto('Aluguel', 12, poteId: 'p1'),
+        gasto('Freezer', 10, poteId: 'p2'),
+      ]);
+
+      await ordenarPor(tester, 'Pote');
+
+      // Um gasto de 100 em cada pote -> total 100 em cada um dos dois
+      // grupos.
+      expect(find.text('Total: ${formatarReais(100)}'), findsNWidgets(2));
+    });
+
+    testWidgets('nao mostra total na ordem alfabetica', (tester) async {
+      await montar(tester, gastos: [gasto('Feira', 12)]);
+
+      await ordenarPor(tester, 'A–Z');
+
+      expect(find.textContaining('Total:'), findsNothing);
     });
   });
 }

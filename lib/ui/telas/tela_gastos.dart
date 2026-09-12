@@ -115,6 +115,9 @@ class TelaGastos extends ConsumerWidget {
                   aoExcluir: () => _excluir(context, ref, g),
                 ),
             ],
+            total: grupo.titulo.isEmpty
+                ? null
+                : grupo.itens.fold<double>(0.0, (soma, g) => soma + g.valor),
           ),
       ],
     );
