@@ -34,6 +34,15 @@ List<LinhaResponsiva> duasLinhas({
       ),
     ];
 
+Widget montarAgrupada(List<GrupoResponsivo> grupos) => MaterialApp(
+      home: Scaffold(
+        body: TabelaResponsiva.agrupada(
+          colunas: const ['Descricao', 'Valor'],
+          grupos: grupos,
+        ),
+      ),
+    );
+
 void main() {
   testWidgets('desktop usa DataTable', (tester) async {
     await comLargura(tester, 1400);
@@ -136,5 +145,58 @@ void main() {
       ),
       throwsAssertionError,
     );
+  });
+
+  testWidgets('grupo com total mostra a linha de total no desktop',
+      (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montarAgrupada([
+      const GrupoResponsivo(
+        titulo: 'Hoje',
+        linhas: [
+          LinhaResponsiva(
+              chave: ValueKey('l1'), valores: ['Aluguel', r'R$ 100,00']),
+        ],
+        total: 100,
+      ),
+    ]));
+    await tester.pump();
+
+    // Debug: print all Text widgets to see what's rendered
+    expect(find.textContaining('Total:'), findsOneWidget);
+  });
+
+  testWidgets('grupo sem total nao mostra linha extra', (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montarAgrupada([
+      const GrupoResponsivo(
+        titulo: 'Hoje',
+        linhas: [
+          LinhaResponsiva(
+              chave: ValueKey('l1'), valores: ['Aluguel', r'R$ 100,00']),
+        ],
+      ),
+    ]));
+    await tester.pump();
+
+    expect(find.textContaining('Total:'), findsNothing);
+  });
+
+  testWidgets('grupo com total mostra a linha de total no mobile',
+      (tester) async {
+    await comLargura(tester, 420);
+    await tester.pumpWidget(montarAgrupada([
+      const GrupoResponsivo(
+        titulo: 'Hoje',
+        linhas: [
+          LinhaResponsiva(
+              chave: ValueKey('l1'), valores: ['Aluguel', r'R$ 100,00']),
+        ],
+        total: 100,
+      ),
+    ]));
+    await tester.pump();
+
+    expect(find.textContaining('Total:'), findsOneWidget);
   });
 }
