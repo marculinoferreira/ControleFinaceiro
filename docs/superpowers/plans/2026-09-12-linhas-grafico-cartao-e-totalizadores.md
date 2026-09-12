@@ -620,6 +620,20 @@ git commit -m "feat: campo total em GrupoResponsivo, com linha de total no deskt
 
 - [ ] **Step 1: Escrever os testes que ainda falham**
 
+Adicione o import de `formatarReais` no topo do arquivo (ainda não importado
+neste arquivo), junto dos demais imports de `package:controle_financeiro/...`:
+
+```dart
+import 'package:controle_financeiro/ui/tema/formatadores.dart';
+```
+
+Nota: `formatarReais` usa `NumberFormat.currency` com locale `pt_BR`, que
+insere um espaço **não quebrável** (NBSP, U+00A0) entre "R$" e o valor — não
+um espaço comum. Um literal escrito à mão como `'Total: R$ 200,00'` (com
+espaço comum) NÃO bate com o texto renderizado; use sempre
+`'Total: ${formatarReais(valor)}'` para montar o texto esperado, nunca um
+literal com o cifrão escrito à mão.
+
 Adicione um novo `group` ao final de `test/ui/ordem_gastos_ui_test.dart`, antes do último `}` que fecha `main()`:
 
 ```dart
@@ -632,7 +646,7 @@ Adicione um novo `group` ao final de `test/ui/ordem_gastos_ui_test.dart`, antes 
 
       // Os dois gastos (100 + 100, valor fixo do helper gasto()) caem no
       // mesmo dia -> total 200.
-      expect(find.text('Total: R\$ 200,00'), findsOneWidget);
+      expect(find.text('Total: ${formatarReais(200)}'), findsOneWidget);
     });
 
     testWidgets('mostra o total por pote', (tester) async {
@@ -645,7 +659,7 @@ Adicione um novo `group` ao final de `test/ui/ordem_gastos_ui_test.dart`, antes 
 
       // Um gasto de 100 em cada pote -> total 100 em cada um dos dois
       // grupos.
-      expect(find.text('Total: R\$ 100,00'), findsNWidgets(2));
+      expect(find.text('Total: ${formatarReais(100)}'), findsNWidgets(2));
     });
 
     testWidgets('nao mostra total na ordem alfabetica', (tester) async {
@@ -728,6 +742,20 @@ git commit -m "feat: total por grupo na tela de Gastos (Data, Pote e Cartao)"
 
 - [ ] **Step 1: Escrever o teste que ainda falha**
 
+Adicione o import de `formatarReais` no topo do arquivo (ainda não importado
+neste arquivo), junto dos demais imports de `package:controle_financeiro/...`:
+
+```dart
+import 'package:controle_financeiro/ui/tema/formatadores.dart';
+```
+
+Nota: `formatarReais` usa `NumberFormat.currency` com locale `pt_BR`, que
+insere um espaço **não quebrável** (NBSP, U+00A0) entre "R$" e o valor — não
+um espaço comum. Um literal escrito à mão como `'Total: R$ 200,00'` (com
+espaço comum) NÃO bate com o texto renderizado; use sempre
+`'Total: ${formatarReais(valor)}'` para montar o texto esperado, nunca um
+literal com o cifrão escrito à mão.
+
 Adicione ao final de `test/ui/tela_parcelas_test.dart`, depois do último `testWidgets(...)` e antes do `}` que fecha `main()`:
 
 ```dart
@@ -742,7 +770,7 @@ Adicione ao final de `test/ui/tela_parcelas_test.dart`, depois do último `testW
     // teste "a ordem padrao agora e por data de vencimento" acima, que já
     // documenta essa coincidencia). valorParcela de cada uma e 100 (o
     // valor de base()), total do grupo 200.
-    expect(find.text('Total: R\$ 200,00'), findsOneWidget);
+    expect(find.text('Total: ${formatarReais(200)}'), findsOneWidget);
   });
 ```
 
