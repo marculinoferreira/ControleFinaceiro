@@ -64,8 +64,7 @@ class _Rosca extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = totalDasFatias(fatias);
-    final corTexto =
-        Theme.of(context).textTheme.bodySmall?.color ?? Colors.black87;
+    final corTexto = Theme.of(context).colorScheme.onSurface;
 
     return Stack(
       alignment: Alignment.center,
@@ -139,7 +138,11 @@ class _Rosca extends StatelessWidget {
           offset: posicao,
           child: Text(
             formatarReais(f.valor),
-            style: TextStyle(fontSize: 10, color: corTexto),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: corTexto,
+            ),
           ),
         ),
       );

@@ -455,13 +455,13 @@ void main() {
       // bateria em 4 celulas (2 linhas + 2 rodapes), nao so nos rodapes. A
       // key do DataRow do rodape nao vira key de nenhum widget na arvore
       // (Table/DataTable nao expoe isso), entao a linha de total e
-      // distinguida pelo estilo (italico + cor esmaecida, ver o achado da
-      // Finding 5) em vez de key ou posicao.
+      // distinguida pelo estilo (negrito, ver o ajuste de destaque do
+      // rodape) em vez de key ou posicao.
       expect(find.text('Total'), findsNWidgets(2));
-      final valoresEmItalico = tester
+      final valoresEmNegrito = tester
           .widgetList<Text>(find.text(formatarReais(100)))
-          .where((t) => t.style?.fontStyle == FontStyle.italic);
-      expect(valoresEmItalico.length, 2);
+          .where((t) => t.style?.fontWeight == FontWeight.bold);
+      expect(valoresEmNegrito.length, 2);
     });
 
     testWidgets('nao mostra total na ordem alfabetica', (tester) async {

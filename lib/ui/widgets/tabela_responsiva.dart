@@ -181,15 +181,16 @@ class TabelaResponsiva extends StatelessWidget {
       );
 
   /// Linha de total ao fim de um grupo. Mesmo truque do cabecalho (texto
-  /// fora das celulas normais, resto vazio), mas em italico e em cor
-  /// esmaecida em vez de negrito, para nao ser confundida com o titulo do
-  /// grupo. Quando [colunaDoTotal] e informado, o valor vai sob a coluna que
-  /// esta somando (em vez de inflar a coluna 0 com uma string longa) -- so
-  /// a palavra "Total" fica na celula 0.
+  /// fora das celulas normais, resto vazio), mas com fundo cinza claro e
+  /// texto em negrito, para se destacar tanto do titulo do grupo (que nao
+  /// tem fundo) quanto das linhas normais. Quando [colunaDoTotal] e
+  /// informado, o valor vai sob a coluna que esta somando (em vez de inflar
+  /// a coluna 0 com uma string longa) -- so a palavra "Total" fica na
+  /// celula 0.
   DataRow _rodapeDeGrupo(BuildContext context, String titulo, double total) {
     final estilo = TextStyle(
-      fontStyle: FontStyle.italic,
-      color: Theme.of(context).colorScheme.outline,
+      fontWeight: FontWeight.bold,
+      color: Theme.of(context).colorScheme.onSurface,
     );
     final totalDeQuantasCelulas = colunas.length + (_temAcoes ? 1 : 0);
 
@@ -208,6 +209,9 @@ class TabelaResponsiva extends StatelessWidget {
 
     return DataRow(
       key: ValueKey('rodape_$titulo'),
+      color: WidgetStatePropertyAll(
+        Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
       cells: [
         for (var i = 0; i < totalDeQuantasCelulas; i++) DataCell(celula(i)),
       ],
@@ -248,15 +252,23 @@ class TabelaResponsiva extends StatelessWidget {
         if (item is _RodapeDeGrupo) {
           return Padding(
             key: ValueKey('rodape_${item.titulo}'),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'Total: ${formatarReais(item.total)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Total: ${formatarReais(item.total)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                ),
               ),
             ),
           );
