@@ -171,5 +171,38 @@ void main() {
       expect(secoes(tester), hasLength(1));
       expect(secoes(tester).single.value, 700);
     });
+
+    testWidgets('cada fatia mostra o valor em reais fora do anel',
+        (tester) async {
+      await montar(tester, gastosDoMes: [
+        ('marcos', 'nubank', 700),
+        ('marcos', 'inter', 300),
+      ]);
+
+      expect(find.text(formatarReais(700)), findsOneWidget);
+      expect(find.text(formatarReais(300)), findsOneWidget);
+    });
+
+    testWidgets('fatia orfa "Sem cartao" tambem ganha o rotulo de valor',
+        (tester) async {
+      await montar(tester, gastosDoMes: [
+        ('marcos', 'nubank', 700),
+        ('marcos', null, 50),
+      ]);
+
+      expect(find.text(formatarReais(50)), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('uma unica fatia (100%) nao lanca excecao', (tester) async {
+      await montar(tester, gastosDoMes: [
+        ('marcos', 'nubank', 500),
+      ]);
+
+      // O rotulo da fatia e o total central mostram o mesmo valor porque so
+      // ha um cartao: as duas ocorrencias de "R$ 500,00" sao esperadas.
+      expect(find.text(formatarReais(500)), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    });
   });
 }
