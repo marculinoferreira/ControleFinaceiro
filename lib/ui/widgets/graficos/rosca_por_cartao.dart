@@ -115,15 +115,14 @@ class _Rosca extends StatelessWidget {
   List<Widget> _constroiRotulos(double total, Color corTexto) {
     if (total <= 0) return [];
 
-    var acumulado = 0.0;
+    final angulosPorFatia = _anguloMedioPorFatia(fatias, total);
     final rotulos = <Widget>[];
 
-    for (final f in fatias) {
-      final grausDaFatia = f.valor / total * 360;
-      final anguloMedio = acumulado + grausDaFatia / 2;
-      acumulado += grausDaFatia;
+    for (int i = 0; i < fatias.length; i++) {
+      final f = fatias[i];
       if (f.valor <= 0) continue;
 
+      final anguloMedio = angulosPorFatia[i];
       final radianos = anguloMedio * math.pi / 180;
 
       const raioAnel = raioInterno + raioFatia;
@@ -133,14 +132,16 @@ class _Rosca extends StatelessWidget {
           raioRotulo * math.sin(radianos));
 
       rotulos.add(
-        Positioned(
-          left: posicao.dx,
-          top: posicao.dy,
+        Align(
+          alignment: Alignment.center,
           child: Transform.translate(
-            offset: Offset(-50, -10),
-            child: Text(
-              formatarReais(f.valor),
-              style: TextStyle(fontSize: 10, color: corTexto),
+            offset: posicao,
+            child: FractionalTranslation(
+              translation: const Offset(-0.5, -0.5),
+              child: Text(
+                formatarReais(f.valor),
+                style: TextStyle(fontSize: 10, color: corTexto),
+              ),
             ),
           ),
         ),
@@ -148,6 +149,25 @@ class _Rosca extends StatelessWidget {
     }
 
     return rotulos;
+  }
+
+  /// Calcula o angulo medio (em graus) para cada fatia, em ordem.
+  /// Implementa a acumulacao de graus comecando em 0 (eixo das 3 horas),
+  /// sentido horario — a mesma formula usada pelo PieChartPainter do fl_chart.
+  static List<double> _anguloMedioPorFatia(List<Fatia> fatias, double total) {
+    if (total <= 0) return [];
+
+    var acumulado = 0.0;
+    final angulos = <double>[];
+
+    for (final f in fatias) {
+      final grausDaFatia = f.valor / total * 360;
+      final anguloMedio = acumulado + grausDaFatia / 2;
+      acumulado += grausDaFatia;
+      angulos.add(anguloMedio);
+    }
+
+    return angulos;
   }
 
   /// Fatia menor que 5% nao recebe rotulo: o texto sairia maior que ela.
@@ -181,21 +201,19 @@ class _LinhasDeChamada extends CustomPainter {
 
   static const double _raioAnel = _Rosca.raioInterno + _Rosca.raioFatia;
   static const double _raioLinha = _raioAnel + 12;
-  static const double _raioRotulo = _raioLinha + 10;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (total <= 0) return;
 
     final centro = size.center(Offset.zero);
-    var acumulado = 0.0;
+    final angulosPorFatia = _Rosca._anguloMedioPorFatia(fatias, total);
 
-    for (final f in fatias) {
-      final grausDaFatia = f.valor / total * 360;
-      final anguloMedio = acumulado + grausDaFatia / 2;
-      acumulado += grausDaFatia;
+    for (int i = 0; i < fatias.length; i++) {
+      final f = fatias[i];
       if (f.valor <= 0) continue;
 
+      final anguloMedio = angulosPorFatia[i];
       final radianos = anguloMedio * math.pi / 180;
       final direcao = Offset(math.cos(radianos), math.sin(radianos));
 
@@ -205,20 +223,6 @@ class _LinhasDeChamada extends CustomPainter {
         Paint()
           ..color = corDeHex(f.cor)
           ..strokeWidth = 1.5,
-      );
-
-      final rotulo = TextPainter(
-        text: TextSpan(
-          text: formatarReais(f.valor),
-          style: TextStyle(fontSize: 10, color: corTexto),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      final centroDoRotulo = centro + direcao * _raioRotulo;
-      rotulo.paint(
-        canvas,
-        centroDoRotulo - Offset(rotulo.width / 2, rotulo.height / 2),
       );
     }
   }
