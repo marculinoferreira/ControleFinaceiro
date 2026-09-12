@@ -51,3 +51,4 @@ android/app/google-services.json
 
 # Worktrees isolados de trabalho (superpowers)
 .worktrees/
+.superpowers/
