@@ -204,5 +204,30 @@ void main() {
       expect(find.text(formatarReais(500)), findsNWidgets(2));
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('rotulo de valor esta deslocado do centro, nao sobreposto',
+        (tester) async {
+      await montar(tester, gastosDoMes: [
+        ('marcos', 'nubank', 700),
+        ('marcos', 'inter', 300),
+      ]);
+
+      // Obtem a posicao central do texto "Total" no meio da rosca
+      final centerTotalFinder = find.text('Total');
+      expect(centerTotalFinder, findsOneWidget);
+      final centerTotalPos = tester.getCenter(centerTotalFinder);
+
+      // Obtem a posicao do rotulo de valor de uma fatia (ex: "R$ 700,00")
+      final valueLabelFinder = find.text(formatarReais(700));
+      expect(valueLabelFinder, findsOneWidget);
+      final valueLabelPos = tester.getCenter(valueLabelFinder);
+
+      // Distancia entre os dois centros (em pixels logicos)
+      final delta = (centerTotalPos - valueLabelPos).distance;
+
+      // O rotulo deve estar claramente deslocado do centro
+      // (mais de 15px garante que nao esta sobreposto)
+      expect(delta, greaterThan(15.0));
+    });
   });
 }

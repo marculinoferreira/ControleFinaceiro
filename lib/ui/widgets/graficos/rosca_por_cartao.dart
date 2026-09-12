@@ -136,12 +136,9 @@ class _Rosca extends StatelessWidget {
           alignment: Alignment.center,
           child: Transform.translate(
             offset: posicao,
-            child: FractionalTranslation(
-              translation: const Offset(-0.5, -0.5),
-              child: Text(
-                formatarReais(f.valor),
-                style: TextStyle(fontSize: 10, color: corTexto),
-              ),
+            child: Text(
+              formatarReais(f.valor),
+              style: TextStyle(fontSize: 10, color: corTexto),
             ),
           ),
         ),
