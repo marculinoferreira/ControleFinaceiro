@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/ui/widgets/tabela_responsiva.dart';
+import 'package:controle_financeiro/ui/tema/formatadores.dart';
 
 Future<void> comLargura(WidgetTester tester, double largura) async {
   tester.view.physicalSize = Size(largura, 900);
@@ -162,8 +163,7 @@ void main() {
     ]));
     await tester.pump();
 
-    // Debug: print all Text widgets to see what's rendered
-    expect(find.textContaining('Total:'), findsOneWidget);
+    expect(find.text('Total: ${formatarReais(100)}'), findsOneWidget);
   });
 
   testWidgets('grupo sem total nao mostra linha extra', (tester) async {
@@ -197,6 +197,6 @@ void main() {
     ]));
     await tester.pump();
 
-    expect(find.textContaining('Total:'), findsOneWidget);
+    expect(find.text('Total: ${formatarReais(100)}'), findsOneWidget);
   });
 }
