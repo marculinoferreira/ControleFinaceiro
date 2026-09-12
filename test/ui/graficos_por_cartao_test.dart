@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -205,29 +207,40 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('rotulo de valor esta deslocado do centro, nao sobreposto',
+    testWidgets('rotulo de valor fica no angulo e raio corretos, nao so longe do centro',
         (tester) async {
       await montar(tester, gastosDoMes: [
         ('marcos', 'nubank', 700),
         ('marcos', 'inter', 300),
       ]);
 
-      // Obtem a posicao central do texto "Total" no meio da rosca
       final centerTotalFinder = find.text('Total');
       expect(centerTotalFinder, findsOneWidget);
       final centerTotalPos = tester.getCenter(centerTotalFinder);
 
-      // Obtem a posicao do rotulo de valor de uma fatia (ex: "R$ 700,00")
       final valueLabelFinder = find.text(formatarReais(700));
       expect(valueLabelFinder, findsOneWidget);
       final valueLabelPos = tester.getCenter(valueLabelFinder);
 
-      // Distancia entre os dois centros (em pixels logicos)
-      final delta = (centerTotalPos - valueLabelPos).distance;
+      // Mesma formula de _anguloMedioPorFatia para a primeira fatia (nubank,
+      // 700 de 1000 -> 252 graus de arco, comecando em 0 graus): angulo medio
+      // 126 graus. Raio do rotulo: raioInterno(44) + raioFatia(38) + 12 + 10
+      // = 104, os mesmos numeros de _Rosca/_LinhasDeChamada.
+      const anguloMedioGraus = 126.0;
+      const raioRotulo = 104.0;
+      final radianos = anguloMedioGraus * math.pi / 180;
+      final esperado = Offset(
+        raioRotulo * math.cos(radianos),
+        raioRotulo * math.sin(radianos),
+      );
 
-      // O rotulo deve estar claramente deslocado do centro
-      // (mais de 15px garante que nao esta sobreposto)
-      expect(delta, greaterThan(15.0));
+      final real = valueLabelPos - centerTotalPos;
+
+      // Tolerancia pequena (15px): o bug do round 1 deslocava o rotulo por
+      // ~metade da largura/altura do proprio texto (tipicamente 20-30px em
+      // cada eixo), bem acima de qualquer folga de arredondamento de layout
+      // (que e de uns 10-15px).
+      expect((real - esperado).distance, lessThan(15.0));
     });
   });
 }
