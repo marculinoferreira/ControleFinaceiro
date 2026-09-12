@@ -12,15 +12,16 @@ import '../widgets/graficos/pizza_ganhos.dart';
 import '../widgets/graficos/rosca_por_cartao.dart';
 import '../widgets/graficos/rosca_por_pote.dart';
 
-/// Os seis graficos da spec 10.
+/// Os sete graficos da tela: os seis da spec 10 mais a rosca de gastos
+/// por cartao.
 ///
 /// Nao ha AsyncValue.when aqui, de proposito: cada MolduraGrafico resolve o
-/// seu. Um `when` no topo derrubaria os seis por causa de um provider com
-/// problema, e a pessoa perderia cinco graficos que estavam prontos.
+/// seu. Um `when` no topo derrubaria os sete por causa de um provider com
+/// problema, e a pessoa perderia os outros seis que estavam prontos.
 class TelaGraficos extends ConsumerWidget {
   const TelaGraficos({super.key});
 
-  /// Na ordem da spec 10.
+  /// Os seis primeiros na ordem da spec 10; o setimo (cartao) vem depois.
   static const _graficos = <Widget>[
     RoscaPorPote(),
     BarrasPrevistoGasto(),

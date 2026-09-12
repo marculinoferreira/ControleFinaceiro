@@ -137,7 +137,7 @@ final molduras = find.byWidgetPredicate((w) => w is MolduraGrafico);
 
 void main() {
   group('composicao', () {
-    testWidgets('mostra os seis graficos da spec', (tester) async {
+    testWidgets('mostra os sete graficos', (tester) async {
       await montar(tester);
 
       expect(molduras, findsNWidgets(7));
@@ -186,7 +186,7 @@ void main() {
         (tester) async {
       await montar(tester, repoPotes: _PotesQueFalha());
 
-      // Os seis continuam montados.
+      // Os sete continuam montados.
       expect(molduras, findsNWidgets(7));
 
       // Rosca, barras e cascata dependem de potes e mostram o erro.
@@ -242,7 +242,7 @@ void main() {
   });
 
   group('mes sem nada', () {
-    testWidgets('os seis mostram frase de vazio, nenhum desenho quebrado',
+    testWidgets('os sete mostram frase de vazio, nenhum desenho quebrado',
         (tester) async {
       await montar(tester, comDados: false);
 

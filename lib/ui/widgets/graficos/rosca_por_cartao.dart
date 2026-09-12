@@ -59,6 +59,8 @@ class _Rosca extends StatelessWidget {
                   value: f.valor,
                   color: corDeHex(f.cor),
                   radius: 46,
+                  // O nome vai na legenda; repeti-lo na fatia embola o
+                  // desenho quando ha varios cartoes.
                   title: _percentual(f.valor, total),
                   titleStyle: const TextStyle(
                     fontSize: 11,

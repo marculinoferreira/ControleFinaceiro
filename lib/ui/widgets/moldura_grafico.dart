@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'estados_async.dart';
 import 'legenda_grafico.dart';
 
-/// Moldura comum dos seis graficos da spec 10.
+/// Moldura comum aos graficos da tela (os seis da spec 10 mais o de cartao).
 ///
 /// Resolve os quatro estados num lugar so — carregando, erro, sem dado e
 /// dado — para que nenhum grafico repita o AsyncValue.when nem invente o
@@ -15,8 +15,8 @@ import 'legenda_grafico.dart';
 /// um LineChart sem pontos desenha eixos vazios. A frase e mais honesta.
 ///
 /// Cada moldura resolve o SEU AsyncValue. Um `when` no topo da tela de
-/// graficos derrubaria os seis por causa de um; assim, um gráfico com
-/// problema nao apaga os outros cinco.
+/// graficos derrubaria os sete por causa de um; assim, um gráfico com
+/// problema nao apaga os outros seis.
 class MolduraGrafico<T> extends StatelessWidget {
   final String titulo;
 
