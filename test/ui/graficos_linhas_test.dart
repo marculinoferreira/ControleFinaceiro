@@ -262,6 +262,20 @@ void main() {
       expect(pontos[2].y, 100); // Out
     });
 
+    testWidgets('mostra o total comprometido abaixo do grafico',
+        (tester) async {
+      await montar(
+        tester,
+        const LinhaComprometimento(),
+        parcelasDe: 3,
+        valorParcela: 100,
+      );
+
+      // 3 parcelas de 100 (Ago/Set/Out) e os outros 9 meses da janela de 12
+      // meses ficam em zero -> soma da serie inteira = 300.
+      expect(find.text('Total: ${formatarReais(300)}'), findsOneWidget);
+    });
+
     testWidgets('a linha cai a zero depois da ultima parcela',
         (tester) async {
       await montar(tester, const LinhaComprometimento(), parcelasDe: 3);

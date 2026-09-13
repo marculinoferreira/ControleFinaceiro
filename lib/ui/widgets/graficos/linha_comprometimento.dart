@@ -33,6 +33,16 @@ class LinhaComprometimento extends ConsumerWidget {
       legenda: (_) => [
         ItemLegenda(rotulo: 'Parcelas a pagar', cor: esquema.tertiary),
       ],
+      rodape: (serie) => Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Total: ${formatarReais(serie.fold(0.0, (soma, p) => soma + p.valor))}',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ),
       construir: (serie) => _Linha(serie: serie),
     );
   }
