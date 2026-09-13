@@ -275,4 +275,53 @@ void main() {
       expect(find.textContaining('Somatória total'), findsNothing);
     });
   });
+
+  group('data ao lado do nome no mobile', () {
+    Widget montarComData(List<LinhaResponsiva> linhas) => MaterialApp(
+          home: Scaffold(
+            body: TabelaResponsiva(
+              colunas: const ['Descricao', 'Data', 'Valor'],
+              linhas: linhas,
+            ),
+          ),
+        );
+
+    testWidgets(
+        'quando a segunda coluna e Data, ela aparece ao lado do nome no card',
+        (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montarComData(const [
+        LinhaResponsiva(
+          chave: ValueKey('l1'),
+          valores: ['Aluguel', '12/08/2026', r'R$ 1.200,00'],
+        ),
+      ]));
+      await tester.pump();
+
+      final nomePos = tester.getCenter(find.text('Aluguel'));
+      final dataPos = tester.getCenter(find.text('12/08/2026'));
+
+      // Mesma linha (titulo do card) e a data vem depois do nome.
+      expect(dataPos.dy, closeTo(nomePos.dy, 1));
+      expect(dataPos.dx, greaterThan(nomePos.dx));
+
+      // A data nao se repete na linha de baixo (subtitulo) — so o resto.
+      expect(find.text(r'R$ 1.200,00'), findsOneWidget);
+      expect(find.text('12/08/2026'), findsOneWidget);
+    });
+
+    testWidgets(
+        'quando a segunda coluna nao e Data, o comportamento antigo continua',
+        (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montar(duasLinhas()));
+      await tester.pump();
+
+      // 'Valor' (nao 'Data') e a segunda coluna aqui: continua so no
+      // subtitulo, nao ao lado do nome.
+      final nomePos = tester.getCenter(find.text('Aluguel'));
+      final valorPos = tester.getCenter(find.text(r'R$ 1.200,00'));
+      expect(valorPos.dy, greaterThan(nomePos.dy));
+    });
+  });
 }

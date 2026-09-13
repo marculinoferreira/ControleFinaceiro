@@ -100,6 +100,12 @@ class TabelaResponsiva extends StatelessWidget {
 
   bool get _temAcoes => _todas.any((l) => l.aoExcluir != null);
 
+  /// Quando a segunda coluna e "Data" (Gastos, Parcelas), o card do mobile
+  /// mostra a data ao lado do nome, no titulo, em vez de so no subtitulo --
+  /// no desktop a Data ja e a coluna logo depois do nome, e o card passa a
+  /// seguir a mesma ordem visual.
+  bool get _dataAoLadoDoNome => colunas.length > 1 && colunas[1] == 'Data';
+
   @override
   Widget build(BuildContext context) {
     if (_todas.isEmpty) {
@@ -344,18 +350,40 @@ class TabelaResponsiva extends StatelessWidget {
         }
 
         final l = item as LinhaResponsiva;
+        // Com a data ao lado do nome, o subtitulo pula os dois primeiros
+        // valores (nome e data); sem ela, pula so o nome, como antes.
+        final restante =
+            l.valores.skip(_dataAoLadoDoNome ? 2 : 1).join(' · ');
+
         return Card(
           key: l.chave,
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: ListTile(
-            title: Text(l.valores.first),
-            subtitle: l.valores.length > 1 || l.indicador != null
+            title: _dataAoLadoDoNome
+                ? Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          l.valores.first,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        l.valores[1],
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
+                    ],
+                  )
+                : Text(l.valores.first),
+            subtitle: restante.isNotEmpty || l.indicador != null
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (l.valores.length > 1)
-                        Text(l.valores.skip(1).join(' · ')),
+                      if (restante.isNotEmpty) Text(restante),
                       if (l.indicador != null) ...[
                         const SizedBox(height: 6),
                         l.indicador!,
