@@ -37,14 +37,16 @@ class TelaGraficos extends ConsumerWidget {
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
     final membros = ref.watch(membrosProvider);
 
-    return SingleChildScrollView(
-      key: const Key('graficos_rolagem'),
-      child: Column(
-        children: [
-          _SeletorVisao(membros: membros),
-          if (desktop) _duasColunas() else _colunaUnica(),
-        ],
-      ),
+    return Column(
+      children: [
+        _SeletorVisao(membros: membros),
+        Expanded(
+          child: SingleChildScrollView(
+            key: const Key('graficos_rolagem'),
+            child: desktop ? _duasColunas() : _colunaUnica(),
+          ),
+        ),
+      ],
     );
   }
 

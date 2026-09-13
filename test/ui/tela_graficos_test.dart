@@ -216,6 +216,16 @@ void main() {
       expect(c.read(visaoProvider), 'marcos');
     });
 
+    testWidgets('fica fora da area de rolagem dos graficos', (tester) async {
+      await montar(tester, tamanho: const Size(1400, 700));
+
+      final rolagem = find.byKey(const Key('graficos_rolagem'));
+      final seletor = find.byKey(const Key('graficos_visao'));
+
+      expect(seletor, findsOneWidget);
+      expect(find.descendant(of: rolagem, matching: seletor), findsNothing);
+    });
+
     testWidgets('sem membros carregados nao mostra o seletor', (tester) async {
       tester.view.physicalSize = const Size(1400, 2400);
       tester.view.devicePixelRatio = 1.0;
