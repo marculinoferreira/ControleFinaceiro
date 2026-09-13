@@ -435,9 +435,11 @@ void main() {
       // Os dois gastos (100 + 100, valor fixo do helper gasto()) caem no
       // mesmo dia -> total 200. No desktop o valor vai sob a coluna Valor
       // (colunaDoTotal), separado da celula "Total" -- ver Finding 1 do
-      // review final.
+      // review final. Como so ha um dia, o total do grupo e a somatoria
+      // geral coincidem em 200 -> duas celulas com o mesmo valor.
       expect(find.text('Total'), findsOneWidget);
-      expect(find.text(formatarReais(200)), findsOneWidget);
+      expect(find.text('Somatória total'), findsOneWidget);
+      expect(find.text(formatarReais(200)), findsNWidgets(2));
     });
 
     testWidgets('mostra o total por pote', (tester) async {
@@ -470,6 +472,36 @@ void main() {
       await ordenarPor(tester, 'A–Z');
 
       expect(find.textContaining('Total:'), findsNothing);
+    });
+  });
+
+  group('somatoria geral', () {
+    testWidgets('soma todos os gastos, independente da ordenacao',
+        (tester) async {
+      await montar(tester, gastos: [
+        gasto('Feira', 12),
+        gasto('Padaria', 10),
+      ]);
+
+      // Os dois gastos (100 + 100, valor fixo do helper gasto()) somam 200.
+      // colunaDoTotal (6) separa o rotulo do valor, como no total por
+      // grupo.
+      expect(find.text('Somatória total'), findsOneWidget);
+      expect(find.text(formatarReais(200)), findsOneWidget);
+    });
+
+    testWidgets(
+        'continua aparecendo na ordem alfabetica, que nao tem total por grupo',
+        (tester) async {
+      await montar(tester, gastos: [
+        gasto('Feira', 12),
+        gasto('Padaria', 10),
+      ]);
+
+      await ordenarPor(tester, 'A–Z');
+
+      expect(find.text('Somatória total'), findsOneWidget);
+      expect(find.text(formatarReais(200)), findsOneWidget);
     });
   });
 }

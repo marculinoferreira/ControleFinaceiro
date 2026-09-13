@@ -94,6 +94,9 @@ class TelaGastos extends ConsumerWidget {
       ],
       vazio: 'Nenhum gasto neste mês.',
       colunaDoTotal: 6,
+      somatoriaGeral: grupos
+          .expand((g) => g.itens)
+          .fold<double>(0.0, (soma, g) => soma + g.valor),
       grupos: [
         for (final grupo in grupos)
           GrupoResponsivo(
