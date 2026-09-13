@@ -8,6 +8,7 @@ import 'telas/tela_gastos.dart';
 import 'telas/tela_parcelas.dart';
 import 'telas/tela_potes.dart';
 import 'telas/tela_resumo.dart';
+import 'tema/tema.dart';
 import 'widgets/barra_totais.dart';
 import 'widgets/seletor_mes.dart';
 
@@ -73,6 +74,8 @@ class _ShellState extends ConsumerState<Shell> {
                 NavigationRail(
                   selectedIndex: _indice,
                   labelType: NavigationRailLabelType.all,
+                  indicatorColor: corDestaque,
+                  selectedIconTheme: const IconThemeData(color: Colors.white),
                   onDestinationSelected: (i) => setState(() => _indice = i),
                   destinations: [
                     for (final d in _destinos)
@@ -110,6 +113,12 @@ class _ShellState extends ConsumerState<Shell> {
         overflow: TextOverflow.ellipsis,
         child: NavigationBarTheme(
           data: NavigationBarThemeData(
+            iconTheme: WidgetStateProperty.resolveWith((estados) {
+              final selecionado = estados.contains(WidgetState.selected);
+              return IconThemeData(
+                color: selecionado ? Colors.white : esquema.onSurfaceVariant,
+              );
+            }),
             labelTextStyle: WidgetStateProperty.resolveWith((estados) {
               final selecionado = estados.contains(WidgetState.selected);
               return tema.textTheme.labelMedium!.copyWith(
@@ -122,6 +131,7 @@ class _ShellState extends ConsumerState<Shell> {
           ),
           child: NavigationBar(
             selectedIndex: _indice,
+            indicatorColor: corDestaque,
             onDestinationSelected: (i) => setState(() => _indice = i),
             destinations: [
               for (final d in _destinos)

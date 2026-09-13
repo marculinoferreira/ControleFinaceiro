@@ -8,7 +8,7 @@ import 'repositorios.dart';
 /// Lei dos Potes depende disso.
 List<Pote> potesPadrao() => const [
       Pote(id: '', nome: 'Custo fixo', percentual: 55, ordem: 0,
-          cor: '#2E7D32', icone: 'casa'),
+          cor: '#26797B', icone: 'casa'),
       Pote(id: '', nome: 'Conforto', percentual: 15, ordem: 1,
           cor: '#1565C0', icone: 'sofa'),
       Pote(id: '', nome: 'Investimento', percentual: 10, ordem: 2,

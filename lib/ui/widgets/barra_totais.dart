@@ -36,25 +36,36 @@ class BarraTotais extends ConsumerWidget {
           ),
         ),
         data: (t) => Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _Item(
-              chave: 'total_ganhos',
-              rotulo: 'Ganhos',
-              valor: t.ganhos,
-              cor: esquema.primary,
+            Expanded(
+              child: _Item(
+                chave: 'total_ganhos',
+                rotulo: 'Ganhos',
+                valor: t.ganhos,
+                cor: esquema.primary,
+                icone: Icons.arrow_upward,
+                corSelo: Colors.green.shade600,
+              ),
             ),
-            _Item(
-              chave: 'total_gastos',
-              rotulo: 'Gastos',
-              valor: t.gastos,
-              cor: esquema.error,
+            Expanded(
+              child: _Item(
+                chave: 'total_gastos',
+                rotulo: 'Gastos',
+                valor: t.gastos,
+                cor: esquema.error,
+                icone: Icons.arrow_downward,
+                corSelo: Colors.red.shade600,
+              ),
             ),
-            _Item(
-              chave: 'total_saldo',
-              rotulo: 'Saldo do mes',
-              valor: t.saldo,
-              cor: t.saldo < 0 ? esquema.error : esquema.primary,
+            Expanded(
+              child: _Item(
+                chave: 'total_saldo',
+                rotulo: 'Saldo do mes',
+                valor: t.saldo,
+                cor: t.saldo < 0 ? esquema.error : esquema.primary,
+                icone: Icons.savings,
+                corSelo: Colors.blue.shade600,
+              ),
             ),
           ],
         ),
@@ -68,27 +79,54 @@ class _Item extends StatelessWidget {
   final String rotulo;
   final double valor;
   final Color cor;
+  final IconData icone;
+  final Color corSelo;
 
   const _Item({
     required this.chave,
     required this.rotulo,
     required this.valor,
     required this.cor,
+    required this.icone,
+    required this.corSelo,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       key: Key(chave),
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(rotulo, style: Theme.of(context).textTheme.labelSmall),
-        Text(
-          formatarReais(valor),
-          style: Theme.of(context)
-              .textTheme
-              .titleMedium
-              ?.copyWith(color: cor, fontWeight: FontWeight.w600),
+        CircleAvatar(
+          radius: 11,
+          backgroundColor: corSelo,
+          child: Icon(icone, size: 13, color: Colors.white),
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                rotulo,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formatarReais(valor),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(color: cor, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

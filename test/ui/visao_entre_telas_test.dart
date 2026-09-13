@@ -81,7 +81,7 @@ String pessoaNoDropdown(WidgetTester tester) {
   final textos = tester
       .widgetList<Text>(find.descendant(of: campo, matching: find.byType(Text)))
       .map((t) => t.data)
-      .where((d) => d != null && d != 'Pessoa');
+      .where((d) => d != null && !d.startsWith('Pessoa'));
   return textos.first!;
 }
 

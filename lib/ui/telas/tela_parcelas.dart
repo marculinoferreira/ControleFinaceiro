@@ -8,8 +8,11 @@ import '../../dominio/ordem_gastos.dart';
 import '../../dominio/parcelas.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
+import '../tema/tema.dart';
 import '../widgets/estados_async.dart';
+import '../widgets/faixa_potes.dart' show iconeDoPote;
 import '../widgets/filtros_lancamentos.dart';
+import '../widgets/subtitulo_lancamento.dart';
 import '../widgets/tabela_responsiva.dart';
 
 /// Apresentacao pura: quem agrupa as parcelas por compra e
@@ -57,7 +60,7 @@ class TelaParcelas extends ConsumerWidget {
             const SeletorOrdem(),
             const Divider(height: 1),
             Expanded(
-              child: _tabela(grupos, membros, potes, cartoes),
+              child: _tabela(context, grupos, membros, potes, cartoes),
             ),
           ],
         );
@@ -66,6 +69,7 @@ class TelaParcelas extends ConsumerWidget {
   }
 
   Widget _tabela(
+    BuildContext context,
     List<Grupo<CompraParcelada>> grupos,
     List<Membro> membros,
     List<Pote> potes,
@@ -96,22 +100,52 @@ class TelaParcelas extends ConsumerWidget {
                 : grupo.itens.fold<double>(0.0, (soma, c) => soma + c.valorParcela),
             linhas: [
               for (final c in grupo.itens)
-                LinhaResponsiva(
-                  chave: ValueKey('compra_${c.compraId}'),
-                  valores: [
-                    c.descricao,
-                    formatarData(c.data),
-                    nomeDoMembro(membros, c.membroId),
-                    nomeDoPote(potes, c.poteId),
-                    nomeDoCartao(cartoes, c.cartaoId),
-                    '${c.parcelaAtual}/${c.totalParcelas}',
-                    formatarReais(c.valorParcela),
-                    _restante(c),
-                  ],
-                ),
+                _linhaDaCompra(context, c, membros, potes, cartoes),
             ],
           ),
       ],
+    );
+  }
+
+  LinhaResponsiva _linhaDaCompra(
+    BuildContext context,
+    CompraParcelada c,
+    List<Membro> membros,
+    List<Pote> potes,
+    List<Cartao> cartoes,
+  ) {
+    // null quando o pote foi apagado enquanto a compra continua existindo.
+    Pote? pote;
+    for (final p in potes) {
+      if (p.id == c.poteId) {
+        pote = p;
+        break;
+      }
+    }
+
+    return LinhaResponsiva(
+      chave: ValueKey('compra_${c.compraId}'),
+      valores: [
+        c.descricao,
+        formatarData(c.data),
+        nomeDoMembro(membros, c.membroId),
+        nomeDoPote(potes, c.poteId),
+        nomeDoCartao(cartoes, c.cartaoId),
+        '${c.parcelaAtual}/${c.totalParcelas}',
+        formatarReais(c.valorParcela),
+        _restante(c),
+      ],
+      iconePrincipal: pote == null ? null : iconeDoPote(pote.icone),
+      corIconePrincipal: pote == null ? null : corDeHex(pote.cor),
+      subtitulo: subtituloDoLancamento(
+        context: context,
+        nomeMembro: nomeDoMembro(membros, c.membroId),
+        nomePote: nomeDoPote(potes, c.poteId),
+        nomeCartao: nomeDoCartao(cartoes, c.cartaoId),
+        rotuloParcela: '${c.parcelaAtual}/${c.totalParcelas}',
+        extra: _restante(c),
+      ),
+      valorDestacado: formatarReais(c.valorParcela),
     );
   }
 

@@ -20,7 +20,7 @@ Widget montar(List<LinhaResponsiva> linhas) => MaterialApp(
 
 List<LinhaResponsiva> duasLinhas({
   VoidCallback? aoTocar,
-  VoidCallback? aoExcluir,
+  Future<void> Function()? aoExcluir,
 }) =>
     [
       LinhaResponsiva(
@@ -115,24 +115,83 @@ void main() {
     expect(tocou, 1);
   });
 
-  testWidgets('o botao de excluir dispara aoExcluir no mobile', (tester) async {
+  testWidgets('arrastar a linha pra esquerda ate o fim chama aoExcluir no mobile',
+      (tester) async {
     await comLargura(tester, 420);
     var excluiu = 0;
-    await tester.pumpWidget(montar(duasLinhas(aoExcluir: () => excluiu++)));
+    await tester
+        .pumpWidget(montar(duasLinhas(aoExcluir: () async => excluiu++)));
     await tester.pump();
 
-    // So a primeira linha recebe aoExcluir, entao existe um unico botao.
-    await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pump();
+    await tester.drag(find.text('Aluguel'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
 
     expect(excluiu, 1);
+  });
+
+  testWidgets(
+      'nao mostra mais um botao de lixeira fixo no card (so o gesto de arrastar)',
+      (tester) async {
+    await comLargura(tester, 420);
+    await tester.pumpWidget(montar(duasLinhas(aoExcluir: () async {})));
+    await tester.pump();
+
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+  });
+
+  testWidgets(
+      'a faixa vermelha com a lixeira aparece atras da linha durante o arrasto',
+      (tester) async {
+    await comLargura(tester, 420);
+    await tester.pumpWidget(montar(duasLinhas(aoExcluir: () async {})));
+    await tester.pump();
+
+    // So a primeira linha (Aluguel) recebe aoExcluir -- so ela vira um
+    // Dismissible.
+    expect(find.byType(Dismissible), findsOneWidget);
+    expect(find.byIcon(Icons.delete), findsNothing); // parado, sem arrastar
+
+    // Passos pequenos (nao um unico salto grande): dentro de um
+    // ListView.builder, a arena de gestos so resolve a favor do
+    // Dismissible (em vez do scroll vertical da lista) com movimento
+    // incremental, do jeito que um arrasto de verdade acontece.
+    final gesto =
+        await tester.startGesture(tester.getCenter(find.text('Aluguel')));
+    for (var i = 0; i < 10; i++) {
+      await gesto.moveBy(const Offset(-15, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    // No meio do gesto, a faixa vermelha com o icone cheio (Icons.delete)
+    // ja aparece atras da linha.
+    expect(find.byIcon(Icons.delete), findsOneWidget);
+
+    await gesto.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('so aceita arrastar da direita pra esquerda', (tester) async {
+    await comLargura(tester, 420);
+    var excluiu = 0;
+    await tester
+        .pumpWidget(montar(duasLinhas(aoExcluir: () async => excluiu++)));
+    await tester.pump();
+
+    // Arrastar pra DIREITA nao deve dar em nada (Dismissible so aceita
+    // endToStart aqui).
+    await tester.drag(find.text('Aluguel'), const Offset(500, 0));
+    await tester.pumpAndSettle();
+
+    expect(excluiu, 0);
+    expect(find.text('Aluguel'), findsOneWidget);
   });
 
   testWidgets('o botao de excluir dispara aoExcluir no desktop',
       (tester) async {
     await comLargura(tester, 1400);
     var excluiu = 0;
-    await tester.pumpWidget(montar(duasLinhas(aoExcluir: () => excluiu++)));
+    await tester
+        .pumpWidget(montar(duasLinhas(aoExcluir: () async => excluiu++)));
     await tester.pump();
 
     await tester.tap(find.byIcon(Icons.delete_outline));
@@ -322,6 +381,84 @@ void main() {
       final nomePos = tester.getCenter(find.text('Aluguel'));
       final valorPos = tester.getCenter(find.text(r'R$ 1.200,00'));
       expect(valorPos.dy, greaterThan(nomePos.dy));
+    });
+  });
+
+  group('icone principal no card', () {
+    testWidgets('aparece ao lado do nome quando informado', (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montar([
+        const LinhaResponsiva(
+          chave: ValueKey('l1'),
+          valores: ['Aluguel', r'R$ 1.200,00'],
+          iconePrincipal: Icons.home,
+          corIconePrincipal: Color(0xFF2E7D32),
+        ),
+      ]));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.home), findsOneWidget);
+      final icone = tester.widget<Icon>(find.byIcon(Icons.home));
+      expect(icone.color, const Color(0xFF2E7D32));
+    });
+
+    testWidgets('nao aparece quando nao informado', (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montar(duasLinhas()));
+      await tester.pump();
+
+      expect(find.byType(ListTile).evaluate().every((e) {
+        final tile = e.widget as ListTile;
+        return tile.leading == null;
+      }), isTrue);
+    });
+  });
+
+  group('subtitulo e valor destacado customizados no card', () {
+    testWidgets('usa o subtitulo widget customizado em vez do auto-gerado',
+        (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montar([
+        const LinhaResponsiva(
+          chave: ValueKey('l1'),
+          valores: ['Aluguel', r'R$ 1.200,00'],
+          subtitulo: Text('subtitulo customizado'),
+        ),
+      ]));
+      await tester.pump();
+
+      expect(find.text('subtitulo customizado'), findsOneWidget);
+      // O auto-gerado (so o resto dos valores juntando com " · ") nao
+      // aparece quando ha subtitulo customizado.
+      expect(find.text(r'R$ 1.200,00'), findsNothing);
+    });
+
+    testWidgets('mostra o valor destacado no trailing do ListTile',
+        (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montar([
+        const LinhaResponsiva(
+          chave: ValueKey('l1'),
+          valores: ['Aluguel', 'algo qualquer'],
+          valorDestacado: r'R$ 1.200,00',
+        ),
+      ]));
+      await tester.pump();
+
+      final tile = tester.widget<ListTile>(find.byType(ListTile));
+      expect(tile.trailing, isNotNull);
+      expect(find.text(r'R$ 1.200,00'), findsOneWidget);
+    });
+
+    testWidgets('sem subtitulo nem valorDestacado, o comportamento antigo continua',
+        (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montar(duasLinhas()));
+      await tester.pump();
+
+      expect(find.text(r'R$ 1.200,00'), findsOneWidget);
+      final tile = tester.widget<ListTile>(find.byType(ListTile).first);
+      expect(tile.trailing, isNull);
     });
   });
 }

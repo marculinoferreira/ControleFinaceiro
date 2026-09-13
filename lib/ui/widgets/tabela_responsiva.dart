@@ -9,7 +9,12 @@ class LinhaResponsiva {
   final LocalKey chave;
   final List<String> valores;
   final VoidCallback? aoTocar;
-  final VoidCallback? aoExcluir;
+
+  /// Exclui a linha. Devolve `Future<void>` (nao `VoidCallback`) porque o
+  /// card do mobile precisa esperar essa chamada terminar antes de decidir
+  /// se a linha volta pro lugar (ver `Dismissible.confirmDismiss` em
+  /// `_cards()`) -- a confirmacao e a escrita ja acontecem dentro dela.
+  final Future<void> Function()? aoExcluir;
 
   /// Widget opcional colado ao primeiro valor -- uma barra de progresso, por
   /// exemplo. Aparece nas duas formas: sob o primeiro valor no DataTable e
@@ -18,12 +23,34 @@ class LinhaResponsiva {
   /// para conseguir desenhar isso.
   final Widget? indicador;
 
+  /// Icone opcional antes do nome, no card do mobile (ex.: o icone do pote
+  /// do gasto, na cor do proprio pote). `null` (o padrao) nao desenha nada
+  /// -- so quem passar os dois campos ganha o icone.
+  final IconData? iconePrincipal;
+  final Color? corIconePrincipal;
+
+  /// Subtitulo pronto do card (mobile), no lugar do auto-gerado (que so
+  /// junta `valores[1..]` com " · "). `null` (o padrao) mantem o
+  /// comportamento antigo -- so quem passar isso monta o proprio layout
+  /// (ex.: Gastos/Parcelas juntando pessoa | pote | cartao com "|", em vez
+  /// do "junta tudo com · " generico).
+  final Widget? subtitulo;
+
+  /// Valor em destaque no canto direito do card (mobile) -- ex.: o valor do
+  /// gasto, formatado. `null` (o padrao) nao desenha nada; o valor
+  /// continua dentro do subtitulo auto-gerado, como sempre foi.
+  final String? valorDestacado;
+
   const LinhaResponsiva({
     required this.chave,
     required this.valores,
     this.aoTocar,
     this.aoExcluir,
     this.indicador,
+    this.iconePrincipal,
+    this.corIconePrincipal,
+    this.subtitulo,
+    this.valorDestacado,
   });
 }
 
@@ -166,7 +193,7 @@ class TabelaResponsiva extends StatelessWidget {
                           : IconButton(
                               icon: const Icon(Icons.delete_outline),
                               tooltip: 'Excluir',
-                              onPressed: l.aoExcluir,
+                              onPressed: () => l.aoExcluir!(),
                             ),
                     ),
                 ],
@@ -351,55 +378,95 @@ class TabelaResponsiva extends StatelessWidget {
 
         final l = item as LinhaResponsiva;
         // Com a data ao lado do nome, o subtitulo pula os dois primeiros
-        // valores (nome e data); sem ela, pula so o nome, como antes.
+        // valores (nome e data); sem ela, pula so o nome, como antes. So
+        // usado quando `l.subtitulo` (widget customizado) nao foi passado.
         final restante =
             l.valores.skip(_dataAoLadoDoNome ? 2 : 1).join(' · ');
+        final subtituloWidget = l.subtitulo ??
+            (restante.isNotEmpty ? Text(restante) : null);
 
-        return Card(
-          key: l.chave,
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: ListTile(
-            title: _dataAoLadoDoNome
-                ? Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          l.valores.first,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+        final tile = ListTile(
+          // Padding menor do lado esquerdo: o icone do pote fica mais perto
+          // da borda do card, como pedido.
+          contentPadding: const EdgeInsets.only(left: 8, right: 16),
+          leading: l.iconePrincipal == null
+              ? null
+              : Icon(l.iconePrincipal, color: l.corIconePrincipal),
+          title: _dataAoLadoDoNome
+              ? Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l.valores.first,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        l.valores[1],
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      l.valores[1],
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                    ),
+                  ],
+                )
+              : Text(l.valores.first),
+          subtitle: subtituloWidget != null || l.indicador != null
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ?subtituloWidget,
+                    if (l.indicador != null) ...[
+                      const SizedBox(height: 6),
+                      l.indicador!,
                     ],
-                  )
-                : Text(l.valores.first),
-            subtitle: restante.isNotEmpty || l.indicador != null
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (restante.isNotEmpty) Text(restante),
-                      if (l.indicador != null) ...[
-                        const SizedBox(height: 6),
-                        l.indicador!,
-                      ],
-                    ],
-                  )
-                : null,
-            onTap: l.aoTocar,
-            trailing: l.aoExcluir == null
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: 'Excluir',
-                    onPressed: l.aoExcluir,
+                  ],
+                )
+              : null,
+          trailing: l.valorDestacado == null
+              ? null
+              : Text(
+                  l.valorDestacado!,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.error,
                   ),
+                ),
+          onTap: l.aoTocar,
+        );
+
+        const margemCard = EdgeInsets.symmetric(horizontal: 8, vertical: 4);
+
+        if (l.aoExcluir == null) {
+          return Card(key: l.chave, margin: margemCard, child: tile);
+        }
+
+        // Arrastar pra esquerda revela a faixa vermelha com a lixeira atras
+        // do card; so ao final do gesto (confirmDismiss) e que a exclusao de
+        // verdade roda -- ela ja pergunta confirmacao por dentro (mesmo
+        // fluxo do botao de excluir de sempre). Devolve false sempre: quem
+        // tira a linha da tela e o proximo dado que chegar pelo provider
+        // (stream), nao o proprio Dismissible -- se a exclusao falhar (ex.:
+        // sem rede), a linha so volta pro lugar em vez de sumir e reaparecer.
+        return Dismissible(
+          key: l.chave,
+          direction: DismissDirection.endToStart,
+          background: Container(
+            margin: margemCard,
+            padding: const EdgeInsets.only(right: 24),
+            alignment: Alignment.centerRight,
+            decoration: BoxDecoration(
+              color: Colors.red.shade600,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.delete, color: Colors.white),
           ),
+          confirmDismiss: (_) async {
+            await l.aoExcluir!();
+            return false;
+          },
+          child: Card(margin: margemCard, child: tile),
         );
       },
     );

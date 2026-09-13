@@ -200,9 +200,14 @@ void main() {
       await ordenarPor(tester, 'Pote');
 
       // Custo fixo (ordem 0) antes de Conforto (ordem 1), apesar de o gasto
-      // do Conforto ser mais antigo.
-      expect(alturaDe(tester, 'Custo fixo'),
-          lessThan(alturaDe(tester, 'Conforto')));
+      // do Conforto ser mais antigo. `.last` (nao o `.first` de alturaDe):
+      // a FaixaPotes agora mostra os nomes dos potes tambem, fixos na
+      // ordem cadastrada, ANTES da tabela -- e preciso pegar o cabecalho
+      // de grupo (o mais abaixo na arvore), nao o atalho da faixa.
+      final custoFixo =
+          tester.getTopLeft(find.text('Custo fixo').last).dy;
+      final conforto = tester.getTopLeft(find.text('Conforto').last).dy;
+      expect(custoFixo, lessThan(conforto));
       expect(alturaDe(tester, 'Aluguel'),
           lessThan(alturaDe(tester, 'Freezer')));
     });

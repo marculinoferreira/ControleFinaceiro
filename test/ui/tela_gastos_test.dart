@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
+import 'package:controle_financeiro/dominio/models/cartao.dart';
 import 'package:controle_financeiro/dominio/models/casa.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
+import 'package:controle_financeiro/ui/tema/formatadores.dart';
 import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
 
 const casa = Casa(
@@ -65,8 +67,10 @@ Future<(ProviderContainer, RepositorioGastosFake)> montar(
   List<Gasto> simplesIniciais = const [],
   Gasto? parceladoBase,
   int parcelas = 0,
+  Size tamanho = const Size(1400, 1200),
+  List<Cartao> cartoes = const [],
 }) async {
-  tester.view.physicalSize = const Size(1400, 1200);
+  tester.view.physicalSize = tamanho;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -81,7 +85,7 @@ Future<(ProviderContainer, RepositorioGastosFake)> montar(
   final container = ProviderContainer(overrides: [
     repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
-    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake(cartoes)),
     repositorioGastosProvider.overrideWithValue(repo),
   ]);
   addTearDown(container.dispose);
@@ -110,6 +114,71 @@ void main() {
     await montar(tester);
 
     expect(find.textContaining('Nenhum gasto'), findsOneWidget);
+  });
+
+  testWidgets('cada gasto mostra o icone do proprio pote no card (mobile)',
+      (tester) async {
+    await montar(tester, tamanho: const Size(420, 1400), simplesIniciais: [
+      simples('marcos', 'p1', 1200, 'Aluguel'),
+      simples('silvia', 'p2', 300, 'Cinema'),
+    ]);
+
+    // p1 (Custo fixo, icone 'casa') e p2 (Conforto, icone 'sofa'). A
+    // FaixaPotes tambem mostra Icons.home/Icons.weekend (em branco); o
+    // icone do card usa a cor do pote, entao filtra por cor pra distinguir
+    // os dois em vez de contar ocorrencias.
+    final iconesCasa = tester.widgetList<Icon>(find.byIcon(Icons.home));
+    expect(iconesCasa.where((i) => i.color == const Color(0xFF2E7D32)),
+        hasLength(1));
+
+    final iconesSofa = tester.widgetList<Icon>(find.byIcon(Icons.weekend));
+    expect(iconesSofa.where((i) => i.color == const Color(0xFF1565C0)),
+        hasLength(1));
+  });
+
+  testWidgets(
+      'card (mobile) mostra pessoa | pote, sem cartao e sem parcela quando nao ha nenhum dos dois',
+      (tester) async {
+    await montar(tester, tamanho: const Size(420, 1400), simplesIniciais: [
+      simples('marcos', 'p1', 1200, 'Aluguel'),
+    ]);
+
+    // "Custo fixo" tambem aparece na FaixaPotes (branco, tamanho 11) --
+    // filtra pelo estilo do subtitulo do card (nao-branco) pra achar so a
+    // ocorrencia certa.
+    expect(find.text('Marcos'), findsOneWidget);
+    final custoFixoNoCard = tester
+        .widgetList<Text>(find.text('Custo fixo'))
+        .where((t) => t.style?.color != Colors.white);
+    expect(custoFixoNoCard, hasLength(1));
+    // Um "|" so: entre pessoa e pote. Sem cartao e sem parcela, nao ha
+    // segmento nem separador extra.
+    expect(find.text('|'), findsOneWidget);
+    expect(find.textContaining('R\$'), findsWidgets); // valor destacado
+  });
+
+  testWidgets(
+      'card (mobile) mostra pessoa | pote | cartao · parcela quando o gasto tem cartao e e parcelado',
+      (tester) async {
+    final base = simples('marcos', 'p1', 490, 'Pos Graduacao');
+    await montar(
+      tester,
+      tamanho: const Size(420, 1400),
+      cartoes: const [Cartao(id: 'ct1', nome: 'Inter', ordem: 0)],
+      parceladoBase: base.copyWith(cartaoId: 'ct1'),
+      parcelas: 8,
+    );
+
+    expect(find.text('Marcos'), findsOneWidget);
+    final custoFixoNoCard = tester
+        .widgetList<Text>(find.text('Custo fixo'))
+        .where((t) => t.style?.color != Colors.white);
+    expect(custoFixoNoCard, hasLength(1));
+    expect(find.textContaining('Inter'), findsWidgets);
+    expect(find.textContaining('1/8'), findsOneWidget);
+    // Dois separadores "|": pessoa/pote e pote/cartao.
+    expect(find.text('|'), findsNWidgets(2));
+    expect(find.text(formatarReais(490)), findsOneWidget);
   });
 
   testWidgets('itens parcelados exibem a parcela', (tester) async {
@@ -267,7 +336,7 @@ void main() {
     expect(find.byType(TelaGastos), findsOneWidget);
   });
 
-  testWidgets('FAB de novo gasto fica desabilitado sem membros cadastrados',
+  testWidgets('faixa de potes fica desabilitada sem membros cadastrados',
       (tester) async {
     tester.view.physicalSize = const Size(1400, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -293,9 +362,30 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    final fab = tester
-        .widget<FloatingActionButton>(find.byKey(const Key('novo_gasto')));
-    expect(fab.onPressed, isNull);
+    // Os potes de teste ('Custo fixo', 'Conforto') continuam visiveis, so
+    // nao abrem o formulario.
+    await tester.tap(find.text('Custo fixo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Novo gasto'), findsNothing);
+  });
+
+  testWidgets('tocar num pote da faixa abre Novo gasto com aquele pote',
+      (tester) async {
+    final (_, repo) = await montar(tester);
+
+    await tester.tap(find.text('Conforto'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Novo gasto'), findsOneWidget);
+
+    await tester.enterText(
+        find.byKey(const Key('gasto_descricao')), 'Sofa');
+    await tester.enterText(find.byKey(const Key('gasto_valor')), '50000');
+    await tester.tap(find.byKey(const Key('gasto_salvar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.todos.single.poteId, 'p2');
   });
 
   testWidgets(

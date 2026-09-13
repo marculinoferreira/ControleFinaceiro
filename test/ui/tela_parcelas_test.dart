@@ -51,9 +51,10 @@ Gasto base(String descricao) => Gasto(
 
 Future<void> montar(
   WidgetTester tester,
-  Future<void> Function(RepositorioGastosFake) semear,
-) async {
-  tester.view.physicalSize = const Size(1400, 1200);
+  Future<void> Function(RepositorioGastosFake) semear, {
+  Size tamanho = const Size(1400, 1200),
+}) async {
+  tester.view.physicalSize = tamanho;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -191,5 +192,26 @@ void main() {
     // geral), mas so uma tem o rotulo "Somatória total".
     expect(find.text('Somatória total'), findsOneWidget);
     expect(find.text(formatarReais(200)), findsNWidgets(2));
+  });
+
+  testWidgets(
+      'card (mobile) mostra pessoa | pote | cartao · parcela · faltam, e o valor destacado',
+      (tester) async {
+    await montar(
+      tester,
+      (repo) async {
+        await repo.adicionar(base: base('Geladeira'), quantidadeParcelas: 10);
+      },
+      tamanho: const Size(420, 1400),
+    );
+
+    expect(find.text('Marcos'), findsOneWidget);
+    expect(find.text('Conforto'), findsOneWidget);
+    expect(find.textContaining('1/10'), findsOneWidget);
+    expect(find.textContaining('9 meses'), findsOneWidget);
+    // Sem cartao aqui (base() nao define cartaoId): pessoa | pote | parcela
+    // | faltam -- tres separadores.
+    expect(find.text('|'), findsNWidgets(3));
+    expect(find.text(formatarReais(100)), findsOneWidget);
   });
 }

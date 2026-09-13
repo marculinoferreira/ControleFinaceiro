@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 const Color _semente = Color(0xFF2E7D32);
 
+/// Cor de destaque pedida pelo usuario para estados selecionados/ativos:
+/// pilula do "Ordenar por", indicador do item selecionado no menu (Resumo a
+/// Graficos). Fixa (nao derivada do ColorScheme) porque o pedido foi por um
+/// hex exato, nao por "algo na linha do verde do tema".
+const Color corDestaque = Color(0xFF26797B);
+
 ThemeData temaClaro() => ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: _semente),
       useMaterial3: true,

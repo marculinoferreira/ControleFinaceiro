@@ -103,6 +103,7 @@ Future<RepositorioGastosFake> montar(
   Gasto? existente,
   RepositorioGastosFake? comRepo,
   MesRef mes = const MesRef(2026, 8),
+  String? poteIdInicial,
 }) async {
   tester.view.physicalSize = const Size(1400, 1200);
   tester.view.devicePixelRatio = 1.0;
@@ -132,6 +133,7 @@ Future<RepositorioGastosFake> montar(
                 context: context,
                 ref: ref,
                 existente: existente,
+                poteIdInicial: poteIdInicial,
               ),
               child: const Text('abrir'),
             ),
@@ -789,6 +791,58 @@ void main() {
       // Coage para "Nenhum" em vez de derrubar o assert do DropdownButton.
       expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('gasto_cartao')), findsOneWidget);
+    });
+  });
+
+  group('pote pre-selecionado', () {
+    testWidgets('poteIdInicial preenche o pote do formulario novo',
+        (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo, poteIdInicial: 'p2');
+
+      // Mesmo padrao de "editar mostra o cartao gravado": confere o valor
+      // exibido no dropdown fechado, sem precisar salvar.
+      expect(find.text('Conforto'), findsWidgets);
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Sofa novo');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '50000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.poteId, 'p2');
+    });
+
+    testWidgets(
+        'poteIdInicial apontando pra pote que nao existe mais cai no primeiro',
+        (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo, poteIdInicial: 'fantasma');
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Aluguel');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '100000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      // potes[0] no helper de teste e 'p1' (Custo fixo).
+      expect(repo.todos.single.poteId, 'p1');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+        'sem poteIdInicial continua caindo no primeiro pote, como hoje',
+        (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo);
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Feira');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '10000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.poteId, 'p1');
     });
   });
 }

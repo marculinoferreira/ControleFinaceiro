@@ -6,6 +6,8 @@ import '../../dominio/models/membro.dart';
 import '../../dominio/models/pote.dart';
 import '../../dominio/ordem_gastos.dart';
 import '../../estado/providers.dart';
+import '../tema/formatadores.dart';
+import '../tema/tema.dart';
 
 /// As quatro ordenacoes da lista. Fica separado dos filtros de proposito: um
 /// filtro tira linhas da tela, uma ordenacao so as reorganiza.
@@ -25,6 +27,8 @@ class SeletorOrdem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordem = ref.watch(ordemGastosProvider);
+    final esquema = Theme.of(context).colorScheme;
+    final entradas = _rotulos.entries.toList();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -38,36 +42,38 @@ class SeletorOrdem extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          SegmentedButton<OrdemGastos>(
-            key: const Key('ordem_gastos'),
-            showSelectedIcon: false,
-            // expandedInsets zerado faz os quatro segmentos dividirem a
-            // largura disponivel em partes iguais, de uma borda a outra da
-            // tela, em vez de encolherem ate o texto e rolarem na horizontal.
-            expandedInsets: EdgeInsets.zero,
-            style: const ButtonStyle(
-              // Retangulo reto: sem o raio de pilula do Material 3.
-              shape: WidgetStatePropertyAll(RoundedRectangleBorder()),
-              padding: WidgetStatePropertyAll(
-                EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: esquema.outlineVariant),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                key: const Key('ordem_gastos'),
+                children: [
+                  for (final (i, entrada) in entradas.indexed) ...[
+                    // Linha fina entre as opcoes -- so entre elas, nunca
+                    // antes da primeira nem depois da ultima.
+                    if (i > 0)
+                      Container(
+                        width: 1,
+                        height: 18,
+                        color: esquema.outlineVariant,
+                      ),
+                    Expanded(
+                      child: _OpcaoOrdem(
+                        rotulo: entrada.value,
+                        selecionada: ordem == entrada.key,
+                        aoTocar: () => ref
+                            .read(ordemGastosProvider.notifier)
+                            .selecionar(entrada.key),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-            segments: [
-              for (final entrada in _rotulos.entries)
-                ButtonSegment(
-                  value: entrada.key,
-                  // Um quarto da tela e pouco para "Cartão" com a fonte do
-                  // sistema aumentada: o scaleDown encolhe o rotulo o tanto
-                  // que precisar em vez de quebrar em duas linhas.
-                  label: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(entrada.value, maxLines: 1, softWrap: false),
-                  ),
-                ),
-            ],
-            selected: {ordem},
-            onSelectionChanged: (s) =>
-                ref.read(ordemGastosProvider.notifier).selecionar(s.first),
           ),
         ],
       ),
@@ -75,14 +81,109 @@ class SeletorOrdem extends ConsumerWidget {
   }
 }
 
+/// Uma opcao do `SeletorOrdem`. Selecionada: pilula com fundo destacado.
+/// Nao selecionada: so o texto, sem caixa nem borda -- as linhas finas do
+/// `Row` externo (entre as opcoes) e que separam uma da outra.
+class _OpcaoOrdem extends StatelessWidget {
+  final String rotulo;
+  final bool selecionada;
+  final VoidCallback aoTocar;
+
+  const _OpcaoOrdem({
+    required this.rotulo,
+    required this.selecionada,
+    required this.aoTocar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final esquema = Theme.of(context).colorScheme;
+
+    return InkWell(
+      onTap: aoTocar,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selecionada ? corDestaque : null,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            rotulo,
+            maxLines: 1,
+            softWrap: false,
+            style: TextStyle(
+              color: selecionada ? Colors.white : esquema.onSurfaceVariant,
+              fontWeight: selecionada ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Caixa de filtro compartilhada: mesmo padrao do campo de data em
+/// `formulario_gasto.dart` (`InputDecorator` + `OutlineInputBorder`) -- a
+/// legenda (icone + "Rotulo:") "quebra" a linha de cima da borda, em vez de
+/// ficar dentro da caixa acima do valor. Sem a legenda, duas caixas sem
+/// selecao mostrariam so "Todos" cada uma, sem dizer qual e Cartao e qual e
+/// Pote.
+class _CaixaFiltro extends StatelessWidget {
+  final IconData icone;
+  final String rotuloCampo;
+  final String valor;
+
+  const _CaixaFiltro({
+    required this.icone,
+    required this.rotuloCampo,
+    required this.valor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, size: 14),
+            const SizedBox(width: 4),
+            Text('$rotuloCampo:'),
+          ],
+        ),
+        suffixIcon: const Icon(Icons.arrow_drop_down),
+        border: const OutlineInputBorder(),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      ),
+      child: Text(
+        valor,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// Sentinela interna de `_caixaFiltro`: `PopupMenuButton<T>` nao consegue
+/// distinguir "o menu fechou sem escolha" de "a pessoa escolheu o item cujo
+/// valor e null" -- as duas resolvem a Future interna do `showMenu` como
+/// null, e so a primeira chama `onCanceled` em vez de `onSelected`. Por
+/// isso os itens nulos ("Casal"/"Todos") viajam com esta chave e so viram
+/// null de volta no `onSelected`. String claramente artificial, nunca
+/// cadastrada como id real de pessoa/pote/cartao em nenhuma tela.
+const _semFiltro = '__sem_filtro__';
+
 class FiltrosLancamentos extends ConsumerWidget {
   final List<Membro> membros;
   final List<Pote> potes;
   final List<Cartao> cartoes;
-
-  /// Acima disto os tres filtros cabem lado a lado; abaixo, Pessoa e Cartao
-  /// dividem a primeira linha e Pote fica sozinho na segunda.
-  static const double _larguraTresColunas = 700;
 
   const FiltrosLancamentos({
     super.key,
@@ -98,10 +199,8 @@ class FiltrosLancamentos extends ConsumerWidget {
     final cartaoId = ref.watch(filtroCartaoProvider);
 
     // Coage para null quando o filtro aponta para um id que sumiu da lista
-    // (a outra pessoa apagou o membro ou o pote enquanto esta aba estava
-    // aberta): sem isso o DropdownButtonFormField derruba o assert de
-    // "exactly one item with [DropdownButton]'s value". Null e sempre valido
-    // aqui — e o item "Casal"/"Todos".
+    // (a outra pessoa apagou o membro/pote/cartao enquanto esta aba estava
+    // aberta): sem isso a caixa mostraria o id cru em vez de um rotulo.
     final membroValido =
         membroId == null || membros.any((m) => m.id == membroId)
             ? membroId
@@ -109,115 +208,91 @@ class FiltrosLancamentos extends ConsumerWidget {
     final poteValido = poteId == null || potes.any((p) => p.id == poteId)
         ? poteId
         : null;
-    // A string vazia ("Sem cartão") e sempre valida: ela nao aponta para
-    // nenhum documento que possa ter sido removido.
     final cartaoValido = cartaoId == null ||
             cartaoId.isEmpty ||
             cartoes.any((c) => c.id == cartaoId)
         ? cartaoId
         : null;
 
-    final pessoa = _seletor(
-      context,
+    final pessoa = _caixaFiltro(
       chave: const Key('filtro_membro'),
-      rotulo: 'Pessoa',
-      valor: membroValido,
+      icone: Icons.person_outline,
+      rotuloCampo: 'Pessoa',
+      valor:
+          membroValido == null ? 'Casal' : nomeDoMembro(membros, membroValido),
       itens: [
-        _item(null, 'Casal'),
-        for (final m in membros) _item(m.id, m.nome),
+        (null, 'Casal'),
+        for (final m in membros) (m.id, m.nome),
       ],
-      // Mesmo provider do seletor Marcos / Silvia / Casal do Resumo e dos
-      // Graficos: trocar a pessoa aqui troca la, e vice-versa.
-      aoMudar: (v) => ref.read(visaoProvider.notifier).selecionar(v),
+      aoSelecionar: (v) => ref.read(visaoProvider.notifier).selecionar(v),
     );
 
-    final cartao = _seletor(
-      context,
+    final cartao = _caixaFiltro(
       chave: const Key('filtro_cartao'),
-      rotulo: 'Cartão',
-      valor: cartaoValido,
+      icone: Icons.credit_card,
+      rotuloCampo: 'Cartão',
+      valor: cartaoValido == null
+          ? 'Todos'
+          : (cartaoValido.isEmpty
+              ? 'Sem cartão'
+              : nomeDoCartao(cartoes, cartaoValido)),
       itens: [
-        _item(null, 'Todos'),
-        _item('', 'Sem cartão'),
-        for (final c in cartoes) _item(c.id, c.nome),
+        (null, 'Todos'),
+        ('', 'Sem cartão'),
+        for (final c in cartoes) (c.id, c.nome),
       ],
-      aoMudar: (v) => ref.read(filtroCartaoProvider.notifier).selecionar(v),
+      aoSelecionar: (v) =>
+          ref.read(filtroCartaoProvider.notifier).selecionar(v),
     );
 
-    final pote = _seletor(
-      context,
+    final pote = _caixaFiltro(
       chave: const Key('filtro_pote'),
-      rotulo: 'Pote',
-      valor: poteValido,
+      icone: Icons.pie_chart_outline,
+      rotuloCampo: 'Pote',
+      valor: poteValido == null ? 'Todos' : nomeDoPote(potes, poteValido),
       itens: [
-        _item(null, 'Todos'),
-        for (final p in potes) _item(p.id, p.nome),
+        (null, 'Todos'),
+        for (final p in potes) (p.id, p.nome),
       ],
-      aoMudar: (v) => ref.read(filtroPoteProvider.notifier).selecionar(v),
+      aoSelecionar: (v) => ref.read(filtroPoteProvider.notifier).selecionar(v),
     );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      child: LayoutBuilder(
-        builder: (context, restricoes) {
-          if (restricoes.maxWidth >= _larguraTresColunas) {
-            return Row(
-              children: [
-                Expanded(child: pessoa),
-                const SizedBox(width: 12),
-                Expanded(child: cartao),
-                const SizedBox(width: 12),
-                Expanded(child: pote),
-              ],
-            );
-          }
-          return Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(child: pessoa),
-                  const SizedBox(width: 12),
-                  Expanded(child: cartao),
-                ],
-              ),
-              const SizedBox(height: 8),
-              pote,
-            ],
-          );
-        },
+      child: Row(
+        children: [
+          Expanded(child: pessoa),
+          const SizedBox(width: 8),
+          Expanded(child: cartao),
+          const SizedBox(width: 8),
+          Expanded(child: pote),
+        ],
       ),
     );
   }
 
-  DropdownMenuItem<String?> _item(String? valor, String texto) =>
-      DropdownMenuItem(
-        value: valor,
-        child: Text(texto, maxLines: 1, overflow: TextOverflow.ellipsis),
-      );
-
-  Widget _seletor(
-    BuildContext context, {
+  /// Caixa de filtro que abre um menu suspenso ancorado nela mesma. [itens]
+  /// e uma lista de (valor, rotulo); [icone] e [rotuloCampo] identificam
+  /// qual filtro e (ver o comentario de `_CaixaFiltro`). Ver `_semFiltro`
+  /// sobre o motivo de mapear valores nulos pra uma chave nao-nula antes de
+  /// entregar ao `PopupMenuButton`.
+  Widget _caixaFiltro({
     required Key chave,
-    required String rotulo,
-    required String? valor,
-    required List<DropdownMenuItem<String?>> itens,
-    required ValueChanged<String?> aoMudar,
+    required IconData icone,
+    required String rotuloCampo,
+    required String valor,
+    required List<(String?, String)> itens,
+    required ValueChanged<String?> aoSelecionar,
   }) {
-    return DropdownButtonFormField<String?>(
+    return PopupMenuButton<String>(
       key: chave,
-      initialValue: valor,
-      // A caixa acompanha a coluna (Expanded) e isExpanded faz o texto
-      // escolhido ocupar essa largura, cortando com reticencias em vez de
-      // estourar quando o nome do cartao ou do pote e comprido.
-      isExpanded: true,
-      style: Theme.of(context).textTheme.bodyMedium,
-      decoration: InputDecoration(
-        labelText: rotulo,
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
-      items: itens,
-      onChanged: aoMudar,
+      tooltip: '',
+      itemBuilder: (context) => [
+        for (final (v, texto) in itens)
+          PopupMenuItem(value: v ?? _semFiltro, child: Text(texto)),
+      ],
+      onSelected: (v) => aoSelecionar(v == _semFiltro ? null : v),
+      child: _CaixaFiltro(icone: icone, rotuloCampo: rotuloCampo, valor: valor),
     );
   }
 }

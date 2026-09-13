@@ -16,6 +16,11 @@ void main() {
     expect(potesPadrao().map((p) => p.ordem).toList(), [0, 1, 2, 3, 4, 5]);
   });
 
+  test('Custo fixo usa a cor de destaque #26797B', () {
+    final custoFixo = potesPadrao().firstWhere((p) => p.nome == 'Custo fixo');
+    expect(custoFixo.cor, '#26797B');
+  });
+
   test('a casa padrao tem os dois membros com os e-mails corretos', () {
     final casa = casaPadrao();
     expect(casa.membros, hasLength(2));

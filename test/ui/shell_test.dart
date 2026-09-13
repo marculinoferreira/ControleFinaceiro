@@ -5,6 +5,7 @@ import 'package:controle_financeiro/dados/repositorios.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/shell.dart';
+import 'package:controle_financeiro/ui/tema/tema.dart';
 import 'package:controle_financeiro/ui/telas/tela_cartoes.dart';
 import 'package:controle_financeiro/ui/telas/tela_ganhos.dart';
 import 'package:controle_financeiro/ui/telas/tela_graficos.dart';
@@ -40,6 +41,25 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
   });
 
+  testWidgets('NavigationRail destaca o item selecionado com a cor de destaque',
+      (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montar());
+    await tester.pump();
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.indicatorColor, corDestaque);
+  });
+
+  testWidgets('NavigationRail deixa o icone selecionado branco', (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montar());
+    await tester.pump();
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.selectedIconTheme?.color, Colors.white);
+  });
+
   testWidgets('usa NavigationBar no mobile', (tester) async {
     await comLargura(tester, 420);
     await tester.pumpWidget(montar());
@@ -47,6 +67,27 @@ void main() {
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
+  });
+
+  testWidgets('NavigationBar destaca o item selecionado com a cor de destaque',
+      (tester) async {
+    await comLargura(tester, 420);
+    await tester.pumpWidget(montar());
+    await tester.pump();
+
+    final barra = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    expect(barra.indicatorColor, corDestaque);
+  });
+
+  testWidgets('NavigationBar deixa o icone do item selecionado branco',
+      (tester) async {
+    await comLargura(tester, 420);
+    await tester.pumpWidget(montar());
+    await tester.pump();
+
+    // Resumo (indice 0) e o selecionado por padrao ao abrir o app.
+    final contextoIcone = tester.element(find.byIcon(Icons.donut_large));
+    expect(IconTheme.of(contextoIcone).color, Colors.white);
   });
 
   testWidgets('seletor de mes avanca e volta', (tester) async {

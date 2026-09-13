@@ -39,11 +39,15 @@ Future<void> abrirFormularioGasto({
   required BuildContext context,
   required WidgetRef ref,
   Gasto? existente,
+  String? poteIdInicial,
 }) async {
   final resultado = await mostrarFormulario<_ResultadoFormularioGasto>(
     context: context,
     titulo: existente == null ? 'Novo gasto' : 'Editar gasto',
-    construir: (c) => FormularioGasto(existente: existente),
+    construir: (c) => FormularioGasto(
+      existente: existente,
+      poteIdInicial: poteIdInicial,
+    ),
   );
   if (resultado == null) return;
 
@@ -96,7 +100,8 @@ bool _valorMudou(Gasto antes, Gasto depois) =>
 
 class FormularioGasto extends ConsumerStatefulWidget {
   final Gasto? existente;
-  const FormularioGasto({super.key, this.existente});
+  final String? poteIdInicial;
+  const FormularioGasto({super.key, this.existente, this.poteIdInicial});
 
   @override
   ConsumerState<FormularioGasto> createState() => _FormularioGastoState();
@@ -293,7 +298,12 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     if (_poteId != null && !potes.any((p) => p.id == _poteId)) {
       _poteId = null;
     }
-    _poteId ??= potes.isEmpty ? null : potes.first.id;
+    // poteIdInicial (a faixa de potes de Gastos) so vale se ainda existir
+    // na lista -- mesma cautela do pote de um lancamento existente, acima.
+    _poteId ??= (widget.poteIdInicial != null &&
+            potes.any((p) => p.id == widget.poteIdInicial))
+        ? widget.poteIdInicial
+        : (potes.isEmpty ? null : potes.first.id);
 
     // Mesmo tratamento de id orfao do pote: um cartao removido enquanto o
     // formulario estava aberto derrubaria o assert do DropdownButton.

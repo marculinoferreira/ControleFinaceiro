@@ -8,9 +8,12 @@ import '../../dominio/models/pote.dart';
 import '../../dominio/ordem_gastos.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
+import '../tema/tema.dart';
 import '../widgets/dialogo_exclusao.dart';
+import '../widgets/faixa_potes.dart' show FaixaPotes, iconeDoPote;
 import '../widgets/filtros_lancamentos.dart';
 import '../widgets/estados_async.dart';
+import '../widgets/subtitulo_lancamento.dart';
 import '../widgets/tabela_responsiva.dart';
 import 'formulario_gasto.dart';
 
@@ -38,14 +41,6 @@ class TelaGastos extends ConsumerWidget {
     );
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('novo_gasto'),
-        onPressed: membros.isEmpty
-            ? null
-            : () => abrirFormularioGasto(context: context, ref: ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo gasto'),
-      ),
       body: combinado.when(
         loading: () => const CarregandoLista(),
         error: (e, _) => ErroComRecarregar(
@@ -60,6 +55,15 @@ class TelaGastos extends ConsumerWidget {
           final (potes, cartoes, grupos) = trio;
           return Column(
             children: [
+              FaixaPotes(
+                potes: potes,
+                habilitado: membros.isNotEmpty,
+                aoTocar: (pote) => abrirFormularioGasto(
+                  context: context,
+                  ref: ref,
+                  poteIdInicial: pote.id,
+                ),
+              ),
               FiltrosLancamentos(membros: membros, potes: potes, cartoes: cartoes),
               const SeletorOrdem(),
               const Divider(height: 1),
@@ -103,27 +107,58 @@ class TelaGastos extends ConsumerWidget {
             titulo: grupo.titulo,
             linhas: [
               for (final g in grupo.itens)
-                LinhaResponsiva(
-                  chave: ValueKey('gasto_${g.id}'),
-                  valores: [
-                    g.descricao,
-                    formatarData(g.data),
-                    nomeDoMembro(membros, g.membroId),
-                    nomeDoPote(potes, g.poteId),
-                    nomeDoCartao(cartoes, g.cartaoId),
-                    g.rotuloParcela,
-                    formatarReais(g.valor),
-                  ],
-                  aoTocar: () => abrirFormularioGasto(
-                      context: context, ref: ref, existente: g),
-                  aoExcluir: () => _excluir(context, ref, g),
-                ),
+                _linhaDoGasto(context, ref, g, membros, potes, cartoes),
             ],
             total: grupo.titulo.isEmpty
                 ? null
                 : grupo.itens.fold<double>(0.0, (soma, g) => soma + g.valor),
           ),
       ],
+    );
+  }
+
+  LinhaResponsiva _linhaDoGasto(
+    BuildContext context,
+    WidgetRef ref,
+    Gasto g,
+    List<Membro> membros,
+    List<Pote> potes,
+    List<Cartao> cartoes,
+  ) {
+    // null quando o pote foi apagado enquanto o gasto continua existindo --
+    // nesse caso o icone/cor ficam de fora (leading nulo), em vez de
+    // inventar um icone generico pra um pote que nao existe mais.
+    Pote? pote;
+    for (final p in potes) {
+      if (p.id == g.poteId) {
+        pote = p;
+        break;
+      }
+    }
+
+    return LinhaResponsiva(
+      chave: ValueKey('gasto_${g.id}'),
+      valores: [
+        g.descricao,
+        formatarData(g.data),
+        nomeDoMembro(membros, g.membroId),
+        nomeDoPote(potes, g.poteId),
+        nomeDoCartao(cartoes, g.cartaoId),
+        g.rotuloParcela,
+        formatarReais(g.valor),
+      ],
+      iconePrincipal: pote == null ? null : iconeDoPote(pote.icone),
+      corIconePrincipal: pote == null ? null : corDeHex(pote.cor),
+      subtitulo: subtituloDoLancamento(
+        context: context,
+        nomeMembro: nomeDoMembro(membros, g.membroId),
+        nomePote: nomeDoPote(potes, g.poteId),
+        nomeCartao: nomeDoCartao(cartoes, g.cartaoId),
+        rotuloParcela: g.rotuloParcela,
+      ),
+      valorDestacado: formatarReais(g.valor),
+      aoTocar: () => abrirFormularioGasto(context: context, ref: ref, existente: g),
+      aoExcluir: () => _excluir(context, ref, g),
     );
   }
 
