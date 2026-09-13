@@ -136,6 +136,15 @@ void main() {
     expect(excluiu, 1);
   });
 
+  testWidgets('nao mostra checkbox de selecao mesmo com aoTocar',
+      (tester) async {
+    await comLargura(tester, 1400);
+    await tester.pumpWidget(montar(duasLinhas(aoTocar: () {})));
+    await tester.pump();
+
+    expect(find.byType(Checkbox), findsNothing);
+  });
+
   test('linha com numero de celulas diferente das colunas e rejeitada', () {
     expect(
       () => TabelaResponsiva(

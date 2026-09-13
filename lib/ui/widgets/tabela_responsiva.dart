@@ -117,6 +117,7 @@ class TabelaResponsiva extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
+          showCheckboxColumn: false,
           columns: [
             for (final c in colunas) DataColumn(label: Text(c)),
             if (_temAcoes) const DataColumn(label: Text('')),
