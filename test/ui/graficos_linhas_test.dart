@@ -276,6 +276,23 @@ void main() {
       expect(find.text('Total: ${formatarReais(300)}'), findsOneWidget);
     });
 
+    testWidgets('o total fica a direita, na mesma linha da legenda',
+        (tester) async {
+      await montar(
+        tester,
+        const LinhaComprometimento(),
+        parcelasDe: 3,
+        valorParcela: 100,
+      );
+
+      final legendaPos = tester.getCenter(find.text('Parcelas a pagar'));
+      final totalPos =
+          tester.getCenter(find.text('Total: ${formatarReais(300)}'));
+
+      expect(totalPos.dy, closeTo(legendaPos.dy, 1));
+      expect(totalPos.dx, greaterThan(legendaPos.dx));
+    });
+
     testWidgets('a linha cai a zero depois da ultima parcela',
         (tester) async {
       await montar(tester, const LinhaComprometimento(), parcelasDe: 3);

@@ -80,8 +80,7 @@ class MolduraGrafico<T> extends StatelessWidget {
               ErroComRecarregar(erro: dados.error!, aoRecarregar: aoRecarregar)
             else
               SizedBox(height: altura, child: _corpo(context)),
-            ..._legenda(),
-            ..._rodape(),
+            ..._legendaERodape(),
           ],
         ),
       ),
@@ -106,27 +105,43 @@ class MolduraGrafico<T> extends StatelessWidget {
             : construir(valor),
       );
 
-  /// Legenda so faz sentido quando ha o que legendar: sem dado, os
-  /// marcadores apontariam para um grafico que nem esta na tela.
-  List<Widget> _legenda() {
+  /// Legenda e rodape, quando os dois existem, ficam na MESMA linha --
+  /// legenda a esquerda, rodape a direita -- em vez de empilhados, pra
+  /// aproveitar a largura do card em vez de gastar duas linhas de altura.
+  /// Sem dado (ou vazio), nenhum dos dois faz sentido: a legenda apontaria
+  /// pra um grafico que nem esta na tela, e o rodape nao teria o que somar.
+  List<Widget> _legendaERodape() {
     final valor = dados.value;
     if (valor == null || estaVazio(valor)) return const [];
 
     final itens = legenda(valor);
-    if (itens.isEmpty) return const [];
+    final rodapeWidget = rodape?.call(valor);
 
-    return [
-      const SizedBox(height: 12),
-      LegendaGrafico(itens: itens),
-    ];
-  }
+    if (itens.isEmpty && rodapeWidget == null) return const [];
 
-  /// Mesma condicao do `_legenda()`: sem dado (ou vazio), nao ha o que
-  /// resumir no rodape.
-  List<Widget> _rodape() {
-    final valor = dados.value;
-    if (valor == null || estaVazio(valor) || rodape == null) return const [];
+    if (itens.isNotEmpty && rodapeWidget != null) {
+      return [
+        const SizedBox(height: 12),
+        // Wrap (nao Row/Expanded): se a legenda for longa e nao sobrar
+        // espaco pro rodape na mesma linha, ele quebra pra linha de baixo em
+        // vez de espremer a legenda ate estourar (Row com Expanded forcava
+        // a legenda num espaco menor que o texto precisava).
+        SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 4,
+            children: [LegendaGrafico(itens: itens), rodapeWidget],
+          ),
+        ),
+      ];
+    }
 
-    return [const SizedBox(height: 8), rodape!(valor)];
+    if (itens.isNotEmpty) {
+      return [const SizedBox(height: 12), LegendaGrafico(itens: itens)];
+    }
+
+    return [const SizedBox(height: 8), rodapeWidget!];
   }
 }

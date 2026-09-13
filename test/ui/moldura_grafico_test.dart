@@ -224,6 +224,27 @@ void main() {
 
       expect(find.text('nunca aparece'), findsNothing);
     });
+
+    testWidgets(
+        'fica na mesma linha da legenda, a direita, quando as duas existem',
+        (tester) async {
+      await montar(
+        tester,
+        dados: const AsyncValue.data([1, 2]),
+        legenda: (_) => const [
+          ItemLegenda(rotulo: 'Serie', cor: Color(0xFF2E7D32)),
+        ],
+        rodape: (l) => Text('Total: ${l.length}'),
+      );
+
+      final legendaPos = tester.getCenter(find.text('Serie'));
+      final totalPos = tester.getCenter(find.text('Total: 2'));
+
+      // Mesma linha (Row centralizado no eixo vertical) e a direita da
+      // legenda -- nao empilhado abaixo dela.
+      expect(totalPos.dy, closeTo(legendaPos.dy, 1));
+      expect(totalPos.dx, greaterThan(legendaPos.dx));
+    });
   });
 }
 
