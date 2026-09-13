@@ -171,7 +171,25 @@ void main() {
     // documenta essa coincidencia). valorParcela de cada uma e 100 (o
     // valor de base()), total do grupo 200. No desktop o valor do total vai
     // sob a coluna Valor/mês (colunaDoTotal), separado da celula "Total".
+    // Como so ha um grupo, o total dele coincide com a somatoria geral (200
+    // tambem) -> duas celulas com o mesmo valor.
     expect(find.text('Total'), findsOneWidget);
-    expect(find.text(formatarReais(200)), findsOneWidget);
+    expect(find.text(formatarReais(200)), findsNWidgets(2));
+  });
+
+  testWidgets('mostra a somatoria geral de todas as compras parceladas',
+      (tester) async {
+    await montar(tester, (repo) async {
+      await repo.adicionar(base: base('Geladeira'), quantidadeParcelas: 10);
+      await repo.adicionar(base: base('Sofa'), quantidadeParcelas: 5);
+    });
+
+    // As duas compras usam base(), com a mesma data -> caem no mesmo grupo
+    // (ver o teste "a ordem padrao..." acima). valorParcela de cada uma e
+    // 100, soma geral = 200 -- igual ao total desse unico grupo, entao
+    // formatarReais(200) aparece duas vezes (total do grupo + somatoria
+    // geral), mas so uma tem o rotulo "Somatória total".
+    expect(find.text('Somatória total'), findsOneWidget);
+    expect(find.text(formatarReais(200)), findsNWidgets(2));
   });
 }

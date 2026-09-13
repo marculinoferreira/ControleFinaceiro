@@ -84,6 +84,9 @@ class TelaParcelas extends ConsumerWidget {
       ],
       vazio: 'Nenhuma compra parcelada em aberto.',
       colunaDoTotal: 6,
+      somatoriaGeral: grupos
+          .expand((g) => g.itens)
+          .fold<double>(0.0, (soma, c) => soma + c.valorParcela),
       grupos: [
         for (final grupo in grupos)
           GrupoResponsivo(
