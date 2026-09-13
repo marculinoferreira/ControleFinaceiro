@@ -222,11 +222,26 @@ void main() {
       expect(grupos.single.itens, hasLength(2));
     });
 
-    test('dentro do pote ordena pela descricao', () {
+    test('dentro do pote ordena por data, do mais recente para o mais antigo',
+        () {
       final grupos = agruparGastos(
         gastos: [
           gasto('Zebra', dia: 5, poteId: 'p1'),
           gasto('Abacaxi', dia: 6, poteId: 'p1'),
+        ],
+        ordem: OrdemGastos.pote,
+        potes: potes,
+      );
+
+      expect(grupos.single.itens.map((g) => g.descricao).toList(),
+          ['Abacaxi', 'Zebra']);
+    });
+
+    test('dentro do pote, mesma data desempata pela descricao', () {
+      final grupos = agruparGastos(
+        gastos: [
+          gasto('Zebra', dia: 5, poteId: 'p1'),
+          gasto('Abacaxi', dia: 5, poteId: 'p1'),
         ],
         ordem: OrdemGastos.pote,
         potes: potes,
@@ -312,11 +327,28 @@ void main() {
       expect(grupos.single.titulo, 'Nubank');
     });
 
-    test('dentro do cartao ordena pela descricao', () {
+    test(
+        'dentro do cartao ordena por data, do mais recente para o mais antigo',
+        () {
+      final grupos = agruparGastos(
+        gastos: [
+          gasto('Zebra', dia: 10, cartaoId: 'ct1'),
+          gasto('Abacaxi', dia: 12, cartaoId: 'ct1'),
+        ],
+        ordem: OrdemGastos.cartao,
+        potes: potes,
+        cartoes: cartoes,
+      );
+
+      expect(grupos.single.itens.map((g) => g.descricao).toList(),
+          ['Abacaxi', 'Zebra']);
+    });
+
+    test('dentro do cartao, mesma data desempata pela descricao', () {
       final grupos = agruparGastos(
         gastos: [
           gasto('Zebra', dia: 12, cartaoId: 'ct1'),
-          gasto('Abacaxi', dia: 10, cartaoId: 'ct1'),
+          gasto('Abacaxi', dia: 12, cartaoId: 'ct1'),
         ],
         ordem: OrdemGastos.cartao,
         potes: potes,

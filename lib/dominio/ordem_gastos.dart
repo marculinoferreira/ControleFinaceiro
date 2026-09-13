@@ -11,10 +11,12 @@ enum OrdemGastos {
   /// Por descricao, em lista corrida. Agrupar por letra inicial seria ruido.
   alfabetica,
 
-  /// Por pote, agrupada, na ordem de prioridade da cascata.
+  /// Por pote, agrupada, na ordem de prioridade da cascata. Dentro do grupo,
+  /// por data (mais recente primeiro).
   pote,
 
   /// Por cartao, agrupada, na ordem em que os cartoes foram cadastrados.
+  /// Dentro do grupo, por data (mais recente primeiro).
   cartao,
 }
 
@@ -93,6 +95,15 @@ List<Grupo<T>> agruparPor<T>({
   int porDescricao(T a, T b) =>
       descricao(a).toLowerCase().compareTo(descricao(b).toLowerCase());
 
+  // Dentro de um grupo de pote ou cartao, a data manda: mais recente primeiro
+  // (ou mais antiga, seguindo dataDecrescente, para manter a mesma logica das
+  // Parcelas). Descricao so desempata quando a data e igual.
+  int porDataEDescricao(T a, T b) {
+    final cmp = data(a).compareTo(data(b));
+    final porData = dataDecrescente ? -cmp : cmp;
+    return porData != 0 ? porData : porDescricao(a, b);
+  }
+
   switch (ordem) {
     case OrdemGastos.alfabetica:
       return [Grupo(titulo: '', itens: [...itens]..sort(porDescricao))];
@@ -118,7 +129,7 @@ List<Grupo<T>> agruparPor<T>({
         chave: (item) => poteId(item),
         ids: [for (final p in ordenados) p.id],
         nomes: {for (final p in ordenados) p.id: p.nome},
-        comparar: porDescricao,
+        comparar: porDataEDescricao,
       );
 
     case OrdemGastos.cartao:
@@ -129,7 +140,7 @@ List<Grupo<T>> agruparPor<T>({
         chave: (item) => cartaoId(item) ?? '',
         ids: [for (final c in ordenados) c.id],
         nomes: {for (final c in ordenados) c.id: c.nome},
-        comparar: porDescricao,
+        comparar: porDataEDescricao,
         // O que saiu em dinheiro tem chave vazia e ganha grupo proprio, antes
         // dos orfaos: "sem cartao" e "cartao encerrado" sao coisas distintas,
         // e juntar as duas esconderia a segunda.
