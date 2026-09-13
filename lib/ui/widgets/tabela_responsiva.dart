@@ -64,12 +64,19 @@ class TabelaResponsiva extends StatelessWidget {
   /// principal.
   final int? colunaDoTotal;
 
+  /// Soma de TODAS as linhas de TODOS os grupos, independente do
+  /// agrupamento/ordenacao escolhido. `null` (o padrao) nao desenha nada —
+  /// caso de quem ainda nao passa este campo, ou da lista simples (sem
+  /// agrupamento).
+  final double? somatoriaGeral;
+
   /// Lista simples, sem agrupamento.
   TabelaResponsiva({
     super.key,
     required this.colunas,
     required List<LinhaResponsiva> linhas,
     this.vazio = 'Nada lançado neste mês.',
+    this.somatoriaGeral,
   })  : grupos = [GrupoResponsivo(titulo: '', linhas: linhas)],
         colunaDoTotal = null,
         assert(
@@ -85,6 +92,7 @@ class TabelaResponsiva extends StatelessWidget {
     required this.grupos,
     this.vazio = 'Nada lançado neste mês.',
     this.colunaDoTotal,
+    this.somatoriaGeral,
   });
 
   List<LinhaResponsiva> get _todas =>
@@ -160,6 +168,8 @@ class TabelaResponsiva extends StatelessWidget {
               if (grupo.total != null)
                 _rodapeDeGrupo(context, grupo.titulo, grupo.total!),
             ],
+            if (somatoriaGeral != null)
+              _somatoriaGeral(context, somatoriaGeral!),
           ],
         ),
       ),
@@ -219,6 +229,38 @@ class TabelaResponsiva extends StatelessWidget {
     );
   }
 
+  /// Linha de soma de TODA a tabela (todos os grupos), sempre a ultima.
+  /// Mesmo truque de `_rodapeDeGrupo`, mas com fundo cinza bem escuro e
+  /// texto branco -- precisa se destacar da linha de total por grupo (cinza
+  /// claro), que ja existe acima dela quando ha agrupamento.
+  DataRow _somatoriaGeral(BuildContext context, double total) {
+    const estilo = TextStyle(fontWeight: FontWeight.bold, color: Colors.white);
+    final totalDeQuantasCelulas = colunas.length + (_temAcoes ? 1 : 0);
+
+    Widget celula(int i) {
+      if (i == 0) {
+        return Text(
+          colunaDoTotal == null
+              ? 'Somatória total: ${formatarReais(total)}'
+              : 'Somatória total',
+          style: estilo,
+        );
+      }
+      if (colunaDoTotal != null && i == colunaDoTotal) {
+        return Text(formatarReais(total), style: estilo);
+      }
+      return const SizedBox.shrink();
+    }
+
+    return DataRow(
+      key: const ValueKey('somatoria_geral'),
+      color: WidgetStatePropertyAll(Colors.grey.shade800),
+      cells: [
+        for (var i = 0; i < totalDeQuantasCelulas; i++) DataCell(celula(i)),
+      ],
+    );
+  }
+
   Widget _cards() {
     // Uma lista plana onde cada item e um titulo (String), uma linha, ou o
     // rodape de total de um grupo.
@@ -229,6 +271,7 @@ class TabelaResponsiva extends StatelessWidget {
         if (grupo.total != null)
           _RodapeDeGrupo(titulo: grupo.titulo, total: grupo.total!),
       ],
+      if (somatoriaGeral != null) _SomatoriaGeralCard(total: somatoriaGeral!),
     ];
 
     return ListView.builder(
@@ -268,6 +311,31 @@ class TabelaResponsiva extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (item is _SomatoriaGeralCard) {
+          return Padding(
+            key: const ValueKey('somatoria_geral'),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade800,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Somatória total: ${formatarReais(item.total)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                 ),
               ),
@@ -317,4 +385,12 @@ class _RodapeDeGrupo {
   final double total;
 
   const _RodapeDeGrupo({required this.titulo, required this.total});
+}
+
+/// Marcador interno de `_cards()`: identifica o item da lista plana que e a
+/// somatoria geral da tabela inteira, sempre o ultimo item.
+class _SomatoriaGeralCard {
+  final double total;
+
+  const _SomatoriaGeralCard({required this.total});
 }

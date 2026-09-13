@@ -35,11 +35,16 @@ List<LinhaResponsiva> duasLinhas({
       ),
     ];
 
-Widget montarAgrupada(List<GrupoResponsivo> grupos) => MaterialApp(
+Widget montarAgrupada(
+  List<GrupoResponsivo> grupos, {
+  double? somatoriaGeral,
+}) =>
+    MaterialApp(
       home: Scaffold(
         body: TabelaResponsiva.agrupada(
           colunas: const ['Descricao', 'Valor'],
           grupos: grupos,
+          somatoriaGeral: somatoriaGeral,
         ),
       ),
     );
@@ -207,5 +212,67 @@ void main() {
     await tester.pump();
 
     expect(find.text('Total: ${formatarReais(100)}'), findsOneWidget);
+  });
+
+  group('somatoria geral', () {
+    testWidgets('mostra a linha ao final no desktop', (tester) async {
+      await comLargura(tester, 1400);
+      await tester.pumpWidget(montarAgrupada(
+        [
+          const GrupoResponsivo(
+            titulo: 'Hoje',
+            linhas: [
+              LinhaResponsiva(
+                  chave: ValueKey('l1'), valores: ['Aluguel', r'R$ 100,00']),
+            ],
+            total: 100,
+          ),
+        ],
+        somatoriaGeral: 100,
+      ));
+      await tester.pump();
+
+      // A linha de total do grupo ("Total: R$ 100,00") e a somatoria geral
+      // ("Somatória total: R$ 100,00") coexistem, com textos diferentes.
+      expect(find.text('Total: ${formatarReais(100)}'), findsOneWidget);
+      expect(find.text('Somatória total: ${formatarReais(100)}'),
+          findsOneWidget);
+    });
+
+    testWidgets('mostra a linha ao final no mobile', (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(montarAgrupada(
+        [
+          const GrupoResponsivo(
+            titulo: 'Hoje',
+            linhas: [
+              LinhaResponsiva(
+                  chave: ValueKey('l1'), valores: ['Aluguel', r'R$ 100,00']),
+            ],
+          ),
+        ],
+        somatoriaGeral: 100,
+      ));
+      await tester.pump();
+
+      expect(find.text('Somatória total: ${formatarReais(100)}'),
+          findsOneWidget);
+    });
+
+    testWidgets('nao aparece quando somatoriaGeral e nula', (tester) async {
+      await comLargura(tester, 1400);
+      await tester.pumpWidget(montarAgrupada([
+        const GrupoResponsivo(
+          titulo: 'Hoje',
+          linhas: [
+            LinhaResponsiva(
+                chave: ValueKey('l1'), valores: ['Aluguel', r'R$ 100,00']),
+          ],
+        ),
+      ]));
+      await tester.pump();
+
+      expect(find.textContaining('Somatória total'), findsNothing);
+    });
   });
 }
