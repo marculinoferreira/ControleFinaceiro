@@ -11,6 +11,7 @@ Future<int> montar(
   List<ItemLegenda> Function(List<int>)? legenda,
   String vazio = 'Nada neste mês.',
   String? subtitulo,
+  Widget Function(List<int>)? rodape,
 }) async {
   tester.view.physicalSize = const Size(1000, 1000);
   tester.view.devicePixelRatio = 1.0;
@@ -27,6 +28,7 @@ Future<int> montar(
         dados: dados,
         estaVazio: (l) => l.isEmpty,
         legenda: legenda ?? (_) => const [],
+        rodape: rodape,
         aoRecarregar: () => recarregou++,
         construir: (l) => Text('serie com ${l.length}'),
       ),
@@ -193,6 +195,34 @@ void main() {
 
       expect(find.byType(Wrap), findsWidgets);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('rodape', () {
+    testWidgets('aparece quando informado e ha dado', (tester) async {
+      await montar(
+        tester,
+        dados: const AsyncValue.data([1, 2]),
+        rodape: (l) => Text('total ${l.length}'),
+      );
+
+      expect(find.text('total 2'), findsOneWidget);
+    });
+
+    testWidgets('nao aparece quando nao informado', (tester) async {
+      await montar(tester, dados: const AsyncValue.data([1, 2]));
+
+      expect(find.textContaining('total'), findsNothing);
+    });
+
+    testWidgets('nao aparece quando os dados estao vazios', (tester) async {
+      await montar(
+        tester,
+        dados: const AsyncValue.data(<int>[]),
+        rodape: (l) => const Text('nunca aparece'),
+      );
+
+      expect(find.text('nunca aparece'), findsNothing);
     });
   });
 }

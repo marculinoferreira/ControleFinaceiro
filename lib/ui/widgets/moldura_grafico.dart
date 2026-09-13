@@ -30,6 +30,11 @@ class MolduraGrafico<T> extends StatelessWidget {
   final AsyncValue<T> dados;
   final bool Function(T) estaVazio;
   final List<ItemLegenda> Function(T) legenda;
+
+  /// Widget opcional abaixo da legenda, ex.: um total resumindo a serie.
+  /// `null` (o padrao) nao desenha nada.
+  final Widget Function(T)? rodape;
+
   final Widget Function(T) construir;
   final VoidCallback aoRecarregar;
 
@@ -43,6 +48,7 @@ class MolduraGrafico<T> extends StatelessWidget {
     required this.construir,
     required this.aoRecarregar,
     this.subtitulo,
+    this.rodape,
     this.altura = 240,
   });
 
@@ -75,6 +81,7 @@ class MolduraGrafico<T> extends StatelessWidget {
             else
               SizedBox(height: altura, child: _corpo(context)),
             ..._legenda(),
+            ..._rodape(),
           ],
         ),
       ),
@@ -112,5 +119,14 @@ class MolduraGrafico<T> extends StatelessWidget {
       const SizedBox(height: 12),
       LegendaGrafico(itens: itens),
     ];
+  }
+
+  /// Mesma condicao do `_legenda()`: sem dado (ou vazio), nao ha o que
+  /// resumir no rodape.
+  List<Widget> _rodape() {
+    final valor = dados.value;
+    if (valor == null || estaVazio(valor) || rodape == null) return const [];
+
+    return [const SizedBox(height: 8), rodape!(valor)];
   }
 }
