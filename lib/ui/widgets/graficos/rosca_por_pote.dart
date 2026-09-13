@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../dominio/graficos.dart';
 import '../../../estado/providers.dart';
-import '../../tema/formatadores.dart';
 import '../../tema/tema.dart';
 import '../legenda_grafico.dart';
 import '../moldura_grafico.dart';
+import 'total_central_rosca.dart';
 
 /// Grafico 1 da spec 10: distribuicao de gastos por pote.
 ///
@@ -42,6 +42,8 @@ class _Rosca extends StatelessWidget {
   final List<Fatia> fatias;
   const _Rosca({required this.fatias});
 
+  static const double raioInterno = 52;
+
   @override
   Widget build(BuildContext context) {
     final total = totalDasFatias(fatias);
@@ -51,7 +53,7 @@ class _Rosca extends StatelessWidget {
       children: [
         PieChart(
           PieChartData(
-            centerSpaceRadius: 52,
+            centerSpaceRadius: raioInterno,
             sectionsSpace: 2,
             sections: [
               for (final f in fatias)
@@ -71,19 +73,7 @@ class _Rosca extends StatelessWidget {
             ],
           ),
         ),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Total', style: Theme.of(context).textTheme.bodySmall),
-            Text(
-              formatarReais(total),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+        TotalCentralRosca(total: total, raioInterno: raioInterno),
       ],
     );
   }
