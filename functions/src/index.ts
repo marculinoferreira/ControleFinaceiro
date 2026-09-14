@@ -1,0 +1,1 @@
+export { minhaCasa } from "./minhaCasa";
