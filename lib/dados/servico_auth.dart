@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Erro de autenticacao ja traduzido para exibicao ao usuario.
 class ErroAuth implements Exception {
@@ -16,11 +17,15 @@ abstract class ServicoAuth {
   Stream<String?> observarEmail();
 
   Future<void> entrar({required String email, required String senha});
+  Future<void> entrarComGoogle();
   Future<void> sair();
 }
 
 class AuthFirebase implements ServicoAuth {
   final FirebaseAuth auth;
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleInicializado = false;
+
   AuthFirebase(this.auth);
 
   @override
@@ -38,7 +43,29 @@ class AuthFirebase implements ServicoAuth {
   }
 
   @override
-  Future<void> sair() => auth.signOut();
+  Future<void> entrarComGoogle() async {
+    try {
+      if (!_googleInicializado) {
+        await _googleSignIn.initialize();
+        _googleInicializado = true;
+      }
+      final conta = await _googleSignIn.authenticate();
+      final idToken = conta.authentication.idToken;
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+      await auth.signInWithCredential(credential);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return;
+      throw const ErroAuth('Nao foi possivel entrar com o Google.');
+    } on FirebaseAuthException catch (e) {
+      throw ErroAuth(_traduzir(e.code));
+    }
+  }
+
+  @override
+  Future<void> sair() async {
+    await auth.signOut();
+    if (_googleInicializado) await _googleSignIn.signOut();
+  }
 
   /// Os codigos do Firebase sao em ingles e nao servem para exibir.
   static String _traduzir(String codigo) {
@@ -91,6 +118,20 @@ class AuthFake implements ServicoAuth {
     ultimoEmail = email;
     if (demora > Duration.zero) await Future<void>.delayed(demora);
     if (erroAoEntrar != null) throw ErroAuth(erroAoEntrar!);
+    _email = email;
+    _controlador.add(email);
+  }
+
+  /// E-mail simulado devolvido por [entrarComGoogle] nos testes.
+  String? emailGoogleSimulado;
+
+  @override
+  Future<void> entrarComGoogle() async {
+    tentativas++;
+    if (demora > Duration.zero) await Future<void>.delayed(demora);
+    if (erroAoEntrar != null) throw ErroAuth(erroAoEntrar!);
+    final email = emailGoogleSimulado ?? 'google@teste.com';
+    ultimoEmail = email;
     _email = email;
     _controlador.add(email);
   }

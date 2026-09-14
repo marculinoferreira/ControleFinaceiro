@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../estado/providers.dart';
 import 'telas/tela_cartoes.dart';
 import 'telas/tela_ganhos.dart';
 import 'telas/tela_graficos.dart';
@@ -66,7 +67,15 @@ class _ShellState extends ConsumerState<Shell> {
       appBar: AppBar(
         title: const Text('Controle Financeiro'),
         centerTitle: false,
-        actions: const [SeletorMes(), SizedBox(width: 8)],
+        actions: [
+          const SeletorMes(),
+          IconButton(
+            key: const Key('botao_sair'),
+            tooltip: 'Sair',
+            icon: const Icon(Icons.logout),
+            onPressed: () => _confirmarSair(context, ref),
+          ),
+        ],
       ),
       body: desktop
           ? Row(
@@ -92,6 +101,29 @@ class _ShellState extends ConsumerState<Shell> {
           : corpo,
       bottomNavigationBar: desktop ? null : _barraInferior(context),
     );
+  }
+
+  Future<void> _confirmarSair(BuildContext context, WidgetRef ref) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogo) => AlertDialog(
+        title: const Text('Sair'),
+        content: const Text('Deseja sair da sua conta?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogo).pop(false),
+            child: const Text('Não'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogo).pop(true),
+            child: const Text('Sim'),
+          ),
+        ],
+      ),
+    );
+    if (confirmou ?? false) {
+      await ref.read(servicoAuthProvider).sair();
+    }
   }
 
   // Sao 7 destinos dividindo a largura da tela, entao em aparelhos estreitos

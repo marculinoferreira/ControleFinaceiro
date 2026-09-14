@@ -16,6 +16,7 @@ class _TelaLoginState extends ConsumerState<TelaLogin> {
   final _senha = TextEditingController();
   String? _erro;
   bool _entrando = false;
+  bool _entrandoComGoogle = false;
 
   @override
   void dispose() {
@@ -48,6 +49,21 @@ class _TelaLoginState extends ConsumerState<TelaLogin> {
       if (mounted) setState(() => _erro = e.mensagem);
     } finally {
       if (mounted) setState(() => _entrando = false);
+    }
+  }
+
+  Future<void> _entrarComGoogle() async {
+    setState(() {
+      _erro = null;
+      _entrandoComGoogle = true;
+    });
+
+    try {
+      await ref.read(servicoAuthProvider).entrarComGoogle();
+    } on ErroAuth catch (e) {
+      if (mounted) setState(() => _erro = e.mensagem);
+    } finally {
+      if (mounted) setState(() => _entrandoComGoogle = false);
     }
   }
 
@@ -109,6 +125,31 @@ class _TelaLoginState extends ConsumerState<TelaLogin> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Entrar'),
+                ),
+                const SizedBox(height: 12),
+                const Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('ou'),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  key: const Key('botao_entrar_google'),
+                  onPressed: _entrandoComGoogle ? null : _entrarComGoogle,
+                  icon: _entrandoComGoogle
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.g_mobiledata, size: 28),
+                  label: const Text('Entrar com Google'),
                 ),
               ],
             ),
