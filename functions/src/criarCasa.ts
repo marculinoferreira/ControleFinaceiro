@@ -20,6 +20,36 @@ export const criarCasa = onCall(async (request) => {
       throw erroSemPermissao("Este e-mail já pertence a uma casa.");
     }
 
+    // Todas as leituras da migracao ANTES de qualquer escrita —
+    // transacoes do Firestore exigem que leituras venham antes de escritas.
+    const pendentesSnap = await tx.get(
+      db.collection("removidosPendentes").where("email", "==", email),
+    );
+    const migracoes: {
+      pendenteRef: FirebaseFirestore.DocumentReference;
+      gastos: FirebaseFirestore.QueryDocumentSnapshot[];
+      ganhos: FirebaseFirestore.QueryDocumentSnapshot[];
+    }[] = [];
+
+    for (const doc of pendentesSnap.docs) {
+      const { dadosOrigem } = doc.data() as {
+        dadosOrigem: { casaId: string; membroId: string };
+      };
+      const origemCasa = db.collection("casas").doc(dadosOrigem.casaId);
+      const gastosSnap = await tx.get(
+        origemCasa.collection("gastos").where("membroId", "==", dadosOrigem.membroId),
+      );
+      const ganhosSnap = await tx.get(
+        origemCasa.collection("ganhos").where("membroId", "==", dadosOrigem.membroId),
+      );
+      migracoes.push({
+        pendenteRef: doc.ref,
+        gastos: gastosSnap.docs,
+        ganhos: ganhosSnap.docs,
+      });
+    }
+
+    // A partir daqui, so escritas.
     tx.set(casaRef, {
       nome,
       donoEmail: email,
@@ -35,54 +65,24 @@ export const criarCasa = onCall(async (request) => {
     });
     tx.set(indiceRef, { casaId: casaRef.id });
 
+    for (const pote of potesPadrao()) {
+      tx.set(casaRef.collection("potes").doc(), pote);
+    }
+
+    for (const migracao of migracoes) {
+      for (const doc of migracao.gastos) {
+        tx.set(casaRef.collection("gastos").doc(doc.id), doc.data());
+        tx.delete(doc.ref);
+      }
+      for (const doc of migracao.ganhos) {
+        tx.set(casaRef.collection("ganhos").doc(doc.id), doc.data());
+        tx.delete(doc.ref);
+      }
+      tx.delete(migracao.pendenteRef);
+    }
+
     return casaRef.id;
   });
 
-  const lotePotes = db.batch();
-  for (const pote of potesPadrao()) {
-    lotePotes.set(casaRef.collection("potes").doc(), pote);
-  }
-  await lotePotes.commit();
-
-  await migrarDadosPendentes(email, casaId);
-
   return { casaId };
 });
-
-async function migrarDadosPendentes(email: string, casaIdNovo: string) {
-  const pendentes = await db
-    .collection("removidosPendentes")
-    .where("email", "==", email)
-    .get();
-
-  for (const doc of pendentes.docs) {
-    const { dadosOrigem } = doc.data() as {
-      dadosOrigem: { casaId: string; membroId: string };
-    };
-    await migrarColecao("gastos", dadosOrigem, casaIdNovo);
-    await migrarColecao("ganhos", dadosOrigem, casaIdNovo);
-    await doc.ref.delete();
-  }
-}
-
-async function migrarColecao(
-  colecao: "gastos" | "ganhos",
-  origem: { casaId: string; membroId: string },
-  casaIdNovo: string,
-) {
-  const origemCol = db
-    .collection("casas")
-    .doc(origem.casaId)
-    .collection(colecao);
-  const destinoCol = db.collection("casas").doc(casaIdNovo).collection(colecao);
-
-  const docs = await origemCol.where("membroId", "==", origem.membroId).get();
-  if (docs.empty) return;
-
-  const lote = db.batch();
-  for (const doc of docs.docs) {
-    lote.set(destinoCol.doc(doc.id), doc.data());
-    lote.delete(doc.ref);
-  }
-  await lote.commit();
-}
