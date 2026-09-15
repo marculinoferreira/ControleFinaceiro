@@ -33,7 +33,7 @@ class TelaGerenciarCasa extends ConsumerWidget {
         itemCount: membrosAtivos.length,
         itemBuilder: (context, i) {
           final membro = membrosAtivos[i];
-          final ehDono = membro.email == donoEmail;
+          final ehDono = membro.email == casa?.donoEmail;
           return ListTile(
             title: Text(membro.nome),
             subtitle: Text(membro.email),
