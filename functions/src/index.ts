@@ -3,3 +3,4 @@ export { criarCasa } from "./criarCasa";
 export { convidarMembro } from "./convidarMembro";
 export { removerMembro } from "./removerMembro";
 export { transferirPosse } from "./transferirPosse";
+export { purgarMembrosExpirados } from "./purgarMembrosExpirados";
