@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
-import 'package:controle_financeiro/dominio/models/casa.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
@@ -106,8 +105,8 @@ void main() {
     });
   });
 
-  // Os quatro fakes compartilham a mesma mecanica de stream. O teste acima
-  // cobre gastos; estes travam o mesmo contrato nos outros tres, onde o
+  // Os tres fakes compartilham a mesma mecanica de stream. O teste acima
+  // cobre gastos; estes travam o mesmo contrato nos outros dois, onde o
   // gerador async* original perdia escritas em silencio.
   group('demais fakes reemitem depois de escrever', () {
     test('ganhos', () async {
@@ -164,23 +163,6 @@ void main() {
 
       expect(emissoes.first, 0);
       expect(emissoes.last, 2);
-    });
-
-    test('casa', () async {
-      final repo = RepositorioCasaFake();
-      final emissoes = <Casa?>[];
-      final assinatura = repo.observar().listen(emissoes.add);
-
-      await repo.criar(const Casa(
-        id: 'casa1',
-        nome: 'Nossa casa',
-        membros: [],
-      ));
-      await Future<void>.delayed(Duration.zero);
-      await assinatura.cancel();
-
-      expect(emissoes.first, isNull);
-      expect(emissoes.last?.nome, 'Nossa casa');
     });
   });
 }

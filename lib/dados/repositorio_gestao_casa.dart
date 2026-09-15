@@ -159,11 +159,16 @@ class RepositorioGestaoCasaFake implements RepositorioGestaoCasa {
   Future<void> sairDaCasa({required String casaId}) async {
     chamadas.add('sairDaCasa');
     if (erro != null) throw ErroGestaoCasa(erro!);
+    // Espelha o efeito real: sair apaga o indiceEmail da pessoa, entao a
+    // proxima minhaCasa() dela devolve null.
+    casaIdAtual = null;
   }
 
   @override
   Future<void> excluirCasa({required String casaId}) async {
     chamadas.add('excluirCasa');
     if (erro != null) throw ErroGestaoCasa(erro!);
+    // Mesmo raciocinio de sairDaCasa: a casa (e o indice do dono) some.
+    casaIdAtual = null;
   }
 }

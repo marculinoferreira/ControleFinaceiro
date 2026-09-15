@@ -24,9 +24,6 @@ class CasaFirestore implements RepositorioCasa {
   Stream<Casa?> observar() => _casaDoc(db, casaId)
       .snapshots()
       .map((d) => d.exists ? Casa.fromMap(d.id, d.data()!) : null);
-
-  @override
-  Future<void> criar(Casa casa) => _casaDoc(db, casaId).set(casa.toMap());
 }
 
 class PotesFirestore implements RepositorioPotes {

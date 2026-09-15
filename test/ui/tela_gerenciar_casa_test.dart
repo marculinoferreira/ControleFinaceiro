@@ -29,7 +29,7 @@ void main() {
           repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaComDono())),
           repositorioGestaoCasaProvider.overrideWithValue(gestao),
         ],
-        child: MaterialApp(home: TelaGerenciarCasa(donoEmail: 'dono@example.com', casaId: 'casa-1')),
+        child: MaterialApp(home: TelaGerenciarCasa(casaId: 'casa-1')),
       ),
     );
     await tester.pumpAndSettle();
@@ -47,7 +47,7 @@ void main() {
           repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaComDono())),
           repositorioGestaoCasaProvider.overrideWithValue(gestao),
         ],
-        child: MaterialApp(home: TelaGerenciarCasa(donoEmail: 'dono@example.com', casaId: 'casa-1')),
+        child: MaterialApp(home: TelaGerenciarCasa(casaId: 'casa-1')),
       ),
     );
     await tester.pumpAndSettle();
@@ -71,7 +71,7 @@ void main() {
           repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaComDono())),
           repositorioGestaoCasaProvider.overrideWithValue(gestao),
         ],
-        child: MaterialApp(home: TelaGerenciarCasa(donoEmail: 'dono@example.com', casaId: 'casa-1')),
+        child: MaterialApp(home: TelaGerenciarCasa(casaId: 'casa-1')),
       ),
     );
     await tester.pumpAndSettle();

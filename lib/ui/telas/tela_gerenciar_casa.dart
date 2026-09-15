@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dados/repositorio_gestao_casa.dart';
+import '../../dominio/models/casa.dart';
 import '../../dominio/models/membro.dart';
 import '../../estado/providers.dart';
 
 class TelaGerenciarCasa extends ConsumerWidget {
   final String casaId;
-  final String donoEmail;
 
   const TelaGerenciarCasa({
     super.key,
     required this.casaId,
-    required this.donoEmail,
   });
 
   @override
@@ -33,7 +32,7 @@ class TelaGerenciarCasa extends ConsumerWidget {
         itemCount: membrosAtivos.length,
         itemBuilder: (context, i) {
           final membro = membrosAtivos[i];
-          final ehDono = membro.email == casa?.donoEmail;
+          final ehDono = casa != null && Casa.emailsIguais(membro.email, casa.donoEmail);
           return ListTile(
             title: Text(membro.nome),
             subtitle: Text(membro.email),

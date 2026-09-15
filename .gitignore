@@ -52,3 +52,6 @@ android/app/google-services.json
 # Worktrees isolados de trabalho (superpowers)
 .worktrees/
 .superpowers/
+
+# node_modules da raiz (npm install dos testes de regras do Firestore)
+node_modules/

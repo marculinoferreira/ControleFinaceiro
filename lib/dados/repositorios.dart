@@ -13,7 +13,6 @@ enum ModoExclusao { somenteEsta, estaEFuturas, todas }
 
 abstract class RepositorioCasa {
   Stream<Casa?> observar();
-  Future<void> criar(Casa casa);
 }
 
 abstract class RepositorioPotes {
@@ -316,7 +315,7 @@ class RepositorioPotesFake implements RepositorioPotes {
 }
 
 class RepositorioCasaFake implements RepositorioCasa {
-  Casa? _casa;
+  final Casa? _casa;
   final _controlador = StreamController<void>.broadcast();
 
   RepositorioCasaFake([this._casa]);
@@ -324,10 +323,4 @@ class RepositorioCasaFake implements RepositorioCasa {
   @override
   Stream<Casa?> observar() =>
       _correnteEDepois(_controlador.stream, () => _casa);
-
-  @override
-  Future<void> criar(Casa casa) async {
-    _casa = casa;
-    _controlador.add(null);
-  }
 }

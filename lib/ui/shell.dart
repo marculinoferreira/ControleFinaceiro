@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../dados/repositorio_gestao_casa.dart';
+import '../dominio/models/casa.dart';
 import '../estado/providers.dart';
 import 'telas/tela_cartoes.dart';
 import 'telas/tela_ganhos.dart';
@@ -74,7 +75,9 @@ class _ShellState extends ConsumerState<Shell> {
           Builder(builder: (context) {
             final casa = ref.watch(casaProvider).value;
             final membro = ref.watch(membroLogadoProvider);
-            if (casa == null || membro == null || membro.email != casa.donoEmail) {
+            if (casa == null ||
+                membro == null ||
+                !Casa.emailsIguais(membro.email, casa.donoEmail)) {
               return const SizedBox.shrink();
             }
             return IconButton(
@@ -82,17 +85,16 @@ class _ShellState extends ConsumerState<Shell> {
               tooltip: 'Gerenciar casa',
               icon: const Icon(Icons.group),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => TelaGerenciarCasa(
-                  casaId: casa.id,
-                  donoEmail: casa.donoEmail,
-                ),
+                builder: (_) => TelaGerenciarCasa(casaId: casa.id),
               )),
             );
           }),
           Builder(builder: (context) {
             final casa = ref.watch(casaProvider).value;
             final membro = ref.watch(membroLogadoProvider);
-            final ehDono = casa != null && membro?.email == casa.donoEmail;
+            final ehDono = casa != null &&
+                membro != null &&
+                Casa.emailsIguais(membro.email, casa.donoEmail);
             final unicoMembro = casa != null &&
                 casa.membros.where((m) => m.removidoEm == null).length == 1;
 
@@ -213,6 +215,7 @@ class _ShellState extends ConsumerState<Shell> {
 
     try {
       await ref.read(repositorioGestaoCasaProvider).sairDaCasa(casaId: casaId);
+      ref.invalidate(casaIdProvider);
     } on ErroGestaoCasa catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
@@ -252,6 +255,7 @@ class _ShellState extends ConsumerState<Shell> {
 
     try {
       await ref.read(repositorioGestaoCasaProvider).excluirCasa(casaId: casaId);
+      ref.invalidate(casaIdProvider);
     } on ErroGestaoCasa catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
