@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../dados/repositorio_gestao_casa.dart';
 import '../estado/providers.dart';
 import 'telas/tela_cartoes.dart';
 import 'telas/tela_ganhos.dart';
@@ -109,7 +110,7 @@ class _ShellState extends ConsumerState<Shell> {
                 }
               },
               itemBuilder: (context) => [
-                if (!ehDono)
+                if (casa != null && !ehDono)
                   const PopupMenuItem(
                     key: Key('opcao_sair_casa'),
                     value: 'sair_casa',
@@ -206,8 +207,17 @@ class _ShellState extends ConsumerState<Shell> {
         ],
       ),
     );
-    if (confirmou ?? false) {
+
+    if (confirmou != true) return;
+    if (!context.mounted) return;
+
+    try {
       await ref.read(repositorioGestaoCasaProvider).sairDaCasa(casaId: casaId);
+    } on ErroGestaoCasa catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.mensagem)));
+      }
     }
   }
 
@@ -236,8 +246,17 @@ class _ShellState extends ConsumerState<Shell> {
         ],
       ),
     );
-    if (confirmou ?? false) {
+
+    if (confirmou != true) return;
+    if (!context.mounted) return;
+
+    try {
       await ref.read(repositorioGestaoCasaProvider).excluirCasa(casaId: casaId);
+    } on ErroGestaoCasa catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.mensagem)));
+      }
     }
   }
 
