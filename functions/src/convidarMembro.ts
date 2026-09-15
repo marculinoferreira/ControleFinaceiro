@@ -1,15 +1,18 @@
 import { onCall } from "firebase-functions/v2/https";
 import { db } from "./admin";
 import { erroNaoAutenticado, erroInvalido, erroSemPermissao } from "./erros";
+import { normalizarEmail } from "./normalizarEmail";
 
 export const convidarMembro = onCall(async (request) => {
   const emailDono = request.auth?.token.email as string | undefined;
   if (!emailDono) throw erroNaoAutenticado();
 
+  const emailDonoNormalizado = normalizarEmail(emailDono);
+
   const casaId = request.data?.casaId as string | undefined;
   const emailConvidado = (request.data?.email as string | undefined)
-    ?.trim()
-    .toLowerCase();
+    ? normalizarEmail(request.data.email as string)
+    : undefined;
   const nomeConvidado = (request.data?.nome as string | undefined)?.trim();
   if (!casaId || !emailConvidado || !nomeConvidado) {
     throw erroInvalido("Informe casaId, email e nome.");
@@ -22,7 +25,7 @@ export const convidarMembro = onCall(async (request) => {
     const casaSnap = await tx.get(casaRef);
     if (!casaSnap.exists) throw erroInvalido("Casa não encontrada.");
     const casa = casaSnap.data()!;
-    if (casa.donoEmail !== emailDono) {
+    if (casa.donoEmail !== emailDonoNormalizado) {
       throw erroSemPermissao("Só o dono pode convidar membros.");
     }
 

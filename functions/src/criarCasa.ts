@@ -2,16 +2,19 @@ import { onCall } from "firebase-functions/v2/https";
 import { db } from "./admin";
 import { erroNaoAutenticado, erroInvalido, erroSemPermissao } from "./erros";
 import { potesPadrao } from "./potesPadrao";
+import { normalizarEmail } from "./normalizarEmail";
 
 export const criarCasa = onCall(async (request) => {
   const email = request.auth?.token.email as string | undefined;
   const uid = request.auth?.uid;
   if (!email || !uid) throw erroNaoAutenticado();
 
+  const emailNormalizado = normalizarEmail(email);
+
   const nome = (request.data?.nome as string | undefined)?.trim();
   if (!nome) throw erroInvalido("Informe o nome da casa.");
 
-  const indiceRef = db.collection("indiceEmail").doc(email);
+  const indiceRef = db.collection("indiceEmail").doc(emailNormalizado);
   const casaRef = db.collection("casas").doc();
 
   const casaId = await db.runTransaction(async (tx) => {
@@ -23,7 +26,7 @@ export const criarCasa = onCall(async (request) => {
     // Todas as leituras da migracao ANTES de qualquer escrita —
     // transacoes do Firestore exigem que leituras venham antes de escritas.
     const pendentesSnap = await tx.get(
-      db.collection("removidosPendentes").where("email", "==", email),
+      db.collection("removidosPendentes").where("email", "==", emailNormalizado),
     );
     const migracoes: {
       pendenteRef: FirebaseFirestore.DocumentReference;
@@ -52,12 +55,12 @@ export const criarCasa = onCall(async (request) => {
     // A partir daqui, so escritas.
     tx.set(casaRef, {
       nome,
-      donoEmail: email,
-      emailsAtivos: [email],
+      donoEmail: emailNormalizado,
+      emailsAtivos: [emailNormalizado],
       membros: {
         [uid]: {
           nome: (request.auth?.token.name as string | undefined) ?? nome,
-          email,
+          email: emailNormalizado,
           cor: "#2E7D32",
           ordem: 0,
         },
