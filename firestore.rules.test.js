@@ -42,6 +42,15 @@ test("membro ativo le a casa", async () => {
   await assertSucceeds(db.collection("casas").doc("casa-1").get());
 });
 
+test("membro ativo le a casa mesmo com o e-mail do token em maiusculas", async () => {
+  await semearCasa();
+  const db = testEnv
+    .authenticatedContext("qualquer-uid", { email: "Dono@Example.com" })
+    .firestore();
+
+  await assertSucceeds(db.collection("casas").doc("casa-1").get());
+});
+
 test("quem nao e membro nao le a casa", async () => {
   await semearCasa();
   const db = testEnv

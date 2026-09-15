@@ -6,8 +6,7 @@ import { normalizarEmail } from "./normalizarEmail";
 
 export const removerMembro = onCall(async (request) => {
   const emailDono = request.auth?.token.email as string | undefined;
-  const uidChamador = request.auth?.uid;
-  if (!emailDono || !uidChamador) throw erroNaoAutenticado();
+  if (!emailDono) throw erroNaoAutenticado();
 
   const emailDonoNormalizado = normalizarEmail(emailDono);
 
@@ -24,14 +23,19 @@ export const removerMembro = onCall(async (request) => {
     if (casa.donoEmail !== emailDonoNormalizado) {
       throw erroSemPermissao("Só o dono pode remover membros.");
     }
-    if (membroId === uidChamador) {
+
+    const membro = casa.membros?.[membroId];
+    if (!membro) throw erroInvalido("Membro não encontrado.");
+
+    // Comparado por e-mail, e nao por uidChamador === membroId: quem virou
+    // dono por transferirPosse tendo sido convidado antes tem um membroId
+    // aleatorio (de convidarMembro), nao o proprio uid — so o fundador
+    // original (criarCasa) tem os dois iguais.
+    if (normalizarEmail(membro.email) === emailDonoNormalizado) {
       throw erroInvalido(
         "O dono não pode remover a si mesmo por aqui — use transferir posse.",
       );
     }
-
-    const membro = casa.membros?.[membroId];
-    if (!membro) throw erroInvalido("Membro não encontrado.");
 
     const membroEmailNormalizado = normalizarEmail(membro.email);
 

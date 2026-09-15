@@ -1,5 +1,6 @@
 import { db } from "../src/admin";
 import { removerMembro } from "../src/removerMembro";
+import { transferirPosse } from "../src/transferirPosse";
 
 function auth(email: string, uid?: string) {
   return { uid: uid ?? "uid-" + email, token: { email } } as any;
@@ -73,6 +74,25 @@ describe("removerMembro", () => {
       removerMembro.run({
         data: { casaId: "casa-1", membroId: "dono-uid" },
         auth: auth("dono@example.com", "dono-uid"),
+      } as any),
+    ).rejects.toThrow();
+  });
+
+  it("recusa o novo dono (que ja era membro convidado) tentar remover a si mesmo", async () => {
+    // membro-1 foi convidado por convidarMembro, entao o id dele e aleatorio
+    // e diferente do proprio uid — a guarda precisa comparar por e-mail, nao
+    // por membroId === uidChamador, senao esta remocao passaria.
+    await criarCasaComMembro();
+
+    await transferirPosse.run({
+      data: { casaId: "casa-1", membroId: "membro-1" },
+      auth: auth("dono@example.com", "dono-uid"),
+    } as any);
+
+    await expect(
+      removerMembro.run({
+        data: { casaId: "casa-1", membroId: "membro-1" },
+        auth: auth("membro@example.com", "algum-outro-uid"),
       } as any),
     ).rejects.toThrow();
   });

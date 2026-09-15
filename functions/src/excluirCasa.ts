@@ -27,8 +27,23 @@ export const excluirCasa = onCall(async (request) => {
     );
   }
 
-  await db.recursiveDelete(casaRef);
+  // Pendencias de gente removida DESTA casa que ainda esta dentro da janela
+  // de 30 dias: sem apaga-las aqui elas ficariam orfas, apontando para uma
+  // casa que nao existe mais.
+  const pendentesSnap = await db
+    .collection("removidosPendentes")
+    .where("dadosOrigem.casaId", "==", casaId)
+    .get();
+  for (const doc of pendentesSnap.docs) {
+    await doc.ref.delete();
+  }
+
+  // O indice do dono some ANTES do recursiveDelete de proposito: se a
+  // exclusao recursiva falhar pela metade, o indice ja nao aponta mais pra
+  // esta casa, entao o proximo criarCasa do dono funciona (autorrecuperacao)
+  // em vez de deixa-lo permanentemente preso a uma casa quebrada.
   await db.collection("indiceEmail").doc(emailNormalizado).delete();
+  await db.recursiveDelete(casaRef);
 
   return { ok: true };
 });

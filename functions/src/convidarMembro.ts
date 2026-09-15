@@ -1,4 +1,5 @@
 import { onCall } from "firebase-functions/v2/https";
+import { FieldValue } from "firebase-admin/firestore";
 import { db } from "./admin";
 import { erroNaoAutenticado, erroInvalido, erroSemPermissao } from "./erros";
 import { normalizarEmail } from "./normalizarEmail";
@@ -34,20 +35,49 @@ export const convidarMembro = onCall(async (request) => {
       throw erroSemPermissao("Este e-mail já pertence a uma casa.");
     }
 
-    // Gera um id novo sem precisar de uma colecao real: doc() sem
-    // argumento sempre sorteia um id de 20 caracteres.
-    const membroId = db.collection("_ids").doc().id;
     const membrosAtuais = casa.membros ?? {};
 
-    tx.update(casaRef, {
-      [`membros.${membroId}`]: {
-        nome: nomeConvidado,
-        email: emailConvidado,
-        cor: "#1565C0",
-        ordem: Object.keys(membrosAtuais).length,
-      },
-      emailsAtivos: [...(casa.emailsAtivos ?? []), emailConvidado],
-    });
+    // Se este e-mail ja tem uma entrada removida nesta casa, reativa em vez
+    // de sortear um membroId novo: sem isto, convidar de volta alguem que
+    // ja saiu criaria um segundo registro fantasma, e o pendente de 30 dias
+    // do registro antigo continuaria de pe pra ser apagado pela purga
+    // mesmo a pessoa ja estando ativa de novo.
+    const idRemovidoExistente = Object.entries(membrosAtuais).find(
+      ([, m]: [string, any]) =>
+        normalizarEmail(m.email) === emailConvidado && m.removidoEm,
+    )?.[0];
+
+    // Toda leitura da transacao vem antes de qualquer escrita — inclusive a
+    // do pendente, que so existe no caminho de reativacao.
+    const pendenteRef = idRemovidoExistente
+      ? db.collection("removidosPendentes").doc(`${casaId}_${idRemovidoExistente}`)
+      : undefined;
+    const pendenteSnap = pendenteRef ? await tx.get(pendenteRef) : undefined;
+
+    const membroId = idRemovidoExistente ?? db.collection("_ids").doc().id;
+
+    if (idRemovidoExistente) {
+      tx.update(casaRef, {
+        [`membros.${membroId}.nome`]: nomeConvidado,
+        [`membros.${membroId}.removidoEm`]: FieldValue.delete(),
+        emailsAtivos: [...(casa.emailsAtivos ?? []), emailConvidado],
+      });
+    } else {
+      tx.update(casaRef, {
+        [`membros.${membroId}`]: {
+          nome: nomeConvidado,
+          email: emailConvidado,
+          cor: "#1565C0",
+          ordem: Object.keys(membrosAtuais).length,
+        },
+        emailsAtivos: [...(casa.emailsAtivos ?? []), emailConvidado],
+      });
+    }
+
+    if (pendenteSnap?.exists) {
+      tx.delete(pendenteRef!);
+    }
+
     tx.set(indiceRef, { casaId });
   });
 

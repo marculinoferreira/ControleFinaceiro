@@ -8,7 +8,19 @@ export const minhaCasa = onCall(async (request) => {
   if (!email) throw erroNaoAutenticado();
 
   const emailNormalizado = normalizarEmail(email);
-  const indice = await db.collection("indiceEmail").doc(emailNormalizado).get();
+  const indiceRef = db.collection("indiceEmail").doc(emailNormalizado);
+  const indice = await indiceRef.get();
   if (!indice.exists) return { casaId: null };
-  return { casaId: indice.data()!.casaId as string };
+
+  const casaId = indice.data()!.casaId as string;
+  const casaSnap = await db.collection("casas").doc(casaId).get();
+  if (!casaSnap.exists) {
+    // Indice orfao: sobrou de uma falha parcial anterior (ex.: excluirCasa
+    // interrompido no meio). Autocorrige removendo o indice em vez de
+    // devolver um casaId pendurado que o app nunca vai conseguir abrir.
+    await indiceRef.delete();
+    return { casaId: null };
+  }
+
+  return { casaId };
 });
