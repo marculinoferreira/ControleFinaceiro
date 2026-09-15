@@ -422,14 +422,18 @@ void main() {
         (tester) async {
       // A coluna de quem edita (Marcos, ativo) nao tem relacao com Silvia
       // (removida): o dropdown de edicao precisa vir da lista de ativos, nao
-      // da lista completa de membros da casa.
+      // da lista completa de membros da casa. Silvia precisa ter um ganho
+      // proprio aqui -- sem nenhum historico, ela nem ganharia coluna (a
+      // regra "removido sem lancamento no mes some da tela"), e o teste
+      // deixaria de provar o caso que importa: coluna dela visivel, mas fora
+      // do dropdown de edicao do Marcos.
       await comLargura(tester, 1400);
       final repo = await montar(
         tester,
         comCasa: casaComSilviaRemovida,
-        iniciais: [ganho('', 'marcos', 4000)],
+        iniciais: [ganho('', 'marcos', 4000), ganho('', 'silvia', 3000)],
       );
-      final id = repo.todos.single.id;
+      final id = repo.todos.firstWhere((g) => g.membroId == 'marcos').id;
 
       await tester.tap(find.byKey(Key('ganho_$id')));
       await tester.pumpAndSettle();

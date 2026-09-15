@@ -94,14 +94,38 @@ final membrosProvider = Provider<List<Membro>>((ref) {
 });
 
 /// Os membros ainda ativos (sem `removidoEm`) — para os seletores de "de
-/// quem e este lancamento NOVO". Rotulagem de dados historicos (colunas de
-/// Ganhos, linhas de Gastos/Parcelas, o filtro "Pessoa", os graficos) segue
-/// usando `membrosProvider` sem filtro: um lancamento antigo de alguem
-/// removido continua mostrando o nome dela, em vez de sumir ou virar
-/// "desconhecido".
+/// quem e este lancamento NOVO".
 final membrosAtivosProvider = Provider<List<Membro>>((ref) {
   final membros = ref.watch(membrosProvider);
   return membros.where((m) => m.removidoEm == null).toList();
+});
+
+/// Os ids de membro com pelo menos um gasto ou ganho no mes selecionado.
+final _membroIdsComHistoricoNoMesProvider = Provider<Set<String>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+  final gastos = ref.watch(gastosDoMesProvider(mes)).value ?? const [];
+  final ganhos = ref.watch(ganhosDoMesProvider(mes)).value ?? const [];
+  return {
+    for (final g in gastos) g.membroId,
+    for (final g in ganhos) g.membroId,
+  };
+});
+
+/// Membros a oferecer nos seletores de VISUALIZACAO (colunas de Ganhos,
+/// linhas de Gastos, o filtro "Pessoa", o seletor de Resumo/Graficos):
+/// todos os ativos, mais os removidos que ainda tem lancamento no mes
+/// selecionado — um removido com historico continua consultavel, mas um
+/// removido sem nada lancado (ex: saiu no mesmo dia que entrou) nao fica
+/// como uma aba/coluna vazia para sempre.
+///
+/// Diferente de `membrosAtivosProvider`: aquele e para "de quem e este
+/// lancamento NOVO" e nunca inclui removidos, nem com historico.
+final membrosParaVisaoProvider = Provider<List<Membro>>((ref) {
+  final membros = ref.watch(membrosProvider);
+  final comHistorico = ref.watch(_membroIdsComHistoricoNoMesProvider);
+  return membros
+      .where((m) => m.removidoEm == null || comHistorico.contains(m.id))
+      .toList();
 });
 
 // --- Mes selecionado (global, compartilhado por todas as telas) ------------

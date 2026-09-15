@@ -35,7 +35,7 @@ class TelaGraficos extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
-    final membros = ref.watch(membrosProvider);
+    final membros = ref.watch(membrosParaVisaoProvider);
 
     return Column(
       children: [

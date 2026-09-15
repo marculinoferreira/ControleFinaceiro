@@ -20,9 +20,10 @@ class TelaGanhos extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mesRef = ref.watch(mesSelecionadoProvider).valor;
-    // Colunas/rotulos usam todo mundo (dado historico de alguem removido
-    // continua com o nome dela); o "Novo ganho" so oferece gente ativa.
-    final membros = ref.watch(membrosProvider);
+    // Colunas/rotulos usam quem tem historico no mes (um removido com
+    // ganho antigo continua com o nome dela; sem nada lancado, nao vira
+    // coluna vazia pra sempre); o "Novo ganho" so oferece gente ativa.
+    final membros = ref.watch(membrosParaVisaoProvider);
     final membrosAtivos = ref.watch(membrosAtivosProvider);
     final ganhos = ref.watch(ganhosDoMesProvider(mesRef));
 

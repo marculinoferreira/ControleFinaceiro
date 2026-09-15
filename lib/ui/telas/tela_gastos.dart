@@ -22,10 +22,11 @@ class TelaGastos extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // FiltrosLancamentos e a coluna "Pessoa" das linhas usam todo mundo
-    // (um removido ainda pode ser filtrado/rotulado nos gastos antigos
-    // dele); so o gatilho de "novo gasto" via FaixaPotes exige gente ativa.
-    final membros = ref.watch(membrosProvider);
+    // FiltrosLancamentos e a coluna "Pessoa" das linhas usam quem tem
+    // historico no mes (um removido com gasto antigo continua
+    // filtravel/rotulado; sem nada lancado, nao fica como opcao vazia); so o
+    // gatilho de "novo gasto" via FaixaPotes exige gente ativa.
+    final membros = ref.watch(membrosParaVisaoProvider);
     final membrosAtivos = ref.watch(membrosAtivosProvider);
     final mesRef = ref.watch(mesSelecionadoProvider).valor;
 

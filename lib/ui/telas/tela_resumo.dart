@@ -24,7 +24,7 @@ class TelaResumo extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final membros = ref.watch(membrosProvider);
+    final membros = ref.watch(membrosParaVisaoProvider);
     final dados = combinarAsyncValues(
       ref.watch(resumoCascataProvider),
       ref.watch(gastosPorPoteProvider),
