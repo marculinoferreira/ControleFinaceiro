@@ -84,6 +84,12 @@ test("indiceEmail e removidosPendentes sao inacessiveis pelo app", async () => {
 
   await assertFails(db.collection("indiceEmail").doc("dono@example.com").get());
   await assertFails(
+    db.collection("indiceEmail").doc("dono@example.com").set({ casaId: "x" }),
+  );
+  await assertFails(
     db.collection("removidosPendentes").doc("casa-1_m1").get(),
+  );
+  await assertFails(
+    db.collection("removidosPendentes").doc("casa-1_m1").set({ email: "x" }),
   );
 });
