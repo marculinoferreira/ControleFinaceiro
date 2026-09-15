@@ -71,11 +71,11 @@ export const criarCasa = onCall(async (request) => {
 
     for (const migracao of migracoes) {
       for (const doc of migracao.gastos) {
-        tx.set(casaRef.collection("gastos").doc(doc.id), doc.data());
+        tx.set(casaRef.collection("gastos").doc(doc.id), { ...doc.data(), membroId: uid });
         tx.delete(doc.ref);
       }
       for (const doc of migracao.ganhos) {
-        tx.set(casaRef.collection("ganhos").doc(doc.id), doc.data());
+        tx.set(casaRef.collection("ganhos").doc(doc.id), { ...doc.data(), membroId: uid });
         tx.delete(doc.ref);
       }
       tx.delete(migracao.pendenteRef);

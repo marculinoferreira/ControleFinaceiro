@@ -91,6 +91,7 @@ describe("criarCasa", () => {
       .get();
     expect(gastosNovos.size).toBe(1);
     expect(gastosNovos.docs[0].data().descricao).toBe("Mercado");
+    expect(gastosNovos.docs[0].data().membroId).toBe("uid-carla@example.com");
 
     const gastosAntigos = await casaAntigaRef.collection("gastos").get();
     expect(gastosAntigos.size).toBe(0);
