@@ -370,6 +370,55 @@ void main() {
     expect(find.text('Novo gasto'), findsNothing);
   });
 
+  testWidgets(
+      'faixa de potes fica desabilitada quando todo mundo foi removido '
+      '(achado 1 da revisao final)', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    // A lista de membros nao esta vazia (tem uma entrada), mas ninguem
+    // nela esta ativo -- prova que o gatilho olha pra gente ATIVA, e nao
+    // so "a lista tem alguem".
+    final soRemovidos = Casa(
+      id: 'principal',
+      nome: 'Casa',
+      membros: [
+        Membro(
+          id: 'marcos',
+          nome: 'Marcos',
+          email: 'm@x.com',
+          cor: '#2E7D32',
+          ordem: 0,
+          removidoEm: DateTime.utc(2026, 8, 1),
+        ),
+      ],
+    );
+
+    final repo = RepositorioGastosFake();
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(soRemovidos)),
+      repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 8));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: TelaGastos()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Custo fixo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Novo gasto'), findsNothing);
+  });
+
   testWidgets('tocar num pote da faixa abre Novo gasto com aquele pote',
       (tester) async {
     final (_, repo) = await montar(tester);

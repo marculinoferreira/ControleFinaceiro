@@ -89,6 +89,49 @@ void main() {
       });
       expect(comDono.donoEmail, 'dono@example.com');
     });
+
+    test('membroPorEmail prefere o membro ativo quando ha um removido com o mesmo e-mail', () {
+      final comFantasma = Casa.fromMap('casa-1', {
+        'nome': 'Casa X',
+        'membros': {
+          'antigo': {
+            'nome': 'Bia (antiga)',
+            'email': 'bia@example.com',
+            'cor': '#000',
+            'ordem': 0,
+            'removidoEm': DateTime.utc(2026, 8, 1),
+          },
+          'novo': {
+            'nome': 'Bia',
+            'email': 'bia@example.com',
+            'cor': '#111',
+            'ordem': 1,
+          },
+        },
+      });
+      expect(comFantasma.membroPorEmail('bia@example.com')?.id, 'novo');
+    });
+
+    test('membroPorEmail cai para o removido quando nao ha nenhum ativo com o e-mail', () {
+      final soRemovido = Casa.fromMap('casa-1', {
+        'nome': 'Casa X',
+        'membros': {
+          'antigo': {
+            'nome': 'Bia',
+            'email': 'bia@example.com',
+            'cor': '#000',
+            'ordem': 0,
+            'removidoEm': DateTime.utc(2026, 8, 1),
+          },
+        },
+      });
+      expect(soRemovido.membroPorEmail('bia@example.com')?.id, 'antigo');
+    });
+
+    test('emailsIguais ignora maiusculas e espacos nas pontas', () {
+      expect(Casa.emailsIguais(' Dono@Example.com ', 'dono@example.com'), isTrue);
+      expect(Casa.emailsIguais('dono@example.com', 'outro@example.com'), isFalse);
+    });
   });
 
   group('Membro', () {

@@ -237,7 +237,11 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
 
   @override
   Widget build(BuildContext context) {
-    final membros = ref.watch(membrosProvider);
+    // Ativos para o seletor "de quem": quem foi removido nao pode ganhar um
+    // lancamento novo. `_formulario` reintroduz a pessoa removida na lista
+    // so quando o gasto editado ja era dela (ver comentario la).
+    final membrosAtivos = ref.watch(membrosAtivosProvider);
+    final todosMembros = ref.watch(membrosProvider);
 
     // AsyncValue.when com os tres ramos, sem excecao: `.value ?? []` faria o
     // validador do pote acusar "Cadastre um pote antes." enquanto os potes
@@ -264,7 +268,22 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
           ref.invalidate(cartoesProvider);
         },
       ),
-      data: (par) => _formulario(context, membros, par.$1, par.$2),
+      data: (par) {
+        // O gasto editado pode pertencer a alguem que ja foi removido da
+        // casa: sem reincluir essa pessoa aqui, o DropdownButtonFormField
+        // derrubaria o assert de "exactly one item with value" so por abrir
+        // a edicao — e trocar o membro so porque o formulario abriu seria
+        // pior ainda, reatribuindo um gasto historico sem a pessoa pedir.
+        final membroDoGasto = widget.existente?.membroId;
+        final membros = membroDoGasto != null &&
+                membrosAtivos.every((m) => m.id != membroDoGasto)
+            ? [
+                ...membrosAtivos,
+                ...todosMembros.where((m) => m.id == membroDoGasto),
+              ]
+            : membrosAtivos;
+        return _formulario(context, membros, par.$1, par.$2);
+      },
     );
   }
 

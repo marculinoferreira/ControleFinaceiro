@@ -93,6 +93,17 @@ final membrosProvider = Provider<List<Membro>>((ref) {
   return casa?.membros ?? const <Membro>[];
 });
 
+/// Os membros ainda ativos (sem `removidoEm`) — para os seletores de "de
+/// quem e este lancamento NOVO". Rotulagem de dados historicos (colunas de
+/// Ganhos, linhas de Gastos/Parcelas, o filtro "Pessoa", os graficos) segue
+/// usando `membrosProvider` sem filtro: um lancamento antigo de alguem
+/// removido continua mostrando o nome dela, em vez de sumir ou virar
+/// "desconhecido".
+final membrosAtivosProvider = Provider<List<Membro>>((ref) {
+  final membros = ref.watch(membrosProvider);
+  return membros.where((m) => m.removidoEm == null).toList();
+});
+
 // --- Mes selecionado (global, compartilhado por todas as telas) ------------
 
 class MesNotifier extends Notifier<MesRef> {

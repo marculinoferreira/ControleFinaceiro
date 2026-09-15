@@ -20,15 +20,19 @@ class TelaGanhos extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mesRef = ref.watch(mesSelecionadoProvider).valor;
+    // Colunas/rotulos usam todo mundo (dado historico de alguem removido
+    // continua com o nome dela); o "Novo ganho" so oferece gente ativa.
     final membros = ref.watch(membrosProvider);
+    final membrosAtivos = ref.watch(membrosAtivosProvider);
     final ganhos = ref.watch(ganhosDoMesProvider(mesRef));
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('novo_ganho'),
-        onPressed: membros.isEmpty
+        onPressed: membrosAtivos.isEmpty
             ? null
-            : () => _abrir(context, ref, membros: membros, mesRef: mesRef),
+            : () =>
+                _abrir(context, ref, membros: membrosAtivos, mesRef: mesRef),
         icon: const Icon(Icons.add),
         label: const Text('Novo ganho'),
       ),

@@ -64,6 +64,7 @@ Future<void> comLargura(WidgetTester tester, double largura) async {
 Future<RepositorioGanhosFake> montar(
   WidgetTester tester, {
   List<Ganho> iniciais = const [],
+  Casa comCasa = casa,
 }) async {
   final repo = RepositorioGanhosFake();
   for (final g in iniciais) {
@@ -71,7 +72,7 @@ Future<RepositorioGanhosFake> montar(
   }
 
   final container = ProviderContainer(overrides: [
-    repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+    repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(comCasa)),
     repositorioGanhosProvider.overrideWithValue(repo),
   ]);
   addTearDown(container.dispose);
@@ -358,5 +359,62 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(repo.todos, hasLength(1)); // nao apagou
     expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  group('membro removido (achado 1 da revisao final)', () {
+    final casaComSilviaRemovida = Casa(
+      id: 'principal',
+      nome: 'Casa',
+      membros: [
+        casa.membros[0],
+        Membro(
+          id: 'silvia',
+          nome: 'Silvia',
+          email: 's@x.com',
+          cor: '#6A1B9A',
+          ordem: 1,
+          removidoEm: DateTime.utc(2026, 8, 1),
+        ),
+      ],
+    );
+
+    testWidgets('a coluna de quem foi removido continua mostrando o historico',
+        (tester) async {
+      await comLargura(tester, 1400);
+      await montar(
+        tester,
+        comCasa: casaComSilviaRemovida,
+        iniciais: [ganho('', 'silvia', 3000)],
+      );
+
+      expect(find.byKey(const Key('coluna_silvia')), findsOneWidget);
+      expect(find.text('Silvia'), findsOneWidget);
+    });
+
+    testWidgets('"Novo ganho" nao oferece quem foi removido no seletor',
+        (tester) async {
+      await comLargura(tester, 1400);
+      await montar(tester, comCasa: casaComSilviaRemovida);
+
+      await tester.tap(find.byKey(const Key('novo_ganho')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('form_membro')));
+      await tester.pumpAndSettle();
+
+      // Restrito ao AlertDialog do formulario: a coluna "Silvia" continua
+      // no fundo da tela (rotulagem do historico), entao um find.text solto
+      // pegaria os dois.
+      final dentroDoDialogo = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Silvia'),
+      );
+      expect(
+        find.descendant(
+            of: find.byType(AlertDialog), matching: find.text('Marcos')),
+        findsWidgets,
+      );
+      expect(dentroDoDialogo, findsNothing);
+    });
   });
 }

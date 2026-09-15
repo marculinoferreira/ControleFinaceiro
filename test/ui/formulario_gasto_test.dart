@@ -104,6 +104,7 @@ Future<RepositorioGastosFake> montar(
   RepositorioGastosFake? comRepo,
   MesRef mes = const MesRef(2026, 8),
   String? poteIdInicial,
+  Casa comCasa = casa,
 }) async {
   tester.view.physicalSize = const Size(1400, 1200);
   tester.view.devicePixelRatio = 1.0;
@@ -111,7 +112,7 @@ Future<RepositorioGastosFake> montar(
 
   final repo = comRepo ?? RepositorioGastosFake();
   final container = ProviderContainer(overrides: [
-    repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+    repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(comCasa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
     repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake(cartoes)),
     repositorioGastosProvider.overrideWithValue(repo),
@@ -843,6 +844,95 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.todos.single.poteId, 'p1');
+    });
+  });
+
+  group('membro removido (achado 1 da revisao final)', () {
+    const casaComRemovido = Casa(
+      id: 'principal',
+      nome: 'Casa',
+      membros: [
+        Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+            cor: '#2E7D32', ordem: 0),
+        Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+            cor: '#6A1B9A', ordem: 1, removidoEm: null),
+      ],
+    );
+
+    Casa comSilviaRemovida() => Casa(
+          id: casaComRemovido.id,
+          nome: casaComRemovido.nome,
+          membros: [
+            casaComRemovido.membros[0],
+            Membro(
+              id: 'silvia',
+              nome: 'Silvia',
+              email: 's@x.com',
+              cor: '#6A1B9A',
+              ordem: 1,
+              removidoEm: DateTime.utc(2026, 8, 1),
+            ),
+          ],
+        );
+
+    testWidgets(
+        'gasto novo nao oferece quem foi removido no seletor "de quem"',
+        (tester) async {
+      await montar(tester, comCasa: comSilviaRemovida());
+
+      await tester.tap(find.byKey(const Key('gasto_membro')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Marcos'), findsWidgets);
+      expect(find.text('Silvia'), findsNothing);
+    });
+
+    testWidgets(
+        'editar um gasto de quem foi removido continua funcionando, sem '
+        'reatribuir a pessoa sozinho', (tester) async {
+      // Semeia o repositorio ANTES de montar, mesmo padrao de "editar altera
+      // o documento existente e nao cria outro": atualizar() so encontra o
+      // documento se ele ja existir no fake.
+      final repo = RepositorioGastosFake();
+      await repo.adicionar(
+        base: Gasto(
+          id: '',
+          mesRef: '2026-08',
+          membroId: 'silvia',
+          poteId: 'p1',
+          descricao: 'Conta antiga da Silvia',
+          valor: 50,
+          criadoEm: DateTime.utc(2026, 8, 2),
+          parcelado: false,
+        ),
+        quantidadeParcelas: 1,
+      );
+      final gastoDaRemovida = repo.todos.single;
+
+      await montar(
+        tester,
+        comCasa: comSilviaRemovida(),
+        comRepo: repo,
+        existente: gastoDaRemovida,
+      );
+
+      // Nao derruba o assert do DropdownButtonFormField so por abrir a
+      // edicao de um lancamento de quem ja saiu.
+      expect(tester.takeException(), isNull);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('gasto_membro')),
+          matching: find.text('Silvia'),
+        ),
+        findsOneWidget,
+      );
+
+      // Salvar sem mexer no seletor mantem o gasto com a Silvia removida —
+      // abrir a edicao nao pode reatribuir sozinho.
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.membroId, 'silvia');
     });
   });
 }

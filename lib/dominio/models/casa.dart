@@ -38,12 +38,20 @@ class Casa {
         'membros': {for (final m in membros) m.id: m.toMap()},
       };
 
+  /// Prefere um membro ATIVO com este e-mail; so cai para um removido se
+  /// nao houver ativo. Evita que `membroLogadoProvider` resolva para um
+  /// fantasma quando um convite reativa a entrada de alguem que ja foi
+  /// removido e depois convidado de novo (o e-mail pode, por um instante,
+  /// bater com as duas entradas antes da reativacao gravar).
   Membro? membroPorEmail(String email) {
     final alvo = email.trim().toLowerCase();
+    Membro? removido;
     for (final m in membros) {
-      if (m.email.toLowerCase() == alvo) return m;
+      if (m.email.toLowerCase() != alvo) continue;
+      if (m.removidoEm == null) return m;
+      removido ??= m;
     }
-    return null;
+    return removido;
   }
 
   Membro? membroPorId(String id) {
@@ -52,4 +60,9 @@ class Casa {
     }
     return null;
   }
+
+  /// Compara dois e-mails ignorando maiusculas/minusculas e espacos nas
+  /// pontas — mesmo criterio usado em membroPorEmail.
+  static bool emailsIguais(String a, String b) =>
+      a.trim().toLowerCase() == b.trim().toLowerCase();
 }

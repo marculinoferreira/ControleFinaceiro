@@ -22,7 +22,11 @@ class TelaGastos extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // FiltrosLancamentos e a coluna "Pessoa" das linhas usam todo mundo
+    // (um removido ainda pode ser filtrado/rotulado nos gastos antigos
+    // dele); so o gatilho de "novo gasto" via FaixaPotes exige gente ativa.
     final membros = ref.watch(membrosProvider);
+    final membrosAtivos = ref.watch(membrosAtivosProvider);
     final mesRef = ref.watch(mesSelecionadoProvider).valor;
 
     // Potes entra na combinacao (em vez de `.value ?? []`) porque a regra
@@ -57,7 +61,7 @@ class TelaGastos extends ConsumerWidget {
             children: [
               FaixaPotes(
                 potes: potes,
-                habilitado: membros.isNotEmpty,
+                habilitado: membrosAtivos.isNotEmpty,
                 aoTocar: (pote) => abrirFormularioGasto(
                   context: context,
                   ref: ref,
