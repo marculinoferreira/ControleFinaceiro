@@ -588,16 +588,20 @@ void main() {
           findsOneWidget);
     });
 
-    testWidgets('em outro mes sugere o dia 1 daquele mes', (tester) async {
-      // Um mes fixo no passado: sugerir "hoje" enquanto se navega por marco
-      // de 2020 daria uma data que nunca e a desejada.
+    testWidgets('em outro mes tambem sugere hoje', (tester) async {
+      // A data e quando o lancamento foi feito de verdade, nao uma data
+      // ficticia dentro do mes-referencia -- lancar atrasado um gasto de
+      // marco/2020 hoje deve sugerir a data real de hoje, nao 01/03/2020.
+      final hoje = DateTime.now();
       await montar(tester, mes: const MesRef(2020, 3));
 
-      expect(find.text('01/03/2020'), findsOneWidget);
+      expect(find.text(formatarData(DateTime(hoje.year, hoje.month, hoje.day))),
+          findsOneWidget);
     });
 
     testWidgets('a data sugerida e a que vai para o gasto', (tester) async {
       final repo = RepositorioGastosFake();
+      final hoje = DateTime.now();
       await montar(tester, comRepo: repo, mes: const MesRef(2020, 3));
 
       await tester.enterText(
@@ -606,9 +610,10 @@ void main() {
       await tester.tap(find.byKey(const Key('gasto_salvar')));
       await tester.pumpAndSettle();
 
-      expect(repo.todos.single.data.year, 2020);
-      expect(repo.todos.single.data.month, 3);
-      expect(repo.todos.single.data.day, 1);
+      expect(repo.todos.single.data.year, hoje.year);
+      expect(repo.todos.single.data.month, hoje.month);
+      expect(repo.todos.single.data.day, hoje.day);
+      expect(repo.todos.single.mesRef, '2020-03');
     });
 
     testWidgets('editar mostra a data gravada, nao a de hoje', (tester) async {
@@ -662,6 +667,9 @@ void main() {
 
     testWidgets('cada parcela recebe a data do proprio mes', (tester) async {
       final repo = RepositorioGastosFake();
+      // Data-base e sempre hoje (nao mais dia 1 do mes-referencia): a
+      // primeira parcela nasce hoje, e as seguintes um mes depois cada.
+      final hoje = DateTime.now();
       await montar(tester, comRepo: repo, mes: const MesRef(2020, 3));
 
       await tester.enterText(
@@ -676,8 +684,14 @@ void main() {
 
       final parcelas = [...repo.todos]
         ..sort((a, b) => a.parcela!.compareTo(b.parcela!));
-      expect(parcelas.map((g) => g.data.month).toList(), [3, 4, 5]);
-      expect(parcelas.every((g) => g.data.day == 1), isTrue);
+      expect(
+        parcelas.map((g) => g.data.month).toList(),
+        [
+          for (var i = 0; i < 3; i++)
+            DateTime(hoje.year, hoje.month + i).month,
+        ],
+      );
+      expect(parcelas.every((g) => g.data.day == hoje.day), isTrue);
     });
   });
 

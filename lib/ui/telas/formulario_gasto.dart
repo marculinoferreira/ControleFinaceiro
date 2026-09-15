@@ -137,7 +137,7 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     _membroId = g?.membroId ?? '';
     _poteId = g?.poteId;
     _parcelado = g?.parcelado ?? false;
-    _data = g?.data ?? _hojeOuInicioDoMes();
+    _data = g?.data ?? _hoje();
     _cartaoId = g?.cartaoId;
     // O preview le _valor.text direto no build: sem este listener, digitar
     // um novo valor depois de ligar "Parcelado" nao teria efeito ate algum
@@ -149,17 +149,13 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     if (mounted) setState(() {});
   }
 
-  /// Hoje quando o mes exibido e o corrente; dia 1 do mes exibido nos demais.
-  ///
-  /// Sugerir "hoje" enquanto a pessoa navega em marco de um ano atras daria
-  /// uma data que quase nunca e a que ela quer.
-  DateTime _hojeOuInicioDoMes() {
-    final mes = ref.read(mesSelecionadoProvider);
+  /// Sempre a data real de hoje, mesmo lancando num mes que nao e o corrente
+  /// (ex: registrando atrasado um gasto de outubro em setembro): a data e
+  /// quando o lancamento foi feito, o mes-referencia e que separa em qual
+  /// mes ele entra.
+  DateTime _hoje() {
     final agora = DateTime.now();
-    if (mes.ano == agora.year && mes.mes == agora.month) {
-      return DateTime(agora.year, agora.month, agora.day);
-    }
-    return DateTime(mes.ano, mes.mes, 1);
+    return DateTime(agora.year, agora.month, agora.day);
   }
 
   Future<void> _escolherData() async {
