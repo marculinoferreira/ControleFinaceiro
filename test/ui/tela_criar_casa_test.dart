@@ -33,6 +33,7 @@ void main() {
 
     await tester.enterText(find.byKey(const Key('campo_nome_membro')), 'Ana');
     await tester.enterText(find.byKey(const Key('campo_nome_casa')), 'Casa da Ana');
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('botao_criar_casa')));
     await tester.pumpAndSettle();
 
@@ -40,7 +41,8 @@ void main() {
     expect(gestao.chamadas, ['criarCasa:Casa da Ana:Ana']);
   });
 
-  testWidgets('nao envia sem informar o proprio nome', (tester) async {
+  testWidgets('botao so habilita com os dois campos preenchidos',
+      (tester) async {
     final auth = AuthFake()..entrar(email: 'nova@example.com', senha: 'x');
     final gestao = RepositorioGestaoCasaFake();
 
@@ -60,11 +62,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byKey(const Key('campo_nome_casa')), 'Casa da Ana');
-    await tester.tap(find.byKey(const Key('botao_criar_casa')));
-    await tester.pumpAndSettle();
+    FilledButton botao() =>
+        tester.widget(find.byKey(const Key('botao_criar_casa')));
 
-    expect(find.text('Informe seu nome ou apelido.'), findsOneWidget);
+    expect(botao().onPressed, isNull);
+
+    await tester.enterText(find.byKey(const Key('campo_nome_casa')), 'Casa da Ana');
+    await tester.pumpAndSettle();
+    expect(botao().onPressed, isNull);
+
+    await tester.enterText(find.byKey(const Key('campo_nome_membro')), 'Ana');
+    await tester.pumpAndSettle();
+    expect(botao().onPressed, isNotNull);
+
+    await tester.enterText(find.byKey(const Key('campo_nome_membro')), '');
+    await tester.pumpAndSettle();
+    expect(botao().onPressed, isNull);
     expect(gestao.chamadas, isEmpty);
   });
 }

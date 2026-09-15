@@ -20,34 +20,41 @@ class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
   bool _criando = false;
 
   @override
+  void initState() {
+    super.initState();
+    // O botao so habilita com os dois campos preenchidos; sem o listener,
+    // digitar neles nao reconstruiria o FilledButton pra reavaliar isso.
+    _nomeMembro.addListener(_aoMudarCampos);
+    _nome.addListener(_aoMudarCampos);
+  }
+
+  void _aoMudarCampos() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _podeCriar =>
+      _nomeMembro.text.trim().isNotEmpty && _nome.text.trim().isNotEmpty;
+
+  @override
   void dispose() {
+    _nomeMembro.removeListener(_aoMudarCampos);
+    _nome.removeListener(_aoMudarCampos);
     _nomeMembro.dispose();
     _nome.dispose();
     super.dispose();
   }
 
   Future<void> _criar() async {
-    final nomeMembro = _nomeMembro.text.trim();
-    if (nomeMembro.isEmpty) {
-      setState(() => _erro = 'Informe seu nome ou apelido.');
-      return;
-    }
-
-    final nome = _nome.text.trim();
-    if (nome.isEmpty) {
-      setState(() => _erro = 'Informe o nome da casa.');
-      return;
-    }
-
     setState(() {
       _erro = null;
       _criando = true;
     });
 
     try {
-      await ref
-          .read(repositorioGestaoCasaProvider)
-          .criarCasa(nome, nomeMembro: nomeMembro);
+      await ref.read(repositorioGestaoCasaProvider).criarCasa(
+            _nome.text.trim(),
+            nomeMembro: _nomeMembro.text.trim(),
+          );
       ref.invalidate(casaIdProvider);
     } on ErroGestaoCasa catch (e) {
       if (mounted) setState(() => _erro = e.mensagem);
@@ -110,7 +117,7 @@ class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
                 const SizedBox(height: 20),
                 FilledButton(
                   key: const Key('botao_criar_casa'),
-                  onPressed: _criando ? null : _criar,
+                  onPressed: _criando || !_podeCriar ? null : _criar,
                   child: _criando
                       ? const SizedBox(
                           height: 18,
