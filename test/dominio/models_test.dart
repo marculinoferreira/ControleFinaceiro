@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dominio/models/casa.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
+import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 
 void main() {
@@ -78,6 +79,42 @@ void main() {
 
     test('membroPorId devolve null para id inexistente', () {
       expect(casa.membroPorId('joao'), isNull);
+    });
+
+    test('le donoEmail do mapa', () {
+      final comDono = Casa.fromMap('casa-1', {
+        'nome': 'Casa X',
+        'donoEmail': 'dono@example.com',
+        'membros': <String, dynamic>{},
+      });
+      expect(comDono.donoEmail, 'dono@example.com');
+    });
+  });
+
+  group('Membro', () {
+    test('removidoEm e null quando ausente do mapa', () {
+      final membro = Membro.fromMap('m1', {
+        'nome': 'Ana',
+        'email': 'ana@example.com',
+        'cor': '#000',
+        'ordem': 0,
+      });
+      expect(membro.removidoEm, isNull);
+    });
+
+    test('le removidoEm quando presente', () {
+      final membro = Membro.fromMap('m1', {
+        'nome': 'Ana',
+        'email': 'ana@example.com',
+        'cor': '#000',
+        'ordem': 0,
+        // Testado com DateTime puro, nao Timestamp: o parser de
+        // removidoEm usa duck-typing (ver Passo 4), entao o teste do
+        // dominio nao precisa importar cloud_firestore — mesmo padrao
+        // de test/dominio/models_test.dart para Gasto.criadoEm.
+        'removidoEm': DateTime.utc(2026, 9, 1),
+      });
+      expect(membro.removidoEm, DateTime.utc(2026, 9, 1));
     });
   });
 
