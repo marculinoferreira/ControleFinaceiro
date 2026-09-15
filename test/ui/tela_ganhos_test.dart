@@ -416,5 +416,70 @@ void main() {
       );
       expect(dentroDoDialogo, findsNothing);
     });
+
+    testWidgets(
+        'editar um ganho de quem esta ativo nao oferece quem foi removido',
+        (tester) async {
+      // A coluna de quem edita (Marcos, ativo) nao tem relacao com Silvia
+      // (removida): o dropdown de edicao precisa vir da lista de ativos, nao
+      // da lista completa de membros da casa.
+      await comLargura(tester, 1400);
+      final repo = await montar(
+        tester,
+        comCasa: casaComSilviaRemovida,
+        iniciais: [ganho('', 'marcos', 4000)],
+      );
+      final id = repo.todos.single.id;
+
+      await tester.tap(find.byKey(Key('ganho_$id')));
+      await tester.pumpAndSettle();
+
+      // Antes de abrir o dropdown, a unica ocorrencia de "Silvia" na tela
+      // vem do rotulo historico da coluna dela, no fundo (por baixo do
+      // dialogo) -- nao do formulario. O menu do dropdown e inserido no
+      // Overlay raiz (fora da subarvore do AlertDialog), entao restringir a
+      // busca a `find.descendant(of: find.byType(AlertDialog), ...)` nao
+      // pegaria um item de menu mesmo que ele existisse -- por isso o teste
+      // compara a contagem total de "Silvia" antes e depois de abrir o
+      // dropdown, em vez de restringir o escopo da busca.
+      final ocorrenciasAntes = find.text('Silvia').evaluate().length;
+      expect(ocorrenciasAntes, 1);
+
+      await tester.tap(find.byKey(const Key('form_membro')));
+      await tester.pumpAndSettle();
+
+      // Sem a correcao, abrir o dropdown de edicao oferece Silvia (removida)
+      // como opcao extra, mesmo o ganho sendo do Marcos (ativo) -- uma
+      // segunda ocorrencia de "Silvia" aparece no menu. Com a correcao, o
+      // dropdown vem de membrosAtivos e a contagem nao muda.
+      final ocorrenciasDepois = find.text('Silvia').evaluate().length;
+      expect(ocorrenciasDepois, ocorrenciasAntes);
+    });
+
+    testWidgets(
+        'editar um ganho de quem foi removido continua funcionando, sem '
+        'reatribuir a pessoa sozinho', (tester) async {
+      await comLargura(tester, 1400);
+      final repo = await montar(
+        tester,
+        comCasa: casaComSilviaRemovida,
+        iniciais: [ganho('', 'silvia', 3000)],
+      );
+      final id = repo.todos.single.id;
+
+      await tester.tap(find.byKey(Key('ganho_$id')));
+      await tester.pumpAndSettle();
+
+      // Nao derruba o assert do DropdownButtonFormField so por abrir a
+      // edicao de um lancamento de quem ja saiu.
+      expect(tester.takeException(), isNull);
+
+      // Salvar sem mexer no seletor mantem o ganho com a Silvia removida --
+      // abrir a edicao nao pode reatribuir sozinho.
+      await tester.tap(find.byKey(const Key('form_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.membroId, 'silvia');
+    });
   });
 }

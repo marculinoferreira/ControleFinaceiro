@@ -157,7 +157,15 @@ class _ColunaMembro extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mesRef = ref.watch(mesSelecionadoProvider).valor;
-    final membros = ref.watch(membrosProvider);
+    // O dropdown de edicao usa so gente ativa -- exceto quando o proprio
+    // dono da coluna foi removido, caso em que ele entra tambem (senao o
+    // dropdown quebraria por nao ter o valor selecionado como item, e editar
+    // reatribuiria o lancamento para outra pessoa so por abrir o formulario).
+    // Mesmo padrao de formulario_gasto.dart.
+    final membrosAtivos = ref.watch(membrosAtivosProvider);
+    final membros = membrosAtivos.any((m) => m.id == membro.id)
+        ? membrosAtivos
+        : [...membrosAtivos, membro];
 
     // O subtotal fica FORA do Card com a chave coluna_<id>, e nao aninhado
     // dentro dele: quando a pessoa tem um so lancamento, o valor da linha e
