@@ -34,6 +34,9 @@ abstract class RepositorioGestaoCasa {
     required String casaId,
     required String novoDonoMembroId,
   });
+
+  Future<void> sairDaCasa({required String casaId});
+  Future<void> excluirCasa({required String casaId});
 }
 
 class RepositorioGestaoCasaFunctions implements RepositorioGestaoCasa {
@@ -96,6 +99,14 @@ class RepositorioGestaoCasaFunctions implements RepositorioGestaoCasa {
         {'casaId': casaId, 'membroId': novoDonoMembroId},
         (_) {},
       );
+
+  @override
+  Future<void> sairDaCasa({required String casaId}) =>
+      _chamar('sairDaCasa', {'casaId': casaId}, (_) {});
+
+  @override
+  Future<void> excluirCasa({required String casaId}) =>
+      _chamar('excluirCasa', {'casaId': casaId}, (_) {});
 }
 
 /// Usado nos testes de widget e para rodar a UI sem Cloud Functions.
@@ -141,6 +152,18 @@ class RepositorioGestaoCasaFake implements RepositorioGestaoCasa {
     required String novoDonoMembroId,
   }) async {
     chamadas.add('transferirPosse:$novoDonoMembroId');
+    if (erro != null) throw ErroGestaoCasa(erro!);
+  }
+
+  @override
+  Future<void> sairDaCasa({required String casaId}) async {
+    chamadas.add('sairDaCasa');
+    if (erro != null) throw ErroGestaoCasa(erro!);
+  }
+
+  @override
+  Future<void> excluirCasa({required String casaId}) async {
+    chamadas.add('excluirCasa');
     if (erro != null) throw ErroGestaoCasa(erro!);
   }
 }

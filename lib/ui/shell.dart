@@ -88,12 +88,47 @@ class _ShellState extends ConsumerState<Shell> {
               )),
             );
           }),
-          IconButton(
-            key: const Key('botao_sair'),
-            tooltip: 'Sair',
-            icon: const Icon(Icons.logout),
-            onPressed: () => _confirmarSair(context, ref),
-          ),
+          Builder(builder: (context) {
+            final casa = ref.watch(casaProvider).value;
+            final membro = ref.watch(membroLogadoProvider);
+            final ehDono = casa != null && membro?.email == casa.donoEmail;
+            final unicoMembro = casa != null &&
+                casa.membros.where((m) => m.removidoEm == null).length == 1;
+
+            return PopupMenuButton<String>(
+              key: const Key('menu_conta'),
+              icon: const Icon(Icons.more_vert),
+              onSelected: (opcao) {
+                switch (opcao) {
+                  case 'sair_conta':
+                    _confirmarSair(context, ref);
+                  case 'sair_casa':
+                    _confirmarSairDaCasa(context, ref, casa!.id);
+                  case 'excluir_casa':
+                    _confirmarExcluirCasa(context, ref, casa!.id);
+                }
+              },
+              itemBuilder: (context) => [
+                if (!ehDono)
+                  const PopupMenuItem(
+                    key: Key('opcao_sair_casa'),
+                    value: 'sair_casa',
+                    child: Text('Sair da casa'),
+                  ),
+                if (ehDono && unicoMembro)
+                  const PopupMenuItem(
+                    key: Key('opcao_excluir_casa'),
+                    value: 'excluir_casa',
+                    child: Text('Excluir casa'),
+                  ),
+                const PopupMenuItem(
+                  key: Key('opcao_sair_conta'),
+                  value: 'sair_conta',
+                  child: Text('Sair da conta'),
+                ),
+              ],
+            );
+          }),
         ],
       ),
       body: desktop
@@ -142,6 +177,67 @@ class _ShellState extends ConsumerState<Shell> {
     );
     if (confirmou ?? false) {
       await ref.read(servicoAuthProvider).sair();
+    }
+  }
+
+  Future<void> _confirmarSairDaCasa(
+    BuildContext context,
+    WidgetRef ref,
+    String casaId,
+  ) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogo) => AlertDialog(
+        title: const Text('Sair da casa'),
+        content: const Text(
+          'Você vai perder acesso aos dados desta casa. Seus lançamentos '
+          'ficam guardados por 30 dias, caso você crie uma casa nova com '
+          'este mesmo e-mail.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogo).pop(false),
+            child: const Text('Não'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogo).pop(true),
+            child: const Text('Sim'),
+          ),
+        ],
+      ),
+    );
+    if (confirmou ?? false) {
+      await ref.read(repositorioGestaoCasaProvider).sairDaCasa(casaId: casaId);
+    }
+  }
+
+  Future<void> _confirmarExcluirCasa(
+    BuildContext context,
+    WidgetRef ref,
+    String casaId,
+  ) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogo) => AlertDialog(
+        title: const Text('Excluir casa'),
+        content: const Text(
+          'Isso apaga a casa e todos os dados dela para sempre. Esta ação '
+          'não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogo).pop(false),
+            child: const Text('Não'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogo).pop(true),
+            child: const Text('Sim'),
+          ),
+        ],
+      ),
+    );
+    if (confirmou ?? false) {
+      await ref.read(repositorioGestaoCasaProvider).excluirCasa(casaId: casaId);
     }
   }
 

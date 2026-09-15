@@ -35,5 +35,12 @@ void main() {
         'transferirPosse:m2',
       ]);
     });
+
+    test('sairDaCasa e excluirCasa registram a chamada', () async {
+      final repo = RepositorioGestaoCasaFake();
+      await repo.sairDaCasa(casaId: 'c1');
+      await repo.excluirCasa(casaId: 'c1');
+      expect(repo.chamadas, ['sairDaCasa', 'excluirCasa']);
+    });
   });
 }
