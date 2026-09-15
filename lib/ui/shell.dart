@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../estado/providers.dart';
 import 'telas/tela_cartoes.dart';
 import 'telas/tela_ganhos.dart';
+import 'telas/tela_gerenciar_casa.dart';
 import 'telas/tela_graficos.dart';
 import 'telas/tela_gastos.dart';
 import 'telas/tela_parcelas.dart';
@@ -69,6 +70,24 @@ class _ShellState extends ConsumerState<Shell> {
         centerTitle: false,
         actions: [
           const SeletorMes(),
+          Builder(builder: (context) {
+            final casa = ref.watch(casaProvider).value;
+            final membro = ref.watch(membroLogadoProvider);
+            if (casa == null || membro == null || membro.email != casa.donoEmail) {
+              return const SizedBox.shrink();
+            }
+            return IconButton(
+              key: const Key('botao_gerenciar_casa'),
+              tooltip: 'Gerenciar casa',
+              icon: const Icon(Icons.group),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => TelaGerenciarCasa(
+                  casaId: casa.id,
+                  donoEmail: casa.donoEmail,
+                ),
+              )),
+            );
+          }),
           IconButton(
             key: const Key('botao_sair'),
             tooltip: 'Sair',
