@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../estado/providers.dart';
 import 'shell.dart';
+import 'telas/tela_criar_casa.dart';
 import 'telas/tela_login.dart';
 import 'tema/tema.dart';
 import 'widgets/estados_async.dart';
@@ -53,67 +54,32 @@ class _Roteador extends ConsumerWidget {
       ),
       data: (endereco) {
         if (endereco == null) return const TelaLogin();
-        return const _CasaOuSemAcesso();
+        return const _CasaOuCriarCasa();
       },
     );
   }
 }
 
-/// Autenticar nao basta: o e-mail precisa pertencer a esta casa.
-class _CasaOuSemAcesso extends ConsumerWidget {
-  const _CasaOuSemAcesso();
+/// Depois de logado, resolve em qual casa a pessoa esta (ou se ainda
+/// precisa criar uma) via a Cloud Function `minhaCasa`.
+class _CasaOuCriarCasa extends ConsumerWidget {
+  const _CasaOuCriarCasa();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final casa = ref.watch(casaProvider);
+    final casaId = ref.watch(casaIdProvider);
 
-    return casa.when(
+    return casaId.when(
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (e, _) => Scaffold(
         body: ErroComRecarregar(
           erro: e,
-          aoRecarregar: () => ref.invalidate(casaProvider),
+          aoRecarregar: () => ref.invalidate(casaIdProvider),
         ),
       ),
-      data: (_) {
-        final membro = ref.watch(membroLogadoProvider);
-        if (membro == null) return const _SemAcesso();
-        return const Shell();
-      },
-    );
-  }
-}
-
-class _SemAcesso extends ConsumerWidget {
-  const _SemAcesso();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock_outline, size: 40),
-              const SizedBox(height: 12),
-              Text(
-                'Esta conta nao faz parte desta casa.',
-                style: Theme.of(context).textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              FilledButton.tonal(
-                onPressed: () => ref.read(servicoAuthProvider).sair(),
-                child: const Text('Sair'),
-              ),
-            ],
-          ),
-        ),
-      ),
+      data: (id) => id == null ? const TelaCriarCasa() : const Shell(),
     );
   }
 }
