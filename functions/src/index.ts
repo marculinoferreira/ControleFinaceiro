@@ -4,3 +4,5 @@ export { convidarMembro } from "./convidarMembro";
 export { removerMembro } from "./removerMembro";
 export { transferirPosse } from "./transferirPosse";
 export { purgarMembrosExpirados } from "./purgarMembrosExpirados";
+export { sairDaCasa } from "./sairDaCasa";
+export { excluirCasa } from "./excluirCasa";
