@@ -14,6 +14,9 @@ export const criarCasa = onCall(async (request) => {
   const nome = (request.data?.nome as string | undefined)?.trim();
   if (!nome) throw erroInvalido("Informe o nome da casa.");
 
+  const nomeMembro = (request.data?.nomeMembro as string | undefined)?.trim();
+  if (!nomeMembro) throw erroInvalido("Informe seu nome ou apelido.");
+
   const indiceRef = db.collection("indiceEmail").doc(emailNormalizado);
   const casaRef = db.collection("casas").doc();
 
@@ -59,7 +62,7 @@ export const criarCasa = onCall(async (request) => {
       emailsAtivos: [emailNormalizado],
       membros: {
         [uid]: {
-          nome: (request.auth?.token.name as string | undefined) ?? nome,
+          nome: nomeMembro,
           email: emailNormalizado,
           cor: "#2E7D32",
           ordem: 0,

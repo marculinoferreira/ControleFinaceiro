@@ -12,17 +12,27 @@ class TelaCriarCasa extends ConsumerStatefulWidget {
 }
 
 class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
+  static const _tamanhoMaximoNome = 12;
+
+  final _nomeMembro = TextEditingController();
   final _nome = TextEditingController();
   String? _erro;
   bool _criando = false;
 
   @override
   void dispose() {
+    _nomeMembro.dispose();
     _nome.dispose();
     super.dispose();
   }
 
   Future<void> _criar() async {
+    final nomeMembro = _nomeMembro.text.trim();
+    if (nomeMembro.isEmpty) {
+      setState(() => _erro = 'Informe seu nome ou apelido.');
+      return;
+    }
+
     final nome = _nome.text.trim();
     if (nome.isEmpty) {
       setState(() => _erro = 'Informe o nome da casa.');
@@ -35,7 +45,9 @@ class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
     });
 
     try {
-      await ref.read(repositorioGestaoCasaProvider).criarCasa(nome);
+      await ref
+          .read(repositorioGestaoCasaProvider)
+          .criarCasa(nome, nomeMembro: nomeMembro);
       ref.invalidate(casaIdProvider);
     } on ErroGestaoCasa catch (e) {
       if (mounted) setState(() => _erro = e.mensagem);
@@ -70,8 +82,19 @@ class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
                 ),
                 const SizedBox(height: 24),
                 TextField(
+                  key: const Key('campo_nome_membro'),
+                  controller: _nomeMembro,
+                  maxLength: _tamanhoMaximoNome,
+                  decoration: const InputDecoration(
+                    labelText: 'Seu nome ou apelido',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
                   key: const Key('campo_nome_casa'),
                   controller: _nome,
+                  maxLength: _tamanhoMaximoNome,
                   decoration: const InputDecoration(
                     labelText: 'Nome da casa',
                     border: OutlineInputBorder(),

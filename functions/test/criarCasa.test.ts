@@ -17,7 +17,7 @@ describe("criarCasa", () => {
 
   it("cria a casa, o indice e os potes padrao", async () => {
     const resposta = await criarCasa.run({
-      data: { nome: "Casa da Ana" },
+      data: { nome: "Casa da Ana", nomeMembro: "Ana" },
       auth: auth("ana@example.com"),
     } as any);
 
@@ -27,6 +27,7 @@ describe("criarCasa", () => {
     expect(casa.data()?.nome).toBe("Casa da Ana");
     expect(casa.data()?.donoEmail).toBe("ana@example.com");
     expect(casa.data()?.emailsAtivos).toEqual(["ana@example.com"]);
+    expect(casa.data()?.membros["uid-ana@example.com"].nome).toBe("Ana");
 
     const indice = await db
       .collection("indiceEmail")
@@ -44,13 +45,22 @@ describe("criarCasa", () => {
 
   it("recusa criar uma segunda casa para o mesmo email", async () => {
     await criarCasa.run({
-      data: { nome: "Casa 1" },
+      data: { nome: "Casa 1", nomeMembro: "Bruno" },
       auth: auth("bruno@example.com"),
     } as any);
 
     await expect(
       criarCasa.run({
-        data: { nome: "Casa 2" },
+        data: { nome: "Casa 2", nomeMembro: "Bruno" },
+        auth: auth("bruno@example.com"),
+      } as any),
+    ).rejects.toThrow();
+  });
+
+  it("recusa criar a casa sem o nome de quem esta criando", async () => {
+    await expect(
+      criarCasa.run({
+        data: { nome: "Casa 1" },
         auth: auth("bruno@example.com"),
       } as any),
     ).rejects.toThrow();
@@ -80,7 +90,7 @@ describe("criarCasa", () => {
       });
 
     const resposta = await criarCasa.run({
-      data: { nome: "Casa nova da Carla" },
+      data: { nome: "Casa nova da Carla", nomeMembro: "Carla" },
       auth: auth("carla@example.com"),
     } as any);
 

@@ -10,16 +10,16 @@ void main() {
 
     test('criarCasa define o casaId e registra a chamada', () async {
       final repo = RepositorioGestaoCasaFake();
-      final casaId = await repo.criarCasa('Minha Casa');
+      final casaId = await repo.criarCasa('Minha Casa', nomeMembro: 'Ana');
       expect(casaId, isNotEmpty);
       expect(await repo.minhaCasa(), casaId);
-      expect(repo.chamadas, ['criarCasa:Minha Casa']);
+      expect(repo.chamadas, ['criarCasa:Minha Casa:Ana']);
     });
 
     test('lanca ErroGestaoCasa quando erro esta configurado', () async {
       final repo = RepositorioGestaoCasaFake()..erro = 'Este e-mail já pertence a uma casa.';
       expect(
-        () => repo.criarCasa('Casa'),
+        () => repo.criarCasa('Casa', nomeMembro: 'Ana'),
         throwsA(isA<ErroGestaoCasa>()),
       );
     });

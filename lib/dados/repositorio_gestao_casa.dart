@@ -16,8 +16,9 @@ abstract class RepositorioGestaoCasa {
   /// O casaId da pessoa logada, ou null se ela ainda nao tem casa.
   Future<String?> minhaCasa();
 
-  /// Cria a casa e devolve o casaId novo.
-  Future<String> criarCasa(String nome);
+  /// Cria a casa e devolve o casaId novo. [nomeMembro] e o nome ou apelido
+  /// de quem esta criando, usado como o nome dela dentro da casa.
+  Future<String> criarCasa(String nome, {required String nomeMembro});
 
   Future<void> convidarMembro({
     required String casaId,
@@ -63,8 +64,12 @@ class RepositorioGestaoCasaFunctions implements RepositorioGestaoCasa {
       _chamar('minhaCasa', const {}, (d) => d['casaId'] as String?);
 
   @override
-  Future<String> criarCasa(String nome) =>
-      _chamar('criarCasa', {'nome': nome}, (d) => d['casaId'] as String);
+  Future<String> criarCasa(String nome, {required String nomeMembro}) =>
+      _chamar(
+        'criarCasa',
+        {'nome': nome, 'nomeMembro': nomeMembro},
+        (d) => d['casaId'] as String,
+      );
 
   @override
   Future<void> convidarMembro({
@@ -120,8 +125,8 @@ class RepositorioGestaoCasaFake implements RepositorioGestaoCasa {
   Future<String?> minhaCasa() async => casaIdAtual;
 
   @override
-  Future<String> criarCasa(String nome) async {
-    chamadas.add('criarCasa:$nome');
+  Future<String> criarCasa(String nome, {required String nomeMembro}) async {
+    chamadas.add('criarCasa:$nome:$nomeMembro');
     if (erro != null) throw ErroGestaoCasa(erro!);
     casaIdAtual = 'casa-fake-${_sequencia++}';
     return casaIdAtual!;
