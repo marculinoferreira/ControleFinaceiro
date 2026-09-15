@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
-import 'package:controle_financeiro/dados/semeadura.dart';
 import 'package:controle_financeiro/dominio/models/cartao.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/telas/tela_cartoes.dart';
@@ -45,48 +44,6 @@ Future<RepositorioCartoesFake> montar(
 }
 
 void main() {
-  group('semeadura', () {
-    test('traz os cinco cartoes da casa, na ordem', () {
-      final padrao = cartoesPadrao();
-
-      expect(padrao.map((c) => c.nome).toList(), [
-        'Inter',
-        'Mercado Pago',
-        'Nubank',
-        'Magazine Luiza',
-        'Sicoob',
-      ]);
-      expect(padrao.map((c) => c.ordem).toList(), [0, 1, 2, 3, 4]);
-    });
-
-    test('semear cria os cartoes quando nao ha nenhum', () async {
-      final cartoes = RepositorioCartoesFake();
-      await semear(
-        casa: RepositorioCasaFake(),
-        potes: RepositorioPotesFake(),
-        cartoes: cartoes,
-      );
-
-      expect(cartoes.todos, hasLength(5));
-      expect(cartoes.todos.first.nome, 'Inter');
-      // Recebeu id de verdade, nao o vazio do template.
-      expect(cartoes.todos.first.id, isNotEmpty);
-    });
-
-    test('semear nao duplica quando ja existe cartao', () async {
-      final cartoes =
-          RepositorioCartoesFake([const Cartao(id: 'c1', nome: 'Meu', ordem: 0)]);
-      await semear(
-        casa: RepositorioCasaFake(),
-        potes: RepositorioPotesFake(),
-        cartoes: cartoes,
-      );
-
-      expect(cartoes.todos, hasLength(1));
-      expect(cartoes.todos.single.nome, 'Meu');
-    });
-  });
-
   group('listagem', () {
     testWidgets('mostra os cartoes cadastrados', (tester) async {
       await montar(tester, iniciais: const [

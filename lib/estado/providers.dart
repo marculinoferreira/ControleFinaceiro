@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../dados/repositorio_firestore.dart';
+import '../dados/repositorio_gestao_casa.dart';
 import '../dados/repositorios.dart';
 import '../dados/servico_auth.dart';
 import '../dominio/cascata.dart';
@@ -27,25 +30,41 @@ final servicoAuthProvider = Provider<ServicoAuth>(
   (ref) => throw UnimplementedError('sobrescrito em main.dart'),
 );
 
-final repositorioCasaProvider = Provider<RepositorioCasa>(
+final funcoesProvider = Provider<FirebaseFunctions>(
   (ref) => throw UnimplementedError('sobrescrito em main.dart'),
 );
 
-final repositorioPotesProvider = Provider<RepositorioPotes>(
-  (ref) => throw UnimplementedError('sobrescrito em main.dart'),
+final repositorioGestaoCasaProvider = Provider<RepositorioGestaoCasa>(
+  (ref) => RepositorioGestaoCasaFunctions(ref.watch(funcoesProvider)),
 );
 
-final repositorioCartoesProvider = Provider<RepositorioCartoes>(
-  (ref) => throw UnimplementedError('sobrescrito em main.dart'),
-);
+/// O casaId da pessoa logada, resolvido pela Cloud Function `minhaCasa`.
+/// Null quando ainda nao tem casa (mostra a tela de criar casa) ou quando
+/// nao ha ninguem logado.
+final casaIdProvider = FutureProvider<String?>((ref) async {
+  final email = ref.watch(emailLogadoProvider).value;
+  if (email == null) return null;
+  return ref.watch(repositorioGestaoCasaProvider).minhaCasa();
+});
 
-final repositorioGanhosProvider = Provider<RepositorioGanhos>(
-  (ref) => throw UnimplementedError('sobrescrito em main.dart'),
-);
+/// Os providers abaixo só são lidos depois que a tela de roteamento
+/// (Task 13) já confirmou que `casaIdProvider` tem um valor não nulo.
+String _casaIdResolvido(Ref ref) => ref.watch(casaIdProvider).value!;
 
-final repositorioGastosProvider = Provider<RepositorioGastos>(
-  (ref) => throw UnimplementedError('sobrescrito em main.dart'),
-);
+final repositorioCasaProvider = Provider<RepositorioCasa>((ref) =>
+    CasaFirestore(ref.watch(firestoreProvider), _casaIdResolvido(ref)));
+
+final repositorioPotesProvider = Provider<RepositorioPotes>((ref) =>
+    PotesFirestore(ref.watch(firestoreProvider), _casaIdResolvido(ref)));
+
+final repositorioCartoesProvider = Provider<RepositorioCartoes>((ref) =>
+    CartoesFirestore(ref.watch(firestoreProvider), _casaIdResolvido(ref)));
+
+final repositorioGanhosProvider = Provider<RepositorioGanhos>((ref) =>
+    GanhosFirestore(ref.watch(firestoreProvider), _casaIdResolvido(ref)));
+
+final repositorioGastosProvider = Provider<RepositorioGastos>((ref) =>
+    GastosFirestore(ref.watch(firestoreProvider), _casaIdResolvido(ref)));
 
 // --- Sessao ---------------------------------------------------------------
 

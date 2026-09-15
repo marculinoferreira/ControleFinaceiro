@@ -9,30 +9,33 @@ import '../dominio/models/pote.dart';
 import '../dominio/parcelas.dart';
 import 'repositorios.dart';
 
-const String casaId = 'principal';
-
-DocumentReference<Map<String, dynamic>> _casaDoc(FirebaseFirestore db) =>
+DocumentReference<Map<String, dynamic>> _casaDoc(
+  FirebaseFirestore db,
+  String casaId,
+) =>
     db.collection('casas').doc(casaId);
 
 class CasaFirestore implements RepositorioCasa {
   final FirebaseFirestore db;
-  CasaFirestore(this.db);
+  final String casaId;
+  CasaFirestore(this.db, this.casaId);
 
   @override
-  Stream<Casa?> observar() => _casaDoc(db)
+  Stream<Casa?> observar() => _casaDoc(db, casaId)
       .snapshots()
       .map((d) => d.exists ? Casa.fromMap(d.id, d.data()!) : null);
 
   @override
-  Future<void> criar(Casa casa) => _casaDoc(db).set(casa.toMap());
+  Future<void> criar(Casa casa) => _casaDoc(db, casaId).set(casa.toMap());
 }
 
 class PotesFirestore implements RepositorioPotes {
   final FirebaseFirestore db;
-  PotesFirestore(this.db);
+  final String casaId;
+  PotesFirestore(this.db, this.casaId);
 
   CollectionReference<Map<String, dynamic>> get _col =>
-      _casaDoc(db).collection('potes');
+      _casaDoc(db, casaId).collection('potes');
 
   @override
   Stream<List<Pote>> observar() => _col.orderBy('ordem').snapshots().map(
@@ -63,10 +66,11 @@ class PotesFirestore implements RepositorioPotes {
 
 class CartoesFirestore implements RepositorioCartoes {
   final FirebaseFirestore db;
-  CartoesFirestore(this.db);
+  final String casaId;
+  CartoesFirestore(this.db, this.casaId);
 
   CollectionReference<Map<String, dynamic>> get _col =>
-      _casaDoc(db).collection('cartoes');
+      _casaDoc(db, casaId).collection('cartoes');
 
   @override
   Stream<List<Cartao>> observar() => _col
@@ -85,10 +89,11 @@ class CartoesFirestore implements RepositorioCartoes {
 
 class GanhosFirestore implements RepositorioGanhos {
   final FirebaseFirestore db;
-  GanhosFirestore(this.db);
+  final String casaId;
+  GanhosFirestore(this.db, this.casaId);
 
   CollectionReference<Map<String, dynamic>> get _col =>
-      _casaDoc(db).collection('ganhos');
+      _casaDoc(db, casaId).collection('ganhos');
 
   @override
   Stream<List<Ganho>> observarMes(String mesRef) => _col
@@ -117,12 +122,13 @@ class GanhosFirestore implements RepositorioGanhos {
 
 class GastosFirestore implements RepositorioGastos {
   final FirebaseFirestore db;
+  final String casaId;
   final Uuid _uuid = const Uuid();
 
-  GastosFirestore(this.db);
+  GastosFirestore(this.db, this.casaId);
 
   CollectionReference<Map<String, dynamic>> get _col =>
-      _casaDoc(db).collection('gastos');
+      _casaDoc(db, casaId).collection('gastos');
 
   @override
   Stream<List<Gasto>> observarMes(String mesRef) => _col
