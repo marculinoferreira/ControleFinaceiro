@@ -1,0 +1,11 @@
+{
+  "name": "controle-financeiro-rules-tests",
+  "private": true,
+  "scripts": {
+    "test:rules": "firebase emulators:exec --only firestore \"jest --config jest.rules.config.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "jest": "^29.7.0"
+  }
+}

@@ -1,21 +1,28 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Os dois e-mails autorizados vivem aqui, e nao em um documento:
-    // um get() dentro da regra custaria uma leitura cobrada por requisicao,
-    // e esta lista muda com a mesma frequencia que a propria regra.
-    function autorizado() {
-      return request.auth != null
-          && request.auth.token.email in [
-               'marcos.centrone@gmail.com',
-               'silviabborges3@gmail.com'
-             ];
+    function isMembro(casaId) {
+      return request.auth != null &&
+        request.auth.token.email in
+          get(/databases/$(database)/documents/casas/$(casaId)).data.emailsAtivos;
     }
 
-    match /casas/principal/{documento=**} {
-      allow read, write: if autorizado();
+    match /casas/{casaId} {
+      allow read: if isMembro(casaId);
+      allow write: if false;
+
+      match /{colecao}/{doc} {
+        allow read, write: if isMembro(casaId);
+      }
+    }
+
+    match /indiceEmail/{email} {
+      allow read, write: if false;
+    }
+
+    match /removidosPendentes/{doc} {
+      allow read, write: if false;
     }
   }
 }
