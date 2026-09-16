@@ -6,8 +6,9 @@ import 'package:flutter/services.dart';
 /// Descricao de gasto e nome proprio sao coisas diferentes, e forcar
 /// maiuscula em toda palavra estragaria "conta de luz".
 ///
-/// Existe porque `TextCapitalization.sentences` so instrui o teclado virtual
-/// do celular — no Windows, onde este app tambem roda, ele nao faz nada.
+/// Existe porque `TextCapitalization.sentences` so instrui o teclado
+/// virtual: sem este formatter, digitar com um teclado fisico bluetooth
+/// nao teria a primeira letra maiuscula automaticamente.
 ///
 /// A selecao e o cursor sao preservados: trocar so o caractere zero nao pode
 /// mandar o cursor para o fim do texto a cada tecla digitada.

@@ -12,8 +12,7 @@
         "lib/firebase_options.dart": {
           "projectId": "controlefinaceiro-b5a70",
           "configurations": {
-            "android": "1:186985169258:android:530360c0d7fbc0c1636513",
-            "windows": "1:186985169258:web:f2ff983afbba9b4b636513"
+            "android": "1:186985169258:android:530360c0d7fbc0c1636513"
           }
         }
       }

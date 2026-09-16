@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,14 +18,7 @@ Future<void> main() async {
   );
 
   final db = FirebaseFirestore.instance;
-
-  // Cache offline so no Android e iOS. No Windows o cloud_firestore nao
-  // oferece persistencia em disco equivalente; sem internet o app abre mas
-  // nao carrega dados, e a tela de erro informa isso.
-  if (defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS) {
-    db.settings = const Settings(persistenceEnabled: true);
-  }
+  db.settings = const Settings(persistenceEnabled: true);
 
   runApp(
     ProviderScope(
