@@ -179,6 +179,7 @@ class _ShellState extends ConsumerState<Shell> {
       ),
     );
     if (confirmou ?? false) {
+      ref.read(saiuDaCasaProvider.notifier).limpar();
       await ref.read(servicoAuthProvider).sair();
     }
   }
@@ -215,6 +216,7 @@ class _ShellState extends ConsumerState<Shell> {
 
     try {
       await ref.read(repositorioGestaoCasaProvider).sairDaCasa(casaId: casaId);
+      ref.read(saiuDaCasaProvider.notifier).marcar();
       ref.invalidate(casaIdProvider);
     } on ErroGestaoCasa catch (e) {
       if (context.mounted) {
@@ -255,7 +257,10 @@ class _ShellState extends ConsumerState<Shell> {
 
     try {
       await ref.read(repositorioGestaoCasaProvider).excluirCasa(casaId: casaId);
-      ref.invalidate(casaIdProvider);
+      // A casa e todos os dados dela ja se foram: nao ha pra onde voltar
+      // dentro do app, entao a sessao encerra e cai na tela de login.
+      ref.read(saiuDaCasaProvider.notifier).limpar();
+      await ref.read(servicoAuthProvider).sair();
     } on ErroGestaoCasa catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)

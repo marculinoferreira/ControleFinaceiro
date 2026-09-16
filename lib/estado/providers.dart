@@ -76,6 +76,20 @@ final casaProvider = StreamProvider<Casa?>(
   (ref) => ref.watch(repositorioCasaProvider).observar(),
 );
 
+/// Fica true depois que a pessoa sai (sem excluir) de uma casa, so pra tela
+/// de criar casa avisar que os dados dela continuam guardados por 30 dias.
+/// Comeca falso: quem esta criando a primeira casa nunca teve esse aviso.
+class SaiuDaCasaNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void marcar() => state = true;
+  void limpar() => state = false;
+}
+
+final saiuDaCasaProvider =
+    NotifierProvider<SaiuDaCasaNotifier, bool>(SaiuDaCasaNotifier.new);
+
 /// Qual membro corresponde ao e-mail logado. Null quando o e-mail
 /// autenticou mas nao pertence a esta casa.
 final membroLogadoProvider = Provider<Membro?>((ref) {

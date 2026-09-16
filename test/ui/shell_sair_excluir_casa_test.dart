@@ -10,11 +10,12 @@ import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/app.dart';
 import 'package:controle_financeiro/ui/shell.dart';
 import 'package:controle_financeiro/ui/telas/tela_criar_casa.dart';
+import 'package:controle_financeiro/ui/telas/tela_login.dart';
 
-/// Cobre a correcao de casaIdProvider ficar preso ao id antigo depois de
-/// sair/excluir a casa com sucesso (achado 4 da revisao final): sem o
-/// `ref.invalidate(casaIdProvider)` em Shell, o app continuava mostrando o
-/// Shell inacessivel em vez de voltar para a tela de criar casa.
+/// Cobre para onde o app vai depois de sair/excluir a casa com sucesso:
+/// sair da casa cai na tela de criar casa (com o aviso de que os dados
+/// ficam guardados por 30 dias), e excluir a casa desloga de vez, ja que
+/// nao ha mais nada -- nem uma casa nem dados -- pra onde voltar.
 void main() {
   Casa casaComDoisMembros() => const Casa(
         id: 'casa-1',
@@ -56,7 +57,8 @@ void main() {
   }
 
   testWidgets(
-    'sair da casa com sucesso invalida casaIdProvider e sai do Shell',
+    'sair da casa com sucesso invalida casaIdProvider, vai pra criar casa '
+    'e mostra o aviso de dados guardados',
     (tester) async {
       final gestao = RepositorioGestaoCasaFake()..casaIdAtual = 'casa-1';
 
@@ -79,11 +81,12 @@ void main() {
       expect(gestao.chamadas, ['sairDaCasa']);
       expect(find.byType(Shell), findsNothing);
       expect(find.byType(TelaCriarCasa), findsOneWidget);
+      expect(find.byKey(const Key('aviso_saiu_da_casa')), findsOneWidget);
     },
   );
 
   testWidgets(
-    'excluir casa com sucesso invalida casaIdProvider e sai do Shell',
+    'excluir casa com sucesso desloga e volta pra tela de login',
     (tester) async {
       final gestao = RepositorioGestaoCasaFake()..casaIdAtual = 'casa-1';
 
@@ -105,7 +108,8 @@ void main() {
 
       expect(gestao.chamadas, ['excluirCasa']);
       expect(find.byType(Shell), findsNothing);
-      expect(find.byType(TelaCriarCasa), findsOneWidget);
+      expect(find.byType(TelaCriarCasa), findsNothing);
+      expect(find.byType(TelaLogin), findsOneWidget);
     },
   );
 }

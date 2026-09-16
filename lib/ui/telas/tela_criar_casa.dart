@@ -65,6 +65,8 @@ class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
 
   @override
   Widget build(BuildContext context) {
+    final saiuDaCasa = ref.watch(saiuDaCasaProvider);
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -87,6 +89,10 @@ class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
                   style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
+                if (saiuDaCasa) ...[
+                  const SizedBox(height: 16),
+                  const _AvisoSaiuDaCasa(key: Key('aviso_saiu_da_casa')),
+                ],
                 const SizedBox(height: 24),
                 TextField(
                   key: const Key('campo_nome_membro'),
@@ -130,6 +136,46 @@ class _TelaCriarCasaState extends ConsumerState<TelaCriarCasa> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Mostrado so depois de sair (sem excluir) de uma casa, pra deixar claro
+/// que os dados nao sumiram e como recupera-los criando uma casa nova com o
+/// mesmo nome/e-mail. Quem esta criando a primeira casa nunca ve isto.
+class _AvisoSaiuDaCasa extends StatelessWidget {
+  const _AvisoSaiuDaCasa({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final esquema = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: esquema.secondaryContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: esquema.onSecondaryContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Você acabou de sair de uma casa. Seus dados ainda estão '
+              'salvos: basta colocar seu nome e um nome para a casa nova '
+              'que tudo aparece para você.\n\nSe você não fizer isso agora, '
+              'seus dados ficam guardados por 30 dias e depois disso são '
+              'excluídos, sem forma de recuperação.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: esquema.onSecondaryContainer),
+            ),
+          ),
+        ],
       ),
     );
   }
