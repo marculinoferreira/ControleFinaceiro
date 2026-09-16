@@ -33,6 +33,34 @@ async function semearCasa() {
   });
 }
 
+async function semearCasaComDoisMembros() {
+  await testEnv.withSecurityRulesDisabled(async (contexto) => {
+    // Uma unica instancia reaproveitada: chamar contexto.firestore() de
+    // novo dentro do mesmo callback quebra com "Firestore has already
+    // been started" -- a segunda chamada tenta reconfigurar um cliente
+    // que a primeira ja inicializou.
+    const db = contexto.firestore();
+    await db
+      .collection("casas")
+      .doc("casa-1")
+      .set({
+        nome: "Casa",
+        donoEmail: "marcos@example.com",
+        emailsAtivos: ["marcos@example.com", "silvia@example.com"],
+        membros: {
+          "membro-marcos": { nome: "Marcos", email: "marcos@example.com" },
+          "membro-silvia": { nome: "Silvia", email: "silvia@example.com" },
+        },
+      });
+    await db
+      .collection("casas")
+      .doc("casa-1")
+      .collection("cartoes")
+      .doc("cartao-1")
+      .set({ nome: "Inter", ordem: 0 });
+  });
+}
+
 test("membro ativo le a casa", async () => {
   await semearCasa();
   const db = testEnv
@@ -83,6 +111,74 @@ test("membro ativo le e escreve gastos da propria casa", async () => {
       .doc("casa-1")
       .collection("gastos")
       .add({ descricao: "teste", valor: 10 }),
+  );
+});
+
+test("cada pessoa le e escreve so o proprio vencimento de cartao", async () => {
+  await semearCasaComDoisMembros();
+  const marcos = testEnv
+    .authenticatedContext("uid-marcos", { email: "marcos@example.com" })
+    .firestore();
+
+  await assertSucceeds(
+    marcos
+      .collection("casas")
+      .doc("casa-1")
+      .collection("cartoes")
+      .doc("cartao-1")
+      .collection("vencimentos")
+      .doc("membro-marcos")
+      .set({ dia: 5 }),
+  );
+  await assertSucceeds(
+    marcos
+      .collection("casas")
+      .doc("casa-1")
+      .collection("cartoes")
+      .doc("cartao-1")
+      .collection("vencimentos")
+      .doc("membro-marcos")
+      .get(),
+  );
+});
+
+test("uma pessoa nao le nem escreve o vencimento de cartao de outra", async () => {
+  await semearCasaComDoisMembros();
+  await testEnv.withSecurityRulesDisabled(async (contexto) => {
+    await contexto
+      .firestore()
+      .collection("casas")
+      .doc("casa-1")
+      .collection("cartoes")
+      .doc("cartao-1")
+      .collection("vencimentos")
+      .doc("membro-silvia")
+      .set({ dia: 15 });
+  });
+
+  const marcos = testEnv
+    .authenticatedContext("uid-marcos", { email: "marcos@example.com" })
+    .firestore();
+
+  await assertFails(
+    marcos
+      .collection("casas")
+      .doc("casa-1")
+      .collection("cartoes")
+      .doc("cartao-1")
+      .collection("vencimentos")
+      .doc("membro-silvia")
+      .get(),
+  );
+  await assertFails(
+    marcos
+      .collection("casas")
+      .doc("casa-1")
+      .collection("cartoes")
+      .doc("cartao-1")
+      .collection("vencimentos")
+      .doc("membro-silvia")
+      .set({ dia: 20 }),
   );
 });
 

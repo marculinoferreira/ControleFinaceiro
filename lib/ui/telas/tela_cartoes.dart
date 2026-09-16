@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../dados/repositorio_gestao_casa.dart';
 import '../../dominio/models/cartao.dart';
 import '../../estado/providers.dart';
 import '../widgets/dialogo_exclusao.dart';
@@ -57,21 +59,45 @@ class TelaCartoes extends ConsumerWidget {
     Cartao? existente,
   }) async {
     final cartoes = ref.read(cartoesProvider).value ?? const <Cartao>[];
+    final membroId = ref.read(membroLogadoProvider)?.id;
 
-    final nome = await mostrarFormulario<String>(
+    // So busca o vencimento de quem esta editando um cartao que ja existe;
+    // um cartao novo nunca tem vencimento de ninguem ainda.
+    int? vencimentoAtual;
+    if (existente != null && membroId != null) {
+      vencimentoAtual = await ref
+          .read(repositorioCartoesProvider)
+          .meuVencimento(existente.id, membroId);
+    }
+    if (!context.mounted) return;
+
+    final resultado = await mostrarFormulario<(String, int?)>(
       context: context,
       titulo: existente == null ? 'Novo cartão' : 'Editar cartão',
-      construir: (c) => _FormularioCartao(existente: existente),
+      construir: (c) => _FormularioCartao(
+        existente: existente,
+        vencimentoInicial: vencimentoAtual,
+      ),
     );
-    if (nome == null) return;
+    if (resultado == null) return;
+    final (nome, vencimento) = resultado;
 
     try {
-      await ref.read(repositorioCartoesProvider).salvar(
+      final cartaoId = await ref.read(repositorioCartoesProvider).salvar(
             existente == null
                 // Entra no fim da lista; a ordem so muda se alguem editar.
                 ? Cartao(id: '', nome: nome, ordem: cartoes.length)
                 : existente.copyWith(nome: nome),
           );
+
+      if (membroId != null) {
+        final repo = ref.read(repositorioCartoesProvider);
+        if (vencimento != null) {
+          await repo.definirMeuVencimento(cartaoId, membroId, vencimento);
+        } else {
+          await repo.removerMeuVencimento(cartaoId, membroId);
+        }
+      }
     } catch (e) {
       if (!context.mounted) return;
       avisarErroDeEscrita(context, e);
@@ -80,9 +106,11 @@ class TelaCartoes extends ConsumerWidget {
 
   Future<void> _excluir(
       BuildContext context, WidgetRef ref, Cartao cartao) async {
-    // Avisa em vez de bloquear: gastos antigos guardam o id, e a lista
-    // passa a exibir o id cru no lugar do nome. Impedir a exclusao seria
-    // pior — o cartao pode ter sido de fato encerrado.
+    // Avisa em vez de bloquear por causa dos gastos: gastos antigos guardam
+    // o id, e a lista passa a exibir o id cru no lugar do nome. Impedir a
+    // exclusao por isso seria pior — o cartao pode ter sido de fato
+    // encerrado. Ja o vencimento de outro integrante bloqueia de verdade
+    // (ver removerCartao): esse aviso quem da e o servidor, via SnackBar.
     final confirmou = await confirmarExclusao(
       context: context,
       titulo: 'Excluir cartão',
@@ -92,8 +120,18 @@ class TelaCartoes extends ConsumerWidget {
     );
     if (!confirmou) return;
 
+    final casaId = ref.read(casaProvider).value?.id;
+    if (casaId == null) return;
+
     try {
-      await ref.read(repositorioCartoesProvider).remover(cartao.id);
+      await ref
+          .read(repositorioGestaoCasaProvider)
+          .removerCartao(casaId: casaId, cartaoId: cartao.id);
+    } on ErroGestaoCasa catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.mensagem)));
+      }
     } catch (e) {
       if (!context.mounted) return;
       avisarErroDeEscrita(context, e);
@@ -103,7 +141,13 @@ class TelaCartoes extends ConsumerWidget {
 
 class _FormularioCartao extends StatefulWidget {
   final Cartao? existente;
-  const _FormularioCartao({this.existente});
+
+  /// O MEU dia de vencimento para este cartao (nunca o de outro
+  /// integrante). Null quando ainda nao cadastrei nenhum, ou quando o
+  /// cartao e novo.
+  final int? vencimentoInicial;
+
+  const _FormularioCartao({this.existente, this.vencimentoInicial});
 
   @override
   State<_FormularioCartao> createState() => _FormularioCartaoState();
@@ -112,17 +156,22 @@ class _FormularioCartao extends StatefulWidget {
 class _FormularioCartaoState extends State<_FormularioCartao> {
   final _chave = GlobalKey<FormState>();
   late final TextEditingController _nome;
+  late final TextEditingController _vencimento;
   bool _salvando = false;
 
   @override
   void initState() {
     super.initState();
     _nome = TextEditingController(text: widget.existente?.nome ?? '');
+    _vencimento = TextEditingController(
+      text: widget.vencimentoInicial?.toString() ?? '',
+    );
   }
 
   @override
   void dispose() {
     _nome.dispose();
+    _vencimento.dispose();
     super.dispose();
   }
 
@@ -130,7 +179,9 @@ class _FormularioCartaoState extends State<_FormularioCartao> {
     if (_salvando) return;
     if (!_chave.currentState!.validate()) return;
     _salvando = true;
-    Navigator.of(context).pop(_nome.text.trim());
+    final texto = _vencimento.text.trim();
+    final dia = texto.isEmpty ? null : int.parse(texto);
+    Navigator.of(context).pop((_nome.text.trim(), dia));
   }
 
   @override
@@ -153,6 +204,28 @@ class _FormularioCartaoState extends State<_FormularioCartao> {
             ),
             validator: (t) =>
                 (t == null || t.trim().isEmpty) ? 'Informe o nome.' : null,
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            key: const Key('cartao_vencimento'),
+            controller: _vencimento,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              labelText: 'Meu dia de vencimento (opcional)',
+              helperText: 'Só você vê este dia — o de outra pessoa da casa '
+                  'fica particular dela.',
+              helperMaxLines: 2,
+              border: OutlineInputBorder(),
+            ),
+            validator: (t) {
+              if (t == null || t.trim().isEmpty) return null;
+              final dia = int.tryParse(t.trim());
+              if (dia == null || dia < 1 || dia > 31) {
+                return 'Informe um dia entre 1 e 31.';
+              }
+              return null;
+            },
             onFieldSubmitted: (_) => _salvar(),
           ),
           const SizedBox(height: 20),

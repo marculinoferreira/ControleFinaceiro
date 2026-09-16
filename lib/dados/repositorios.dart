@@ -28,10 +28,27 @@ abstract class RepositorioPotes {
 abstract class RepositorioCartoes {
   Stream<List<Cartao>> observar();
 
-  /// Cria quando o id vem vazio, atualiza quando vem preenchido.
-  Future<void> salvar(Cartao cartao);
+  /// Cria quando o id vem vazio, atualiza quando vem preenchido. Devolve o
+  /// id do cartao (o novo, ou o mesmo de quem editou) -- quem acabou de
+  /// criar um cartao precisa dele na hora pra gravar o proprio vencimento
+  /// em seguida.
+  Future<String> salvar(Cartao cartao);
 
-  Future<void> remover(String id);
+  // A exclusao nao mora aqui: remover um cartao pode esbarrar no vencimento
+  // de outro integrante, algo que so o servidor consegue ver -- ver
+  // RepositorioGestaoCasa.removerCartao.
+
+  /// O dia de vencimento que [membroId] cadastrou para este cartao agora, ou
+  /// null se ele nao cadastrou nenhum. Leitura unica (nao um stream): quem
+  /// usa isto e a tela de edicao, pra pre-preencher o campo uma vez ao
+  /// abrir -- nao precisa ficar observando ao vivo. Cada pessoa so consegue
+  /// ler e gravar o proprio -- e reforcado pela regra do Firestore, nao so
+  /// pela UI.
+  Future<int?> meuVencimento(String cartaoId, String membroId);
+
+  Future<void> definirMeuVencimento(String cartaoId, String membroId, int dia);
+
+  Future<void> removerMeuVencimento(String cartaoId, String membroId);
 }
 
 abstract class RepositorioGanhos {
@@ -257,11 +274,19 @@ class RepositorioCartoesFake implements RepositorioCartoes {
   final _controlador = StreamController<void>.broadcast();
   var _sequencia = 0;
 
+  // cartaoId -> membroId -> dia. Espelha a subcolecao vencimentos do
+  // Firestore: cada par cartao+membro e uma entrada isolada.
+  final Map<String, Map<String, int>> _vencimentos = {};
+
   RepositorioCartoesFake([List<Cartao> iniciais = const []]) {
     _cartoes.addAll(iniciais);
   }
 
   List<Cartao> get todos => List.unmodifiable(_cartoes);
+
+  /// So pra teste inspecionar o que foi gravado, sem depender do stream.
+  int? vencimentoDe(String cartaoId, String membroId) =>
+      _vencimentos[cartaoId]?[membroId];
 
   @override
   Stream<List<Cartao>> observar() => _correnteEDepois(
@@ -270,20 +295,33 @@ class RepositorioCartoesFake implements RepositorioCartoes {
       );
 
   @override
-  Future<void> salvar(Cartao cartao) async {
+  Future<String> salvar(Cartao cartao) async {
+    final String id;
     if (cartao.id.isEmpty) {
-      _cartoes.add(cartao.copyWith(id: 'cartao-${_sequencia++}'));
+      id = 'cartao-${_sequencia++}';
+      _cartoes.add(cartao.copyWith(id: id));
     } else {
-      final i = _cartoes.indexWhere((c) => c.id == cartao.id);
+      id = cartao.id;
+      final i = _cartoes.indexWhere((c) => c.id == id);
       if (i >= 0) _cartoes[i] = cartao;
     }
     _controlador.add(null);
+    return id;
   }
 
   @override
-  Future<void> remover(String id) async {
-    _cartoes.removeWhere((c) => c.id == id);
-    _controlador.add(null);
+  Future<int?> meuVencimento(String cartaoId, String membroId) async =>
+      _vencimentos[cartaoId]?[membroId];
+
+  @override
+  Future<void> definirMeuVencimento(
+      String cartaoId, String membroId, int dia) async {
+    (_vencimentos[cartaoId] ??= {})[membroId] = dia;
+  }
+
+  @override
+  Future<void> removerMeuVencimento(String cartaoId, String membroId) async {
+    _vencimentos[cartaoId]?.remove(membroId);
   }
 }
 

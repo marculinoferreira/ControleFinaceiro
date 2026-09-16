@@ -76,12 +76,38 @@ class CartoesFirestore implements RepositorioCartoes {
       .map((s) => s.docs.map((d) => Cartao.fromMap(d.id, d.data())).toList());
 
   @override
-  Future<void> salvar(Cartao cartao) => cartao.id.isEmpty
-      ? _col.add(cartao.toMap())
-      : _col.doc(cartao.id).update(cartao.toMap());
+  Future<String> salvar(Cartao cartao) async {
+    if (cartao.id.isEmpty) {
+      final ref = await _col.add(cartao.toMap());
+      return ref.id;
+    }
+    await _col.doc(cartao.id).update(cartao.toMap());
+    return cartao.id;
+  }
+
+  DocumentReference<Map<String, dynamic>> _vencimentoDoc(
+    String cartaoId,
+    String membroId,
+  ) =>
+      _col.doc(cartaoId).collection('vencimentos').doc(membroId);
 
   @override
-  Future<void> remover(String id) => _col.doc(id).delete();
+  Future<int?> meuVencimento(String cartaoId, String membroId) async {
+    final doc = await _vencimentoDoc(cartaoId, membroId).get();
+    return (doc.data()?['dia'] as num?)?.toInt();
+  }
+
+  @override
+  Future<void> definirMeuVencimento(
+    String cartaoId,
+    String membroId,
+    int dia,
+  ) =>
+      _vencimentoDoc(cartaoId, membroId).set({'dia': dia});
+
+  @override
+  Future<void> removerMeuVencimento(String cartaoId, String membroId) =>
+      _vencimentoDoc(cartaoId, membroId).delete();
 }
 
 class GanhosFirestore implements RepositorioGanhos {

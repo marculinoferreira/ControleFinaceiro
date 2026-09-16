@@ -38,6 +38,11 @@ abstract class RepositorioGestaoCasa {
 
   Future<void> sairDaCasa({required String casaId});
   Future<void> excluirCasa({required String casaId});
+
+  /// So funciona quando nenhum outro integrante tem um dia de vencimento
+  /// cadastrado neste cartao -- o servidor e quem decide, porque o cliente
+  /// nunca consegue ver o vencimento de outra pessoa (ver firestore.rules).
+  Future<void> removerCartao({required String casaId, required String cartaoId});
 }
 
 class RepositorioGestaoCasaFunctions implements RepositorioGestaoCasa {
@@ -112,6 +117,17 @@ class RepositorioGestaoCasaFunctions implements RepositorioGestaoCasa {
   @override
   Future<void> excluirCasa({required String casaId}) =>
       _chamar('excluirCasa', {'casaId': casaId}, (_) {});
+
+  @override
+  Future<void> removerCartao({
+    required String casaId,
+    required String cartaoId,
+  }) =>
+      _chamar(
+        'removerCartao',
+        {'casaId': casaId, 'cartaoId': cartaoId},
+        (_) {},
+      );
 }
 
 /// Usado nos testes de widget e para rodar a UI sem Cloud Functions.
@@ -175,5 +191,14 @@ class RepositorioGestaoCasaFake implements RepositorioGestaoCasa {
     if (erro != null) throw ErroGestaoCasa(erro!);
     // Mesmo raciocinio de sairDaCasa: a casa (e o indice do dono) some.
     casaIdAtual = null;
+  }
+
+  @override
+  Future<void> removerCartao({
+    required String casaId,
+    required String cartaoId,
+  }) async {
+    chamadas.add('removerCartao:$cartaoId');
+    if (erro != null) throw ErroGestaoCasa(erro!);
   }
 }

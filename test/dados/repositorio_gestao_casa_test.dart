@@ -42,5 +42,11 @@ void main() {
       await repo.excluirCasa(casaId: 'c1');
       expect(repo.chamadas, ['sairDaCasa', 'excluirCasa']);
     });
+
+    test('removerCartao registra a chamada', () async {
+      final repo = RepositorioGestaoCasaFake();
+      await repo.removerCartao(casaId: 'c1', cartaoId: 'cartao-1');
+      expect(repo.chamadas, ['removerCartao:cartao-1']);
+    });
   });
 }
