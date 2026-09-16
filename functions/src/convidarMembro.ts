@@ -37,6 +37,13 @@ export const convidarMembro = onCall(async (request) => {
 
     const membrosAtuais = casa.membros ?? {};
 
+    const membrosAtivos = Object.values(membrosAtuais).filter(
+      (m: any) => !m.removidoEm,
+    );
+    if (membrosAtivos.length >= 2) {
+      throw erroInvalido("Uma casa pode ter no máximo 2 pessoas.");
+    }
+
     // Se este e-mail ja tem uma entrada removida nesta casa, reativa em vez
     // de sortear um membroId novo: sem isto, convidar de volta alguem que
     // ja saiu criaria um segundo registro fantasma, e o pendente de 30 dias

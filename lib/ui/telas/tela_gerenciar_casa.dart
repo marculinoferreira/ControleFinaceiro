@@ -19,46 +19,66 @@ class TelaGerenciarCasa extends ConsumerWidget {
     final casa = ref.watch(casaProvider).value;
     final membrosAtivos =
         casa?.membros.where((m) => m.removidoEm == null).toList() ?? [];
+    // Regra de negocio: uma casa tem no maximo 2 pessoas. Sem isto o dono
+    // so descobriria o limite depois de preencher o dialogo de convite e
+    // levar um erro do servidor.
+    final casaCheia = membrosAtivos.length >= 2;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Gerenciar casa')),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('botao_convidar'),
-        onPressed: () => _abrirConvite(context, ref),
+        onPressed: casaCheia ? null : () => _abrirConvite(context, ref),
         icon: const Icon(Icons.person_add),
         label: const Text('Convidar'),
       ),
-      body: ListView.builder(
-        itemCount: membrosAtivos.length,
-        itemBuilder: (context, i) {
-          final membro = membrosAtivos[i];
-          final ehDono = casa != null && Casa.emailsIguais(membro.email, casa.donoEmail);
-          return ListTile(
-            title: Text(membro.nome),
-            subtitle: Text(membro.email),
-            trailing: ehDono
-                ? const Chip(label: Text('Dono'))
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        key: Key('transferir_${membro.id}'),
-                        tooltip: 'Transferir posse',
-                        icon: const Icon(Icons.swap_horiz),
-                        onPressed: () =>
-                            _confirmarTransferir(context, ref, membro),
-                      ),
-                      IconButton(
-                        key: Key('remover_${membro.id}'),
-                        tooltip: 'Remover',
-                        icon: const Icon(Icons.person_remove),
-                        onPressed: () =>
-                            _confirmarRemover(context, ref, membro),
-                      ),
-                    ],
-                  ),
-          );
-        },
+      body: Column(
+        children: [
+          if (casaCheia)
+            const Padding(
+              key: Key('aviso_casa_cheia'),
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Esta casa já tem 2 pessoas, o máximo permitido.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: membrosAtivos.length,
+              itemBuilder: (context, i) {
+                final membro = membrosAtivos[i];
+                final ehDono = casa != null &&
+                    Casa.emailsIguais(membro.email, casa.donoEmail);
+                return ListTile(
+                  title: Text(membro.nome),
+                  subtitle: Text(membro.email),
+                  trailing: ehDono
+                      ? const Chip(label: Text('Dono'))
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              key: Key('transferir_${membro.id}'),
+                              tooltip: 'Transferir posse',
+                              icon: const Icon(Icons.swap_horiz),
+                              onPressed: () =>
+                                  _confirmarTransferir(context, ref, membro),
+                            ),
+                            IconButton(
+                              key: Key('remover_${membro.id}'),
+                              tooltip: 'Remover',
+                              icon: const Icon(Icons.person_remove),
+                              onPressed: () =>
+                                  _confirmarRemover(context, ref, membro),
+                            ),
+                          ],
+                        ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -19,6 +19,15 @@ void main() {
         ],
       );
 
+  Casa casaComDonoSozinho() => const Casa(
+        id: 'casa-1',
+        nome: 'Casa X',
+        donoEmail: 'dono@example.com',
+        membros: [
+          Membro(id: 'm-dono', nome: 'Dono', email: 'dono@example.com', cor: '#000', ordem: 0),
+        ],
+      );
+
   testWidgets('dono ve o botao de convidar e a lista de membros ativos',
       (tester) async {
     final gestao = RepositorioGestaoCasaFake();
@@ -44,7 +53,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaComDono())),
+          repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaComDonoSozinho())),
           repositorioGestaoCasaProvider.overrideWithValue(gestao),
         ],
         child: MaterialApp(home: TelaGerenciarCasa(casaId: 'casa-1')),
@@ -82,5 +91,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(gestao.chamadas, ['removerMembro:m-bia']);
+  });
+
+  testWidgets(
+      'com 2 membros ativos, o botao de convidar fica desabilitado e mostra o aviso',
+      (tester) async {
+    final gestao = RepositorioGestaoCasaFake();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaComDono())),
+          repositorioGestaoCasaProvider.overrideWithValue(gestao),
+        ],
+        child: MaterialApp(home: TelaGerenciarCasa(casaId: 'casa-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final botao = tester.widget<FloatingActionButton>(
+      find.byKey(const Key('botao_convidar')),
+    );
+    expect(botao.onPressed, isNull);
+    expect(find.byKey(const Key('aviso_casa_cheia')), findsOneWidget);
   });
 }

@@ -98,6 +98,34 @@ describe("convidarMembro", () => {
     expect(pendente.exists).toBe(false);
   });
 
+  it("recusa convidar um terceiro membro quando a casa ja tem 2 pessoas", async () => {
+    await db
+      .collection("casas")
+      .doc("casa-5")
+      .set({
+        nome: "Casa",
+        donoEmail: "dono@example.com",
+        emailsAtivos: ["dono@example.com", "bia@example.com"],
+        membros: {
+          dono: { nome: "Dono", email: "dono@example.com", cor: "#111", ordem: 0 },
+          bia: { nome: "Bia", email: "bia@example.com", cor: "#222", ordem: 1 },
+        },
+      });
+
+    await expect(
+      convidarMembro.run({
+        data: { casaId: "casa-5", email: "terceiro@example.com", nome: "Z" },
+        auth: auth("dono@example.com"),
+      } as any),
+    ).rejects.toThrow();
+
+    const indice = await db
+      .collection("indiceEmail")
+      .doc("terceiro@example.com")
+      .get();
+    expect(indice.exists).toBe(false);
+  });
+
   it("recusa convidar email que ja pertence a outra casa", async () => {
     await criarCasaDireto("casa-3", "dono@example.com");
     await db
