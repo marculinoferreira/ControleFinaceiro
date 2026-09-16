@@ -93,7 +93,11 @@ class _SeletorVisao extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (membros.isEmpty) return const SizedBox.shrink();
+    // Com um so integrante ativo na casa, "Marcos" e "Casal" seriam a mesma
+    // coisa -- o seletor todo some, nao so um dos dois.
+    if (membros.where((m) => m.removidoEm == null).length <= 1) {
+      return const SizedBox.shrink();
+    }
 
     final visao = ref.watch(visaoProvider);
     final valida =

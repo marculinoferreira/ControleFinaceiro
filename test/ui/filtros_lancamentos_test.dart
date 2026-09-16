@@ -176,6 +176,26 @@ void main() {
           findsOneWidget);
     });
 
+    testWidgets(
+        'com um so membro ativo, a pilula Pessoa some e as outras ficam',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: FiltrosLancamentos(
+              membros: [membros[0]],
+              potes: potes,
+              cartoes: cartoes,
+            ),
+          ),
+        ),
+      ));
+
+      expect(find.byKey(const Key('filtro_membro')), findsNothing);
+      expect(find.byKey(const Key('filtro_cartao')), findsOneWidget);
+      expect(find.byKey(const Key('filtro_pote')), findsOneWidget);
+    });
+
     testWidgets('pilula Cartao mostra "Sem cartão" quando selecionado',
         (tester) async {
       final container = ProviderContainer();

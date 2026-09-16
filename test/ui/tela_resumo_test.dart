@@ -344,6 +344,43 @@ void main() {
           .toList();
       expect(barras.every((b) => b.value == 0), isTrue);
     });
+
+    testWidgets('com um so membro ativo nao mostra o seletor', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const casaSolo = Casa(
+        id: 'principal',
+        nome: 'Casa',
+        membros: [
+          Membro(
+              id: 'marcos',
+              nome: 'Marcos',
+              email: 'm@x.com',
+              cor: '#2E7D32',
+              ordem: 0),
+        ],
+      );
+
+      final container = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaSolo)),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: TelaResumo()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('resumo_visao')), findsNothing);
+      expect(find.text('Casal'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('estados assincronos', () {

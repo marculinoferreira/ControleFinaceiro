@@ -249,6 +249,43 @@ void main() {
       expect(find.byKey(const Key('graficos_visao')), findsNothing);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('com um so membro ativo nao mostra o seletor', (tester) async {
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const casaSolo = Casa(
+        id: 'principal',
+        nome: 'Casa',
+        membros: [
+          Membro(
+              id: 'marcos',
+              nome: 'Marcos',
+              email: 'm@x.com',
+              cor: '#2E7D32',
+              ordem: 0),
+        ],
+      );
+
+      final container = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaSolo)),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake()),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: TelaGraficos())),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('graficos_visao')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('mes sem nada', () {

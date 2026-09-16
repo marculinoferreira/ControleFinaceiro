@@ -197,6 +197,13 @@ class FiltrosLancamentos extends ConsumerWidget {
     final membroId = ref.watch(visaoProvider);
     final poteId = ref.watch(filtroPoteProvider);
     final cartaoId = ref.watch(filtroCartaoProvider);
+    // Com um so integrante ativo na casa, filtrar "de quem" nao tem sentido
+    // -- so tem uma resposta possivel. Cartao e pote continuam, esses fazem
+    // sentido mesmo sozinho. Conta em cima de `membros` (o que a tela ja
+    // decidiu oferecer), nao um provider a parte, pra nao poder discordar
+    // de quem a pilula realmente lista.
+    final maisDeUmMembroAtivo =
+        membros.where((m) => m.removidoEm == null).length > 1;
 
     // Coage para null quando o filtro aponta para um id que sumiu da lista
     // (a outra pessoa apagou o membro/pote/cartao enquanto esta aba estava
@@ -261,8 +268,10 @@ class FiltrosLancamentos extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       child: Row(
         children: [
-          Expanded(child: pessoa),
-          const SizedBox(width: 8),
+          if (maisDeUmMembroAtivo) ...[
+            Expanded(child: pessoa),
+            const SizedBox(width: 8),
+          ],
           Expanded(child: cartao),
           const SizedBox(width: 8),
           Expanded(child: pote),
