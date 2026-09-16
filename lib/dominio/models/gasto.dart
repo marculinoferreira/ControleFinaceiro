@@ -12,10 +12,10 @@ class Gasto {
   /// Dia em que o gasto aconteceu, que nao e o mesmo que [criadoEm] (quando
   /// o lancamento foi digitado). Usada para agrupar e ordenar a lista.
   ///
-  /// **Nao decide o mes do orcamento.** Quem decide e [mesRef], que vem do
-  /// mes selecionado na tela: um gasto datado de 31/07 lancado em agosto
-  /// conta em agosto. A data serve para a pessoa se localizar, nao para
-  /// mover dinheiro entre meses.
+  /// **Nao decide o mes do orcamento.** Quem decide e [mesRef]: no momento
+  /// do lancamento (ver `calcularMesDoGasto`), ou o mes selecionado na tela
+  /// quando nao ha como calcular. A data serve para a pessoa se localizar,
+  /// nao para mover dinheiro entre meses.
   final DateTime data;
 
   final bool parcelado;
@@ -23,6 +23,12 @@ class Gasto {
   /// Por onde o dinheiro saiu. Nulo quando foi dinheiro, pix ou debito —
   /// nem todo gasto passa por um cartao, entao o campo e opcional.
   final String? cartaoId;
+
+  /// Marca que, apesar de ter [cartaoId], a compra foi no pix/debito da
+  /// conta ligada ao cartao, nao no credito -- o dinheiro ja saiu, entao
+  /// [mesRef] conta no mes da compra, nunca no mes do fechamento da fatura.
+  /// Sem sentido quando [cartaoId] e nulo.
+  final bool pixDebito;
 
   final String? compraId;
   final int? parcela;
@@ -41,6 +47,7 @@ class Gasto {
     // campo existir tem de mais proximo do dia da compra.
     DateTime? data,
     this.cartaoId,
+    this.pixDebito = false,
     this.compraId,
     this.parcela,
     this.totalParcelas,
@@ -57,6 +64,7 @@ class Gasto {
         data: mapa['data'] == null ? null : _lerData(mapa['data']),
         parcelado: mapa['parcelado'] as bool? ?? false,
         cartaoId: mapa['cartaoId'] as String?,
+        pixDebito: mapa['pixDebito'] as bool? ?? false,
         compraId: mapa['compraId'] as String?,
         parcela: (mapa['parcela'] as num?)?.toInt(),
         totalParcelas: (mapa['totalParcelas'] as num?)?.toInt(),
@@ -72,6 +80,7 @@ class Gasto {
         'data': data,
         'parcelado': parcelado,
         'cartaoId': cartaoId,
+        'pixDebito': pixDebito,
         'compraId': compraId,
         'parcela': parcela,
         'totalParcelas': totalParcelas,
@@ -94,6 +103,7 @@ class Gasto {
     DateTime? data,
     bool? parcelado,
     String? cartaoId,
+    bool? pixDebito,
     String? compraId,
     int? parcela,
     int? totalParcelas,
@@ -109,6 +119,7 @@ class Gasto {
         data: data ?? this.data,
         parcelado: parcelado ?? this.parcelado,
         cartaoId: cartaoId ?? this.cartaoId,
+        pixDebito: pixDebito ?? this.pixDebito,
         compraId: compraId ?? this.compraId,
         parcela: parcela ?? this.parcela,
         totalParcelas: totalParcelas ?? this.totalParcelas,

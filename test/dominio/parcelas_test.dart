@@ -3,7 +3,12 @@ import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/parcelas.dart';
 
-Gasto gastoBase({String mesRef = '2026-08', double valor = 100}) => Gasto(
+Gasto gastoBase({
+  String mesRef = '2026-08',
+  double valor = 100,
+  bool pixDebito = false,
+}) =>
+    Gasto(
       id: '',
       mesRef: mesRef,
       membroId: 'marcos',
@@ -11,6 +16,7 @@ Gasto gastoBase({String mesRef = '2026-08', double valor = 100}) => Gasto(
       descricao: 'Geladeira',
       valor: valor,
       criadoEm: DateTime.utc(2026, 8, 5),
+      pixDebito: pixDebito,
       parcelado: false,
     );
 
@@ -64,6 +70,26 @@ void main() {
           base: gastoBase(valor: 100), quantidade: 10, compraId: 'c1');
 
       expect(ps.every((g) => g.valor == 100), isTrue);
+    });
+
+    test('todas as parcelas herdam o pixDebito do base', () {
+      final ps = gerarParcelas(
+        base: gastoBase(pixDebito: true),
+        quantidade: 10,
+        compraId: 'c1',
+      );
+
+      expect(ps.every((g) => g.pixDebito), isTrue);
+    });
+
+    test('quantidade 1 tambem herda o pixDebito do base', () {
+      final ps = gerarParcelas(
+        base: gastoBase(pixDebito: true),
+        quantidade: 1,
+        compraId: 'c1',
+      );
+
+      expect(ps.single.pixDebito, isTrue);
     });
 
     test('quantidade 1 devolve um gasto simples, nao parcelado', () {

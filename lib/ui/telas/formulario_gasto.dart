@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dominio/cascata.dart';
+import '../../dominio/mes_do_gasto.dart';
 import '../../dominio/models/gasto.dart';
 import '../../dominio/models/cartao.dart';
 import '../../dominio/models/membro.dart';
@@ -117,6 +118,12 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
   late bool _parcelado;
   late DateTime _data;
   String? _cartaoId;
+  late bool _pixDebito;
+
+  /// O dia de vencimento que EU cadastrei para [_cartaoId] (nunca o de
+  /// outro integrante). Null enquanto carrega, ou quando ninguem cadastrou
+  /// nenhum, ou quando nao ha cartao selecionado.
+  int? _diaVencimento;
 
   /// Guarda de reentrancia: sem ela, dois toques rapidos no Salvar antes do
   /// primeiro pop surtir efeito na arvore de widgets chamariam validate() e
@@ -139,6 +146,8 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     _parcelado = g?.parcelado ?? false;
     _data = g?.data ?? _hoje();
     _cartaoId = g?.cartaoId;
+    _pixDebito = g?.pixDebito ?? false;
+    _buscarVencimento(_cartaoId);
     // O preview le _valor.text direto no build: sem este listener, digitar
     // um novo valor depois de ligar "Parcelado" nao teria efeito ate algum
     // outro campo forcar um rebuild.
@@ -147,6 +156,23 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
 
   void _aoMudarValor() {
     if (mounted) setState(() {});
+  }
+
+  /// So usado pra sugerir o mes de um gasto NOVO (ver `_salvar`) -- editar
+  /// nunca move um lancamento de mes sozinho, entao o resultado so importa
+  /// enquanto `widget.existente` e nulo.
+  Future<void> _buscarVencimento(String? cartaoId) async {
+    if (cartaoId == null) {
+      if (mounted) setState(() => _diaVencimento = null);
+      return;
+    }
+    final membroId = ref.read(membroLogadoProvider)?.id;
+    final dia = membroId == null
+        ? null
+        : await ref
+            .read(repositorioCartoesProvider)
+            .meuVencimento(cartaoId, membroId);
+    if (mounted) setState(() => _diaVencimento = dia);
   }
 
   /// Sempre a data real de hoje, mesmo lancando num mes que nao e o corrente
@@ -200,6 +226,20 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     return MesRef.parse(g.mesRef).avancar(-((g.parcela ?? 1) - 1));
   }
 
+  /// Nulo com cartao selecionado quer dizer "PIX/debito nao se aplica sem
+  /// cartao" -- so conta quando ha, de fato, um cartao escolhido.
+  bool get _pixDebitoEfetivo => _cartaoId != null && _pixDebito;
+
+  /// Em qual mes um gasto NOVO cai, dado o cartao/PIX escolhidos agora.
+  /// Editar nunca recalcula: mes e aritmetica de quando o gasto nasceu, nao
+  /// algo que uma edicao reabre (mesmo comentario de `_valorMudou`).
+  MesRef _mesCalculado(MesRef mesSelecionado) => calcularMesDoGasto(
+        hoje: DateTime.now(),
+        pixDebito: _pixDebitoEfetivo,
+        diaVencimento: _diaVencimento,
+        mesSelecionado: mesSelecionado,
+      );
+
   void _salvar() {
     if (_salvando) return;
     if (!_chave.currentState!.validate()) return;
@@ -209,7 +249,7 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     final base = widget.existente;
     final gasto = Gasto(
       id: base?.id ?? '',
-      mesRef: base?.mesRef ?? mes.valor,
+      mesRef: base?.mesRef ?? _mesCalculado(mes).valor,
       membroId: _membroId,
       poteId: _poteId ?? '',
       descricao: _descricao.text.trim(),
@@ -217,6 +257,7 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
       criadoEm: base?.criadoEm ?? DateTime.now(),
       data: _data,
       cartaoId: _cartaoId,
+      pixDebito: _pixDebitoEfetivo,
       parcelado: base?.parcelado ?? false,
       compraId: base?.compraId,
       parcela: base?.parcela,
@@ -407,8 +448,39 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
               for (final c in cartoes)
                 DropdownMenuItem(value: c.id, child: Text(c.nome)),
             ],
-            onChanged: (v) => setState(() => _cartaoId = v),
+            onChanged: (v) {
+              setState(() {
+                _cartaoId = v;
+                _pixDebito = false;
+              });
+              _buscarVencimento(v);
+            },
           ),
+          if (_cartaoId != null) ...[
+            const SizedBox(height: 4),
+            CheckboxListTile(
+              key: const Key('gasto_pix_debito'),
+              value: _pixDebito,
+              onChanged: (v) => setState(() => _pixDebito = v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('PIX/DEB'),
+              subtitle: const Text(
+                'Não foi no crédito -- conta no mês de hoje, não no '
+                'fechamento do cartão.',
+              ),
+            ),
+            if (widget.existente == null) ...[
+              const SizedBox(height: 4),
+              Text(
+                key: const Key('gasto_mes_previsto'),
+                'Este gasto entra no orçamento de '
+                '${_mesCalculado(mes).formatarExtenso()}.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
           const SizedBox(height: 12),
           CampoMoeda(
             key: const Key('gasto_valor'),

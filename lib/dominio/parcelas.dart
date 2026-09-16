@@ -32,6 +32,7 @@ List<Gasto> gerarParcelas({
         criadoEm: base.criadoEm,
         data: base.data,
         cartaoId: base.cartaoId,
+        pixDebito: base.pixDebito,
         parcelado: false,
       ),
     ];
@@ -50,6 +51,7 @@ List<Gasto> gerarParcelas({
       // parcela 3 de uma compra de 31/01 vence em marco, nao em janeiro.
       data: avancarMesesNoDia(base.data, i),
       cartaoId: base.cartaoId,
+      pixDebito: base.pixDebito,
       parcelado: true,
       compraId: compraId,
       parcela: i + 1,
@@ -210,10 +212,10 @@ class PlanoEdicaoCompra {
 
 /// Planeja a edicao de uma parcela de [editado] sobre a compra inteira.
 ///
-/// Descricao, pessoa, pote, cartao e data sao atributos da **compra**: mudam em
-/// todas as parcelas, sempre, sem perguntar. Corrigir o nome de uma compra
-/// deixando as outras onze parcelas com o nome errado nunca e o que se quis
-/// fazer.
+/// Descricao, pessoa, pote, cartao, pix/debito e data sao atributos da
+/// **compra**: mudam em todas as parcelas, sempre, sem perguntar. Corrigir o
+/// nome de uma compra deixando as outras onze parcelas com o nome errado
+/// nunca e o que se quis fazer.
 ///
 /// A data propaga de um jeito proprio: o DIA vale para a compra inteira, mas
 /// cada parcela fica no seu proprio mes. Trocar a data da parcela 3 para
@@ -293,6 +295,7 @@ PlanoEdicaoCompra planejarEdicaoCompra({
       membroId: editado.membroId,
       poteId: editado.poteId,
       cartaoId: editado.cartaoId,
+      pixDebito: editado.pixDebito,
       totalParcelas: novaQuantidade,
       // O deslocamento e relativo a parcela editada, entao ela mesma recebe
       // a data digitada sem alteracao.
@@ -319,6 +322,7 @@ PlanoEdicaoCompra planejarEdicaoCompra({
         // nesta mesma edicao, a parcela nova precisa nascer ja alinhada.
         data: avancarMesesNoDia(editado.data, k - editado.parcela!),
         cartaoId: editado.cartaoId,
+        pixDebito: editado.pixDebito,
         parcelado: true,
         compraId: compraId,
         parcela: k,

@@ -10,6 +10,7 @@ import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
+import 'package:controle_financeiro/dados/servico_auth.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/telas/formulario_gasto.dart';
 import 'package:controle_financeiro/ui/tema/formatadores.dart';
@@ -102,6 +103,7 @@ Future<RepositorioGastosFake> montar(
   WidgetTester tester, {
   Gasto? existente,
   RepositorioGastosFake? comRepo,
+  RepositorioCartoesFake? comCartoes,
   MesRef mes = const MesRef(2026, 8),
   String? poteIdInicial,
   Casa comCasa = casa,
@@ -111,16 +113,20 @@ Future<RepositorioGastosFake> montar(
   addTearDown(tester.view.reset);
 
   final repo = comRepo ?? RepositorioGastosFake();
+  final auth = AuthFake()..entrar(email: 'm@x.com', senha: 'x');
   final container = ProviderContainer(overrides: [
+    servicoAuthProvider.overrideWithValue(auth),
     repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(comCasa)),
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
-    repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake(cartoes)),
+    repositorioCartoesProvider
+        .overrideWithValue(comCartoes ?? RepositorioCartoesFake(cartoes)),
     repositorioGastosProvider.overrideWithValue(repo),
   ]);
   addTearDown(container.dispose);
   container.read(mesSelecionadoProvider.notifier).irPara(mes);
   container.listen(potesProvider, (_, _) {});
   container.listen(casaProvider, (_, _) {});
+  container.listen(emailLogadoProvider, (_, _) {});
 
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
@@ -806,6 +812,151 @@ void main() {
       // Coage para "Nenhum" em vez de derrubar o assert do DropdownButton.
       expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('gasto_cartao')), findsOneWidget);
+    });
+  });
+
+  group('PIX/DEB e mes automatico do cartao', () {
+    testWidgets('so aparece com um cartao selecionado', (tester) async {
+      await montar(tester);
+
+      expect(find.byKey(const Key('gasto_pix_debito')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank').last);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('gasto_pix_debito')), findsOneWidget);
+    });
+
+    testWidgets(
+        'marcar PIX/DEB grava no mes de hoje, mesmo com outro mes selecionado',
+        (tester) async {
+      final hoje = DateTime.now();
+      final repo = RepositorioGastosFake();
+      // Mes bem longe de hoje: se o calculo usasse o mes selecionado por
+      // engano, o teste pegaria isso.
+      await montar(
+        tester,
+        comRepo: repo,
+        mes: MesRef(hoje.year - 1, 1),
+      );
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('gasto_pix_debito')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Farmacia');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '5000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.mesRef, MesRef.deDateTime(hoje).valor);
+      expect(repo.todos.single.pixDebito, isTrue);
+    });
+
+    testWidgets(
+        'credito sem vencimento cadastrado no cartao usa o mes selecionado',
+        (tester) async {
+      final repo = RepositorioGastosFake();
+      await montar(tester, comRepo: repo, mes: const MesRef(2026, 3));
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Farmacia');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '5000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.mesRef, '2026-03');
+      expect(repo.todos.single.pixDebito, isFalse);
+    });
+
+    testWidgets(
+        'credito com vencimento cadastrado e ja fechado usa o mes que vem',
+        (tester) async {
+      final hoje = DateTime.now();
+      // Vencimento ontem: qualquer que seja o dia de hoje, ja fechou.
+      final diaJaFechado = hoje.day == 1 ? 1 : hoje.day - 1;
+      final cartoesFake = RepositorioCartoesFake(cartoes);
+      await cartoesFake.definirMeuVencimento('ct1', 'marcos', diaJaFechado);
+
+      final repo = RepositorioGastosFake();
+      await montar(
+        tester,
+        comRepo: repo,
+        comCartoes: cartoesFake,
+        mes: MesRef(hoje.year - 1, 1),
+      );
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank').last);
+      await tester.pumpAndSettle();
+
+      final mesEsperado = MesRef.deDateTime(hoje).avancar(1);
+      expect(
+        find.text('Este gasto entra no orçamento de '
+            '${mesEsperado.formatarExtenso()}.'),
+        findsOneWidget,
+      );
+
+      await tester.enterText(
+          find.byKey(const Key('gasto_descricao')), 'Farmacia');
+      await tester.enterText(find.byKey(const Key('gasto_valor')), '5000');
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.mesRef, mesEsperado.valor);
+    });
+
+    testWidgets('editar um gasto existente nunca recalcula o mes',
+        (tester) async {
+      final hoje = DateTime.now();
+      final diaJaFechado = hoje.day == 1 ? 1 : hoje.day - 1;
+      final cartoesFake = RepositorioCartoesFake(cartoes);
+      await cartoesFake.definirMeuVencimento('ct1', 'marcos', diaJaFechado);
+
+      final repo = RepositorioGastosFake();
+      await repo.adicionar(
+        base: Gasto(
+          id: '',
+          mesRef: '2026-08',
+          membroId: 'marcos',
+          poteId: 'p1',
+          descricao: 'Feira',
+          valor: 300,
+          criadoEm: DateTime.utc(2026, 8, 1),
+          cartaoId: 'ct1',
+          parcelado: false,
+        ),
+        quantidadeParcelas: 1,
+      );
+
+      await montar(
+        tester,
+        existente: repo.todos.single,
+        comRepo: repo,
+        comCartoes: cartoesFake,
+      );
+
+      // Marcar PIX/DEB numa edicao muda a etiqueta, mas nao move o gasto de
+      // mes -- mes e aritmetica de quando o gasto nasceu, nao de edicao.
+      await tester.tap(find.byKey(const Key('gasto_pix_debito')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('gasto_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.mesRef, '2026-08');
+      expect(repo.todos.single.pixDebito, isTrue);
     });
   });
 
