@@ -95,6 +95,15 @@ void main() {
       expect(find.text('Inter'), findsOneWidget);
     });
 
+    testWidgets('o nome do cartao aparece em negrito', (tester) async {
+      await montar(tester, iniciais: const [
+        Cartao(id: 'c1', nome: 'Nubank', ordem: 0),
+      ]);
+
+      final texto = tester.widget<Text>(find.text('Nubank'));
+      expect(texto.style?.fontWeight, FontWeight.bold);
+    });
+
     testWidgets('respeita a ordem cadastrada', (tester) async {
       await montar(tester, iniciais: const [
         Cartao(id: 'c1', nome: 'Nubank', ordem: 1),

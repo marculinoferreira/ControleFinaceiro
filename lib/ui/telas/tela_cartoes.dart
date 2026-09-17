@@ -58,6 +58,7 @@ class TelaCartoes extends ConsumerWidget {
                         _ => '',
                       },
                     ],
+                    tituloEmNegrito: true,
                     aoTocar: () => _abrir(context, ref, existente: c),
                     aoExcluir: () => _excluir(context, ref, c),
                     acaoTrailing: IconButton(

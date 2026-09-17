@@ -48,6 +48,11 @@ class LinhaResponsiva {
   /// (DataTable e card).
   final Widget? acaoTrailing;
 
+  /// Destaca o primeiro valor (o "nome" da linha) em negrito -- nas duas
+  /// formas (DataTable e card). `false` (o padrao) mantem o peso normal,
+  /// como sempre foi em todas as telas que ja usam esta tabela.
+  final bool tituloEmNegrito;
+
   const LinhaResponsiva({
     required this.chave,
     required this.valores,
@@ -59,6 +64,7 @@ class LinhaResponsiva {
     this.subtitulo,
     this.valorDestacado,
     this.acaoTrailing,
+    this.tituloEmNegrito = false,
   });
 }
 
@@ -133,6 +139,13 @@ class TabelaResponsiva extends StatelessWidget {
   List<LinhaResponsiva> get _todas =>
       [for (final g in grupos) ...g.linhas];
 
+  /// Negrito so no valor 0 (o "nome" da linha) de quem pediu -- as outras
+  /// colunas, e quem nao pediu negrito nenhum, ficam com o peso padrao.
+  TextStyle? _estiloDoValor(int indice, LinhaResponsiva l) =>
+      indice == 0 && l.tituloEmNegrito
+          ? const TextStyle(fontWeight: FontWeight.bold)
+          : null;
+
   bool get _temAcoes =>
       _todas.any((l) => l.aoExcluir != null || l.acaoTrailing != null);
 
@@ -188,12 +201,12 @@ class TabelaResponsiva extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(v),
+                                Text(v, style: _estiloDoValor(i, l)),
                                 const SizedBox(height: 4),
                                 SizedBox(width: 160, child: l.indicador),
                               ],
                             )
-                          : Text(v),
+                          : Text(v, style: _estiloDoValor(i, l)),
                     ),
                   if (_temAcoes)
                     DataCell(
@@ -413,6 +426,7 @@ class TabelaResponsiva extends StatelessWidget {
                       child: Text(
                         l.valores.first,
                         overflow: TextOverflow.ellipsis,
+                        style: _estiloDoValor(0, l),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -424,7 +438,7 @@ class TabelaResponsiva extends StatelessWidget {
                     ),
                   ],
                 )
-              : Text(l.valores.first),
+              : Text(l.valores.first, style: _estiloDoValor(0, l)),
           subtitle: subtituloWidget != null || l.indicador != null
               ? Column(
                   mainAxisSize: MainAxisSize.min,
