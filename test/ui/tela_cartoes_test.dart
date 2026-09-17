@@ -234,6 +234,36 @@ void main() {
       expect(find.text('Dia 15'), findsOneWidget);
     });
 
+    testWidgets('no dialogo, o dia ja cadastrado aparece destacado com cor',
+        (tester) async {
+      final fake = RepositorioCartoesFake(const [
+        Cartao(id: 'c1', nome: 'Inter', ordem: 0),
+      ]);
+      await fake.definirMeuFechamento('c1', _meuMembroId, 15);
+      await montar(tester, repo: fake);
+
+      await tester.tap(find.text('Inter'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('cartao_fechamento')));
+      await tester.pumpAndSettle();
+
+      final container15 = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(const Key('dia_fechamento_15')),
+          matching: find.byType(Container),
+        ),
+      );
+      final container16 = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(const Key('dia_fechamento_16')),
+          matching: find.byType(Container),
+        ),
+      );
+
+      expect((container15.decoration as BoxDecoration?)?.color, isNotNull);
+      expect(container16.decoration, isNull);
+    });
+
     testWidgets('trocar o fechamento grava o novo dia', (tester) async {
       final fake = RepositorioCartoesFake(const [
         Cartao(id: 'c1', nome: 'Inter', ordem: 0),
@@ -309,6 +339,44 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(fake.fechamentoDe('c1', _meuMembroId), isNull);
+    });
+
+    testWidgets('define pelo atalho atualiza o texto na propria lista',
+        (tester) async {
+      final fake = RepositorioCartoesFake(const [
+        Cartao(id: 'c1', nome: 'Inter', ordem: 0),
+      ]);
+      await montar(tester, repo: fake);
+
+      expect(find.textContaining('Fechamento dia'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('fechamento_rapido_c1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dia_fechamento_10')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fechamento dia 10'), findsOneWidget);
+    });
+
+    testWidgets('sem fechamento cadastrado nao mostra o texto na lista',
+        (tester) async {
+      final fake = RepositorioCartoesFake(const [
+        Cartao(id: 'c1', nome: 'Inter', ordem: 0),
+      ]);
+      await montar(tester, repo: fake);
+
+      expect(find.textContaining('Fechamento dia'), findsNothing);
+    });
+
+    testWidgets('ja cadastrado, a lista mostra o texto ao abrir a tela',
+        (tester) async {
+      final fake = RepositorioCartoesFake(const [
+        Cartao(id: 'c1', nome: 'Inter', ordem: 0),
+      ]);
+      await fake.definirMeuFechamento('c1', _meuMembroId, 20);
+      await montar(tester, repo: fake);
+
+      expect(find.text('Fechamento dia 20'), findsOneWidget);
     });
   });
 

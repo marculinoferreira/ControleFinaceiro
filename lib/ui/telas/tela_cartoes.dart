@@ -10,6 +10,18 @@ import '../widgets/formulario_responsivo.dart';
 import '../widgets/primeira_maiuscula.dart';
 import '../widgets/tabela_responsiva.dart';
 
+/// O MEU dia de fechamento deste cartao, pra mostrar na propria lista sem
+/// precisar abrir o dialogo. Igual ao repositorio, so o dia de quem esta
+/// logado -- nunca o de outro integrante.
+final _meuFechamentoDaListaProvider =
+    FutureProvider.family<int?, String>((ref, cartaoId) {
+  final membroId = ref.watch(membroLogadoProvider)?.id;
+  if (membroId == null) return Future.value(null);
+  return ref
+      .watch(repositorioCartoesProvider)
+      .meuFechamento(cartaoId, membroId);
+});
+
 /// Cadastro dos cartoes, contas e carteiras usados para pagar.
 ///
 /// CRUD simples, sem a trava de soma que a Lei dos Potes tem: nao ha
@@ -33,13 +45,19 @@ class TelaCartoes extends ConsumerWidget {
               aoRecarregar: () => ref.invalidate(cartoesProvider),
             ),
             data: (cartoes) => TabelaResponsiva(
-              colunas: const ['Cartão'],
+              colunas: const ['Cartão', 'Fechamento'],
               vazio: 'Nenhum cartão cadastrado.',
               linhas: [
                 for (final c in cartoes)
                   LinhaResponsiva(
                     chave: ValueKey('cartao_${c.id}'),
-                    valores: [c.nome],
+                    valores: [
+                      c.nome,
+                      switch (ref.watch(_meuFechamentoDaListaProvider(c.id))) {
+                        AsyncData(value: final dia?) => 'Fechamento dia $dia',
+                        _ => '',
+                      },
+                    ],
                     aoTocar: () => _abrir(context, ref, existente: c),
                     aoExcluir: () => _excluir(context, ref, c),
                     acaoTrailing: IconButton(
@@ -102,6 +120,7 @@ class TelaCartoes extends ConsumerWidget {
         } else {
           await repo.removerMeuFechamento(cartaoId, membroId);
         }
+        ref.invalidate(_meuFechamentoDaListaProvider(cartaoId));
       }
     } catch (e) {
       if (!context.mounted) return;
@@ -133,6 +152,7 @@ class TelaCartoes extends ConsumerWidget {
       } else {
         await repo.definirMeuFechamento(cartao.id, membroId, resultado);
       }
+      ref.invalidate(_meuFechamentoDaListaProvider(cartao.id));
     } catch (e) {
       if (!context.mounted) return;
       avisarErroDeEscrita(context, e);
@@ -217,12 +237,28 @@ Future<int?> _escolherDiaFechamento(BuildContext context, int? atual) {
                   InkWell(
                     key: Key('dia_fechamento_$dia'),
                     onTap: () => Navigator.of(dialogo).pop(dia),
+                    customBorder: const CircleBorder(),
                     child: Center(
-                      child: Text(
-                        '$dia',
-                        style: dia == atual
-                            ? const TextStyle(fontWeight: FontWeight.bold)
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: dia == atual
+                            ? BoxDecoration(
+                                color: Theme.of(dialogo).colorScheme.primary,
+                                shape: BoxShape.circle,
+                              )
                             : null,
+                        child: Text(
+                          '$dia',
+                          style: dia == atual
+                              ? TextStyle(
+                                  color:
+                                      Theme.of(dialogo).colorScheme.onPrimary,
+                                  fontWeight: FontWeight.bold,
+                                )
+                              : null,
+                        ),
                       ),
                     ),
                   ),
