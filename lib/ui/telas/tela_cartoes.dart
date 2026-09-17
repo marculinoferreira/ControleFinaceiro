@@ -45,27 +45,39 @@ class TelaCartoes extends ConsumerWidget {
               aoRecarregar: () => ref.invalidate(cartoesProvider),
             ),
             data: (cartoes) => TabelaResponsiva(
-              colunas: const ['Cartão', 'Fechamento'],
+              colunas: const ['Cartão'],
               vazio: 'Nenhum cartão cadastrado.',
               linhas: [
                 for (final c in cartoes)
                   LinhaResponsiva(
                     chave: ValueKey('cartao_${c.id}'),
-                    valores: [
-                      c.nome,
-                      switch (ref.watch(_meuFechamentoDaListaProvider(c.id))) {
-                        AsyncData(value: final dia?) => 'Fechamento dia $dia',
-                        _ => '',
-                      },
-                    ],
+                    valores: [c.nome],
                     tituloEmNegrito: true,
                     aoTocar: () => _abrir(context, ref, existente: c),
                     aoExcluir: () => _excluir(context, ref, c),
-                    acaoTrailing: IconButton(
-                      key: Key('fechamento_rapido_${c.id}'),
-                      icon: const Icon(Icons.calendar_today, size: 20),
-                      tooltip: 'Meu dia de fechamento',
-                      onPressed: () => _definirFechamentoRapido(context, ref, c),
+                    // Texto e icone juntos, colados um no outro -- nao como
+                    // colunas separadas, que o DataTable espacaria longe um
+                    // do outro.
+                    acaoTrailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (ref.watch(_meuFechamentoDaListaProvider(c.id)).value
+                            case final dia?)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Text(
+                              'Fechamento dia $dia',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        IconButton(
+                          key: Key('fechamento_rapido_${c.id}'),
+                          icon: const Icon(Icons.calendar_today, size: 20),
+                          tooltip: 'Meu dia de fechamento',
+                          onPressed: () =>
+                              _definirFechamentoRapido(context, ref, c),
+                        ),
+                      ],
                     ),
                   ),
               ],
