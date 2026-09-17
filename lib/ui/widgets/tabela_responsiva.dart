@@ -41,6 +41,13 @@ class LinhaResponsiva {
   /// continua dentro do subtitulo auto-gerado, como sempre foi.
   final String? valorDestacado;
 
+  /// Acao extra no canto direito da linha (ex.: o icone de calendario dos
+  /// Cartoes, pra editar o dia de fechamento sem abrir o dialogo inteiro).
+  /// Diferente de [aoExcluir] (que vira o gesto de arrastar no mobile),
+  /// esta aparece como um botao visivel de verdade, nas duas formas
+  /// (DataTable e card).
+  final Widget? acaoTrailing;
+
   const LinhaResponsiva({
     required this.chave,
     required this.valores,
@@ -51,6 +58,7 @@ class LinhaResponsiva {
     this.corIconePrincipal,
     this.subtitulo,
     this.valorDestacado,
+    this.acaoTrailing,
   });
 }
 
@@ -125,7 +133,8 @@ class TabelaResponsiva extends StatelessWidget {
   List<LinhaResponsiva> get _todas =>
       [for (final g in grupos) ...g.linhas];
 
-  bool get _temAcoes => _todas.any((l) => l.aoExcluir != null);
+  bool get _temAcoes =>
+      _todas.any((l) => l.aoExcluir != null || l.acaoTrailing != null);
 
   /// Quando a segunda coluna e "Data" (Gastos, Parcelas), o card do mobile
   /// mostra a data ao lado do nome, no titulo, em vez de so no subtitulo --
@@ -188,13 +197,18 @@ class TabelaResponsiva extends StatelessWidget {
                     ),
                   if (_temAcoes)
                     DataCell(
-                      l.aoExcluir == null
-                          ? const SizedBox.shrink()
-                          : IconButton(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (l.acaoTrailing != null) l.acaoTrailing!,
+                          if (l.aoExcluir != null)
+                            IconButton(
                               icon: const Icon(Icons.delete_outline),
                               tooltip: 'Excluir',
                               onPressed: () => l.aoExcluir!(),
                             ),
+                        ],
+                      ),
                     ),
                 ],
                 ),
@@ -424,14 +438,21 @@ class TabelaResponsiva extends StatelessWidget {
                   ],
                 )
               : null,
-          trailing: l.valorDestacado == null
+          trailing: l.valorDestacado == null && l.acaoTrailing == null
               ? null
-              : Text(
-                  l.valorDestacado!,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (l.valorDestacado != null)
+                      Text(
+                        l.valorDestacado!,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    if (l.acaoTrailing != null) l.acaoTrailing!,
+                  ],
                 ),
           onTap: l.aoTocar,
         );

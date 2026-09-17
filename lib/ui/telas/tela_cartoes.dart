@@ -42,6 +42,12 @@ class TelaCartoes extends ConsumerWidget {
                     valores: [c.nome],
                     aoTocar: () => _abrir(context, ref, existente: c),
                     aoExcluir: () => _excluir(context, ref, c),
+                    acaoTrailing: IconButton(
+                      key: Key('fechamento_rapido_${c.id}'),
+                      icon: const Icon(Icons.calendar_today, size: 20),
+                      tooltip: 'Meu dia de fechamento',
+                      onPressed: () => _definirFechamentoRapido(context, ref, c),
+                    ),
                   ),
               ],
             ),
@@ -96,6 +102,36 @@ class TelaCartoes extends ConsumerWidget {
         } else {
           await repo.removerMeuFechamento(cartaoId, membroId);
         }
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      avisarErroDeEscrita(context, e);
+    }
+  }
+
+  /// Atalho da lista: define/troca/remove o MEU dia de fechamento direto,
+  /// sem abrir o dialogo inteiro de editar cartao (que tambem deixa
+  /// renomear). O icone de calendario na linha e so pra isto.
+  Future<void> _definirFechamentoRapido(
+    BuildContext context,
+    WidgetRef ref,
+    Cartao cartao,
+  ) async {
+    final membroId = ref.read(membroLogadoProvider)?.id;
+    if (membroId == null) return;
+
+    final repo = ref.read(repositorioCartoesProvider);
+    final atual = await repo.meuFechamento(cartao.id, membroId);
+    if (!context.mounted) return;
+
+    final resultado = await _escolherDiaFechamento(context, atual);
+    if (resultado == null) return;
+
+    try {
+      if (resultado == _semFechamento) {
+        await repo.removerMeuFechamento(cartao.id, membroId);
+      } else {
+        await repo.definirMeuFechamento(cartao.id, membroId, resultado);
       }
     } catch (e) {
       if (!context.mounted) return;
@@ -158,6 +194,56 @@ class _FormularioCartao extends StatefulWidget {
 /// null a partir do proprio Navigator.pop() sem argumento).
 const _semFechamento = 0;
 
+/// Grade de 1 a 31 num dialogo, em vez de digitar o numero: um dia do mes
+/// nao tem ano nem mes pra escolher, so o calendario "encolhido" faz
+/// sentido aqui. Compartilhado pelo formulario de editar cartao e pelo
+/// atalho de calendario na lista (`_definirFechamentoRapido`).
+Future<int?> _escolherDiaFechamento(BuildContext context, int? atual) {
+  return showDialog<int>(
+    context: context,
+    builder: (dialogo) => SimpleDialog(
+      title: const Text('Dia de fechamento'),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            width: 280,
+            child: GridView.count(
+              crossAxisCount: 7,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                for (var dia = 1; dia <= 31; dia++)
+                  InkWell(
+                    key: Key('dia_fechamento_$dia'),
+                    onTap: () => Navigator.of(dialogo).pop(dia),
+                    child: Center(
+                      child: Text(
+                        '$dia',
+                        style: dia == atual
+                            ? const TextStyle(fontWeight: FontWeight.bold)
+                            : null,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (atual != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextButton(
+              key: const Key('remover_fechamento'),
+              onPressed: () => Navigator.of(dialogo).pop(_semFechamento),
+              child: const Text('Remover dia cadastrado'),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
 class _FormularioCartaoState extends State<_FormularioCartao> {
   final _chave = GlobalKey<FormState>();
   late final TextEditingController _nome;
@@ -184,53 +270,8 @@ class _FormularioCartaoState extends State<_FormularioCartao> {
     Navigator.of(context).pop((_nome.text.trim(), _diaFechamento));
   }
 
-  /// Grade de 1 a 31 num dialogo, em vez de digitar o numero: um dia do mes
-  /// nao tem ano nem mes pra escolher, so o calendario "encolhido" faz
-  /// sentido aqui.
-  Future<void> _escolherDiaFechamento() async {
-    final resultado = await showDialog<int>(
-      context: context,
-      builder: (dialogo) => SimpleDialog(
-        title: const Text('Dia de fechamento'),
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              width: 280,
-              child: GridView.count(
-                crossAxisCount: 7,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  for (var dia = 1; dia <= 31; dia++)
-                    InkWell(
-                      key: Key('dia_fechamento_$dia'),
-                      onTap: () => Navigator.of(dialogo).pop(dia),
-                      child: Center(
-                        child: Text(
-                          '$dia',
-                          style: dia == _diaFechamento
-                              ? const TextStyle(fontWeight: FontWeight.bold)
-                              : null,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          if (_diaFechamento != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: TextButton(
-                key: const Key('remover_fechamento'),
-                onPressed: () => Navigator.of(dialogo).pop(_semFechamento),
-                child: const Text('Remover dia cadastrado'),
-              ),
-            ),
-        ],
-      ),
-    );
+  Future<void> _tocarCampoFechamento() async {
+    final resultado = await _escolherDiaFechamento(context, _diaFechamento);
     if (resultado == null) return;
     setState(
       () => _diaFechamento = resultado == _semFechamento ? null : resultado,
@@ -261,7 +302,7 @@ class _FormularioCartaoState extends State<_FormularioCartao> {
           const SizedBox(height: 20),
           InkWell(
             key: const Key('cartao_fechamento'),
-            onTap: _escolherDiaFechamento,
+            onTap: _tocarCampoFechamento,
             child: InputDecorator(
               decoration: const InputDecoration(
                 labelText: 'Meu dia de fechamento (opcional)',

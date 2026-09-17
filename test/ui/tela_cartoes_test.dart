@@ -274,6 +274,44 @@ void main() {
     });
   });
 
+  group('atalho de calendario na lista', () {
+    testWidgets('define o fechamento direto, sem abrir o dialogo de editar',
+        (tester) async {
+      final fake = RepositorioCartoesFake(const [
+        Cartao(id: 'c1', nome: 'Inter', ordem: 0),
+      ]);
+      await montar(tester, repo: fake);
+
+      await tester.tap(find.byKey(const Key('fechamento_rapido_c1')));
+      await tester.pumpAndSettle();
+
+      // O dialogo de editar (nome + botao Salvar) nao chegou a abrir.
+      expect(find.byKey(const Key('cartao_nome')), findsNothing);
+      expect(find.byKey(const Key('dia_fechamento_10')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('dia_fechamento_10')));
+      await tester.pumpAndSettle();
+
+      expect(fake.fechamentoDe('c1', _meuMembroId), 10);
+    });
+
+    testWidgets('remover pelo atalho apaga o fechamento cadastrado',
+        (tester) async {
+      final fake = RepositorioCartoesFake(const [
+        Cartao(id: 'c1', nome: 'Inter', ordem: 0),
+      ]);
+      await fake.definirMeuFechamento('c1', _meuMembroId, 15);
+      await montar(tester, repo: fake);
+
+      await tester.tap(find.byKey(const Key('fechamento_rapido_c1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('remover_fechamento')));
+      await tester.pumpAndSettle();
+
+      expect(fake.fechamentoDe('c1', _meuMembroId), isNull);
+    });
+  });
+
   group('exclusao', () {
     testWidgets('pede confirmacao e chama removerCartao no servidor',
         (tester) async {
