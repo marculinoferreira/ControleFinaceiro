@@ -107,8 +107,9 @@ Future<RepositorioGastosFake> montar(
   MesRef mes = const MesRef(2026, 8),
   String? poteIdInicial,
   Casa comCasa = casa,
+  Size tamanho = const Size(1400, 1200),
 }) async {
-  tester.view.physicalSize = const Size(1400, 1200);
+  tester.view.physicalSize = tamanho;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -830,6 +831,23 @@ void main() {
     });
 
     testWidgets(
+        'cartao e checkbox lado a lado nao estouram o layout num celular '
+        'estreito', (tester) async {
+      // Largura de celular real (bottom sheet, nao o dialogo de 420 do
+      // desktop): e onde um Row apertado entre dropdown e checkbox
+      // realmente aperta.
+      await montar(tester, tamanho: const Size(360, 800));
+
+      await tester.tap(find.byKey(const Key('gasto_cartao')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank').last);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('gasto_pix_debito')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
         'marcar PIX/DEB grava no mes de hoje, mesmo com outro mes selecionado',
         (tester) async {
       final hoje = DateTime.now();
@@ -860,7 +878,7 @@ void main() {
     });
 
     testWidgets(
-        'credito sem vencimento cadastrado no cartao usa o mes selecionado',
+        'credito sem fechamento cadastrado no cartao usa o mes selecionado',
         (tester) async {
       final repo = RepositorioGastosFake();
       await montar(tester, comRepo: repo, mes: const MesRef(2026, 3));
@@ -881,13 +899,13 @@ void main() {
     });
 
     testWidgets(
-        'credito com vencimento cadastrado e ja fechado usa o mes que vem',
+        'credito com fechamento cadastrado e ja fechado usa o mes que vem',
         (tester) async {
       final hoje = DateTime.now();
-      // Vencimento ontem: qualquer que seja o dia de hoje, ja fechou.
+      // Fechamento ontem: qualquer que seja o dia de hoje, ja fechou.
       final diaJaFechado = hoje.day == 1 ? 1 : hoje.day - 1;
       final cartoesFake = RepositorioCartoesFake(cartoes);
-      await cartoesFake.definirMeuVencimento('ct1', 'marcos', diaJaFechado);
+      await cartoesFake.definirMeuFechamento('ct1', 'marcos', diaJaFechado);
 
       final repo = RepositorioGastosFake();
       await montar(
@@ -923,7 +941,7 @@ void main() {
       final hoje = DateTime.now();
       final diaJaFechado = hoje.day == 1 ? 1 : hoje.day - 1;
       final cartoesFake = RepositorioCartoesFake(cartoes);
-      await cartoesFake.definirMeuVencimento('ct1', 'marcos', diaJaFechado);
+      await cartoesFake.definirMeuFechamento('ct1', 'marcos', diaJaFechado);
 
       final repo = RepositorioGastosFake();
       await repo.adicionar(

@@ -114,7 +114,7 @@ test("membro ativo le e escreve gastos da propria casa", async () => {
   );
 });
 
-test("cada pessoa le e escreve so o proprio vencimento de cartao", async () => {
+test("cada pessoa le e escreve so o proprio fechamento de cartao", async () => {
   await semearCasaComDoisMembros();
   const marcos = testEnv
     .authenticatedContext("uid-marcos", { email: "marcos@example.com" })
@@ -126,7 +126,7 @@ test("cada pessoa le e escreve so o proprio vencimento de cartao", async () => {
       .doc("casa-1")
       .collection("cartoes")
       .doc("cartao-1")
-      .collection("vencimentos")
+      .collection("fechamentos")
       .doc("membro-marcos")
       .set({ dia: 5 }),
   );
@@ -136,13 +136,13 @@ test("cada pessoa le e escreve so o proprio vencimento de cartao", async () => {
       .doc("casa-1")
       .collection("cartoes")
       .doc("cartao-1")
-      .collection("vencimentos")
+      .collection("fechamentos")
       .doc("membro-marcos")
       .get(),
   );
 });
 
-test("uma pessoa nao le nem escreve o vencimento de cartao de outra", async () => {
+test("uma pessoa nao le nem escreve o fechamento de cartao de outra", async () => {
   await semearCasaComDoisMembros();
   await testEnv.withSecurityRulesDisabled(async (contexto) => {
     await contexto
@@ -151,7 +151,7 @@ test("uma pessoa nao le nem escreve o vencimento de cartao de outra", async () =
       .doc("casa-1")
       .collection("cartoes")
       .doc("cartao-1")
-      .collection("vencimentos")
+      .collection("fechamentos")
       .doc("membro-silvia")
       .set({ dia: 15 });
   });
@@ -166,7 +166,7 @@ test("uma pessoa nao le nem escreve o vencimento de cartao de outra", async () =
       .doc("casa-1")
       .collection("cartoes")
       .doc("cartao-1")
-      .collection("vencimentos")
+      .collection("fechamentos")
       .doc("membro-silvia")
       .get(),
   );
@@ -176,7 +176,7 @@ test("uma pessoa nao le nem escreve o vencimento de cartao de outra", async () =
       .doc("casa-1")
       .collection("cartoes")
       .doc("cartao-1")
-      .collection("vencimentos")
+      .collection("fechamentos")
       .doc("membro-silvia")
       .set({ dia: 20 }),
   );

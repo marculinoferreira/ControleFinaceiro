@@ -39,9 +39,9 @@ abstract class RepositorioGestaoCasa {
   Future<void> sairDaCasa({required String casaId});
   Future<void> excluirCasa({required String casaId});
 
-  /// So funciona quando nenhum outro integrante tem um dia de vencimento
+  /// So funciona quando nenhum outro integrante tem um dia de fechamento
   /// cadastrado neste cartao -- o servidor e quem decide, porque o cliente
-  /// nunca consegue ver o vencimento de outra pessoa (ver firestore.rules).
+  /// nunca consegue ver o fechamento de outra pessoa (ver firestore.rules).
   Future<void> removerCartao({required String casaId, required String cartaoId});
 }
 

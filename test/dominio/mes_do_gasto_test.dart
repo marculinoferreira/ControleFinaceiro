@@ -8,18 +8,18 @@ void main() {
       final resultado = calcularMesDoGasto(
         hoje: DateTime(2026, 9, 20),
         pixDebito: true,
-        diaVencimento: 5,
+        diaFechamento: 5,
         mesSelecionado: const MesRef(2026, 3),
       );
 
       expect(resultado, const MesRef(2026, 9));
     });
 
-    test('credito sem vencimento cadastrado usa o mes selecionado na tela', () {
+    test('credito sem fechamento cadastrado usa o mes selecionado na tela', () {
       final resultado = calcularMesDoGasto(
         hoje: DateTime(2026, 9, 20),
         pixDebito: false,
-        diaVencimento: null,
+        diaFechamento: null,
         mesSelecionado: const MesRef(2026, 11),
       );
 
@@ -30,7 +30,7 @@ void main() {
       final resultado = calcularMesDoGasto(
         hoje: DateTime(2026, 9, 4),
         pixDebito: false,
-        diaVencimento: 5,
+        diaFechamento: 5,
         mesSelecionado: const MesRef(2026, 1),
       );
 
@@ -41,7 +41,7 @@ void main() {
       final resultado = calcularMesDoGasto(
         hoje: DateTime(2026, 9, 5),
         pixDebito: false,
-        diaVencimento: 5,
+        diaFechamento: 5,
         mesSelecionado: const MesRef(2026, 1),
       );
 
@@ -52,7 +52,7 @@ void main() {
       final resultado = calcularMesDoGasto(
         hoje: DateTime(2026, 9, 6),
         pixDebito: false,
-        diaVencimento: 5,
+        diaFechamento: 5,
         mesSelecionado: const MesRef(2026, 1),
       );
 
@@ -63,7 +63,7 @@ void main() {
       final resultado = calcularMesDoGasto(
         hoje: DateTime(2026, 12, 20),
         pixDebito: false,
-        diaVencimento: 5,
+        diaFechamento: 5,
         mesSelecionado: const MesRef(2026, 1),
       );
 

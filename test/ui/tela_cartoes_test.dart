@@ -16,19 +16,19 @@ class _CartoesQueFalha implements RepositorioCartoes {
   @override
   Future<String> salvar(Cartao cartao) async => 'c1';
   @override
-  Future<int?> meuVencimento(String cartaoId, String membroId) async => null;
+  Future<int?> meuFechamento(String cartaoId, String membroId) async => null;
   @override
-  Future<void> definirMeuVencimento(
+  Future<void> definirMeuFechamento(
           String cartaoId, String membroId, int dia) async =>
       {};
   @override
-  Future<void> removerMeuVencimento(String cartaoId, String membroId) async =>
+  Future<void> removerMeuFechamento(String cartaoId, String membroId) async =>
       {};
 }
 
 /// Quem esta logada nos testes: seu membroId e usado como dono de qualquer
-/// vencimento gravado, e e o unico que RepositorioCartoesFake.vencimentoDe
-/// e observarMeuVencimento devem enxergar.
+/// fechamento gravado, e e o unico que RepositorioCartoesFake.fechamentoDe
+/// e meuFechamento devem enxergar.
 const _emailLogado = 'marcos@example.com';
 const _meuMembroId = 'membro-marcos';
 
@@ -169,32 +169,21 @@ void main() {
       expect(repo.todos.last.ordem, 1);
     });
 
-    testWidgets('cadastrar tambem com um dia de vencimento', (tester) async {
+    testWidgets('cadastrar tambem com um dia de fechamento', (tester) async {
       final (repo, _) = await montar(tester);
 
       await tester.tap(find.byKey(const Key('novo_cartao')));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('cartao_nome')), 'Inter');
-      await tester.enterText(find.byKey(const Key('cartao_vencimento')), '5');
+      await tester.tap(find.byKey(const Key('cartao_fechamento')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dia_fechamento_5')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('cartao_salvar')));
       await tester.pumpAndSettle();
 
       final cartaoId = repo.todos.single.id;
-      expect(repo.vencimentoDe(cartaoId, _meuMembroId), 5);
-    });
-
-    testWidgets('dia de vencimento fora de 1-31 e recusado', (tester) async {
-      final (repo, _) = await montar(tester);
-
-      await tester.tap(find.byKey(const Key('novo_cartao')));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('cartao_nome')), 'Inter');
-      await tester.enterText(find.byKey(const Key('cartao_vencimento')), '32');
-      await tester.tap(find.byKey(const Key('cartao_salvar')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Informe um dia entre 1 e 31.'), findsOneWidget);
-      expect(repo.todos, isEmpty);
+      expect(repo.fechamentoDe(cartaoId, _meuMembroId), 5);
     });
   });
 
@@ -232,49 +221,56 @@ void main() {
       expect(repo.todos.single.ordem, 3);
     });
 
-    testWidgets('abre com o vencimento que eu mesma cadastrei', (tester) async {
+    testWidgets('abre com o fechamento que eu mesma cadastrei', (tester) async {
       final fake = RepositorioCartoesFake(const [
         Cartao(id: 'c1', nome: 'Inter', ordem: 0),
       ]);
-      await fake.definirMeuVencimento('c1', _meuMembroId, 15);
+      await fake.definirMeuFechamento('c1', _meuMembroId, 15);
       await montar(tester, repo: fake);
 
       await tester.tap(find.text('Inter'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(TextFormField, '15'), findsOneWidget);
+      expect(find.text('Dia 15'), findsOneWidget);
     });
 
-    testWidgets('trocar o vencimento grava o novo dia', (tester) async {
+    testWidgets('trocar o fechamento grava o novo dia', (tester) async {
       final fake = RepositorioCartoesFake(const [
         Cartao(id: 'c1', nome: 'Inter', ordem: 0),
       ]);
-      await fake.definirMeuVencimento('c1', _meuMembroId, 15);
+      await fake.definirMeuFechamento('c1', _meuMembroId, 15);
       await montar(tester, repo: fake);
 
       await tester.tap(find.text('Inter'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('cartao_vencimento')), '20');
+      await tester.tap(find.byKey(const Key('cartao_fechamento')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dia_fechamento_20')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('cartao_salvar')));
       await tester.pumpAndSettle();
 
-      expect(fake.vencimentoDe('c1', _meuMembroId), 20);
+      expect(fake.fechamentoDe('c1', _meuMembroId), 20);
     });
 
-    testWidgets('apagar o campo remove o vencimento cadastrado', (tester) async {
+    testWidgets('remover o dia cadastrado no dialogo apaga o fechamento',
+        (tester) async {
       final fake = RepositorioCartoesFake(const [
         Cartao(id: 'c1', nome: 'Inter', ordem: 0),
       ]);
-      await fake.definirMeuVencimento('c1', _meuMembroId, 15);
+      await fake.definirMeuFechamento('c1', _meuMembroId, 15);
       await montar(tester, repo: fake);
 
       await tester.tap(find.text('Inter'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('cartao_vencimento')), '');
+      await tester.tap(find.byKey(const Key('cartao_fechamento')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('remover_fechamento')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('cartao_salvar')));
       await tester.pumpAndSettle();
 
-      expect(fake.vencimentoDe('c1', _meuMembroId), isNull);
+      expect(fake.fechamentoDe('c1', _meuMembroId), isNull);
     });
   });
 
@@ -310,11 +306,11 @@ void main() {
     });
 
     testWidgets(
-        'quando outro integrante tem vencimento, o servidor recusa e '
+        'quando outro integrante tem fechamento, o servidor recusa e '
         'a tela mostra a mensagem', (tester) async {
       final gestao = RepositorioGestaoCasaFake()
         ..erro = 'Não é possível remover: outro integrante da casa ainda '
-            'tem um dia de vencimento cadastrado para este cartão.';
+            'tem um dia de fechamento cadastrado para este cartão.';
       await montar(
         tester,
         iniciais: const [Cartao(id: 'c1', nome: 'Nubank', ordem: 0)],

@@ -47,7 +47,7 @@ describe("removerCartao", () => {
     }
   });
 
-  it("remove o cartao quando ninguem tem vencimento cadastrado", async () => {
+  it("remove o cartao quando ninguem tem fechamento cadastrado", async () => {
     await criarCasaComDoisMembros();
     await criarCartao();
 
@@ -65,7 +65,7 @@ describe("removerCartao", () => {
     expect(cartao.exists).toBe(false);
   });
 
-  it("remove o cartao e o proprio vencimento junto, quando so eu tenho um", async () => {
+  it("remove o cartao e o proprio fechamento junto, quando so eu tenho um", async () => {
     await criarCasaComDoisMembros();
     await criarCartao();
     await db
@@ -73,7 +73,7 @@ describe("removerCartao", () => {
       .doc("casa-1")
       .collection("cartoes")
       .doc("cartao-1")
-      .collection("vencimentos")
+      .collection("fechamentos")
       .doc("membro-marcos")
       .set({ dia: 5 });
 
@@ -91,7 +91,7 @@ describe("removerCartao", () => {
     expect(cartao.exists).toBe(false);
   });
 
-  it("recusa remover quando outro integrante tem um vencimento cadastrado", async () => {
+  it("recusa remover quando outro integrante tem um fechamento cadastrado", async () => {
     await criarCasaComDoisMembros();
     await criarCartao();
     await db
@@ -99,7 +99,7 @@ describe("removerCartao", () => {
       .doc("casa-1")
       .collection("cartoes")
       .doc("cartao-1")
-      .collection("vencimentos")
+      .collection("fechamentos")
       .doc("membro-silvia")
       .set({ dia: 15 });
 

@@ -4,10 +4,10 @@ import { erroNaoAutenticado, erroInvalido, erroSemPermissao } from "./erros";
 import { normalizarEmail } from "./normalizarEmail";
 
 /// Remove um cartao da casa, mas so quando nenhum outro integrante tem um
-/// dia de vencimento cadastrado nele. O cliente nunca consegue checar isso
-/// sozinho -- a regra de seguranca que garante o sigilo do vencimento de
+/// dia de fechamento cadastrado nele. O cliente nunca consegue checar isso
+/// sozinho -- a regra de seguranca que garante o sigilo do fechamento de
 /// cada pessoa (ver firestore.rules) e a mesma que impede o Marcos de ler
-/// se a Silvia tem um vencimento aqui. So o servidor, com o Admin SDK, ve
+/// se a Silvia tem um fechamento aqui. So o servidor, com o Admin SDK, ve
 /// os dois lados pra decidir.
 export const removerCartao = onCall(async (request) => {
   const email = request.auth?.token.email as string | undefined;
@@ -32,20 +32,20 @@ export const removerCartao = onCall(async (request) => {
   const [meuMembroId] = entrada;
 
   const cartaoRef = casaRef.collection("cartoes").doc(cartaoId);
-  const vencimentosSnap = await cartaoRef.collection("vencimentos").get();
+  const fechamentosSnap = await cartaoRef.collection("fechamentos").get();
 
-  const deOutroMembro = vencimentosSnap.docs.filter(
+  const deOutroMembro = fechamentosSnap.docs.filter(
     (doc) => doc.id !== meuMembroId,
   );
   if (deOutroMembro.length > 0) {
     throw erroSemPermissao(
       "Não é possível remover: outro integrante da casa ainda tem um dia " +
-        "de vencimento cadastrado para este cartão.",
+        "de fechamento cadastrado para este cartão.",
     );
   }
 
   const lote = db.batch();
-  for (const doc of vencimentosSnap.docs) {
+  for (const doc of fechamentosSnap.docs) {
     lote.delete(doc.ref);
   }
   lote.delete(cartaoRef);

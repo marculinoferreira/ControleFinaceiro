@@ -120,10 +120,10 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
   String? _cartaoId;
   late bool _pixDebito;
 
-  /// O dia de vencimento que EU cadastrei para [_cartaoId] (nunca o de
+  /// O dia de fechamento que EU cadastrei para [_cartaoId] (nunca o de
   /// outro integrante). Null enquanto carrega, ou quando ninguem cadastrou
   /// nenhum, ou quando nao ha cartao selecionado.
-  int? _diaVencimento;
+  int? _diaFechamento;
 
   /// Guarda de reentrancia: sem ela, dois toques rapidos no Salvar antes do
   /// primeiro pop surtir efeito na arvore de widgets chamariam validate() e
@@ -147,7 +147,7 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
     _data = g?.data ?? _hoje();
     _cartaoId = g?.cartaoId;
     _pixDebito = g?.pixDebito ?? false;
-    _buscarVencimento(_cartaoId);
+    _buscarFechamento(_cartaoId);
     // O preview le _valor.text direto no build: sem este listener, digitar
     // um novo valor depois de ligar "Parcelado" nao teria efeito ate algum
     // outro campo forcar um rebuild.
@@ -161,9 +161,9 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
   /// So usado pra sugerir o mes de um gasto NOVO (ver `_salvar`) -- editar
   /// nunca move um lancamento de mes sozinho, entao o resultado so importa
   /// enquanto `widget.existente` e nulo.
-  Future<void> _buscarVencimento(String? cartaoId) async {
+  Future<void> _buscarFechamento(String? cartaoId) async {
     if (cartaoId == null) {
-      if (mounted) setState(() => _diaVencimento = null);
+      if (mounted) setState(() => _diaFechamento = null);
       return;
     }
     final membroId = ref.read(membroLogadoProvider)?.id;
@@ -171,8 +171,8 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
         ? null
         : await ref
             .read(repositorioCartoesProvider)
-            .meuVencimento(cartaoId, membroId);
-    if (mounted) setState(() => _diaVencimento = dia);
+            .meuFechamento(cartaoId, membroId);
+    if (mounted) setState(() => _diaFechamento = dia);
   }
 
   /// Sempre a data real de hoje, mesmo lancando num mes que nao e o corrente
@@ -236,7 +236,7 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
   MesRef _mesCalculado(MesRef mesSelecionado) => calcularMesDoGasto(
         hoje: DateTime.now(),
         pixDebito: _pixDebitoEfetivo,
-        diaVencimento: _diaVencimento,
+        diaFechamento: _diaFechamento,
         mesSelecionado: mesSelecionado,
       );
 
@@ -433,53 +433,63 @@ class _FormularioGastoState extends ConsumerState<FormularioGasto> {
             validator: (v) => v == null ? 'Cadastre um pote antes.' : null,
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String?>(
-            key: const Key('gasto_cartao'),
-            initialValue: _cartaoId,
-            decoration: const InputDecoration(
-              labelText: 'Cartão',
-              border: OutlineInputBorder(),
-            ),
-            items: [
-              // Nem todo gasto passa por cartao: dinheiro, pix e debito
-              // caem aqui, e por isso nao ha validador exigindo escolha.
-              const DropdownMenuItem(
-                  value: null, child: Text('Nenhum / dinheiro')),
-              for (final c in cartoes)
-                DropdownMenuItem(value: c.id, child: Text(c.nome)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  key: const Key('gasto_cartao'),
+                  initialValue: _cartaoId,
+                  // Sem isto, o botao tenta o proprio tamanho natural em vez
+                  // de caber no espaco que o Expanded (dividido com o
+                  // checkbox do lado) realmente da -- e estoura o layout.
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Cartão',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    // Nem todo gasto passa por cartao: dinheiro, pix e
+                    // debito caem aqui, e por isso nao ha validador
+                    // exigindo escolha.
+                    const DropdownMenuItem(
+                        value: null, child: Text('Nenhum / dinheiro')),
+                    for (final c in cartoes)
+                      DropdownMenuItem(value: c.id, child: Text(c.nome)),
+                  ],
+                  onChanged: (v) {
+                    setState(() {
+                      _cartaoId = v;
+                      _pixDebito = false;
+                    });
+                    _buscarFechamento(v);
+                  },
+                ),
+              ),
+              // So faz sentido junto de um cartao: dinheiro/pix direto da
+              // conta ja nao segue fatura nenhuma. Compacto de proposito
+              // (visualDensity/shrinkWrap): um Checkbox no tamanho padrao
+              // (48x48) nao cabe ao lado do dropdown sem estoura-lo.
+              if (_cartaoId != null) ...[
+                Checkbox(
+                  key: const Key('gasto_pix_debito'),
+                  value: _pixDebito,
+                  onChanged: (v) => setState(() => _pixDebito = v ?? false),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                const Text('PIX/DEB', style: TextStyle(fontSize: 12)),
+              ],
             ],
-            onChanged: (v) {
-              setState(() {
-                _cartaoId = v;
-                _pixDebito = false;
-              });
-              _buscarVencimento(v);
-            },
           ),
-          if (_cartaoId != null) ...[
+          if (widget.existente == null && _cartaoId != null) ...[
             const SizedBox(height: 4),
-            CheckboxListTile(
-              key: const Key('gasto_pix_debito'),
-              value: _pixDebito,
-              onChanged: (v) => setState(() => _pixDebito = v ?? false),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              title: const Text('PIX/DEB'),
-              subtitle: const Text(
-                'Não foi no crédito -- conta no mês de hoje, não no '
-                'fechamento do cartão.',
-              ),
+            Text(
+              key: const Key('gasto_mes_previsto'),
+              'Este gasto entra no orçamento de '
+              '${_mesCalculado(mes).formatarExtenso()}.',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-            if (widget.existente == null) ...[
-              const SizedBox(height: 4),
-              Text(
-                key: const Key('gasto_mes_previsto'),
-                'Este gasto entra no orçamento de '
-                '${_mesCalculado(mes).formatarExtenso()}.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
           ],
           const SizedBox(height: 12),
           CampoMoeda(

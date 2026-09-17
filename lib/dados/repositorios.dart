@@ -30,25 +30,25 @@ abstract class RepositorioCartoes {
 
   /// Cria quando o id vem vazio, atualiza quando vem preenchido. Devolve o
   /// id do cartao (o novo, ou o mesmo de quem editou) -- quem acabou de
-  /// criar um cartao precisa dele na hora pra gravar o proprio vencimento
+  /// criar um cartao precisa dele na hora pra gravar o proprio fechamento
   /// em seguida.
   Future<String> salvar(Cartao cartao);
 
-  // A exclusao nao mora aqui: remover um cartao pode esbarrar no vencimento
+  // A exclusao nao mora aqui: remover um cartao pode esbarrar no fechamento
   // de outro integrante, algo que so o servidor consegue ver -- ver
   // RepositorioGestaoCasa.removerCartao.
 
-  /// O dia de vencimento que [membroId] cadastrou para este cartao agora, ou
+  /// O dia de fechamento que [membroId] cadastrou para este cartao agora, ou
   /// null se ele nao cadastrou nenhum. Leitura unica (nao um stream): quem
   /// usa isto e a tela de edicao, pra pre-preencher o campo uma vez ao
   /// abrir -- nao precisa ficar observando ao vivo. Cada pessoa so consegue
   /// ler e gravar o proprio -- e reforcado pela regra do Firestore, nao so
   /// pela UI.
-  Future<int?> meuVencimento(String cartaoId, String membroId);
+  Future<int?> meuFechamento(String cartaoId, String membroId);
 
-  Future<void> definirMeuVencimento(String cartaoId, String membroId, int dia);
+  Future<void> definirMeuFechamento(String cartaoId, String membroId, int dia);
 
-  Future<void> removerMeuVencimento(String cartaoId, String membroId);
+  Future<void> removerMeuFechamento(String cartaoId, String membroId);
 }
 
 abstract class RepositorioGanhos {
@@ -274,9 +274,9 @@ class RepositorioCartoesFake implements RepositorioCartoes {
   final _controlador = StreamController<void>.broadcast();
   var _sequencia = 0;
 
-  // cartaoId -> membroId -> dia. Espelha a subcolecao vencimentos do
+  // cartaoId -> membroId -> dia. Espelha a subcolecao fechamentos do
   // Firestore: cada par cartao+membro e uma entrada isolada.
-  final Map<String, Map<String, int>> _vencimentos = {};
+  final Map<String, Map<String, int>> _fechamentos = {};
 
   RepositorioCartoesFake([List<Cartao> iniciais = const []]) {
     _cartoes.addAll(iniciais);
@@ -285,8 +285,8 @@ class RepositorioCartoesFake implements RepositorioCartoes {
   List<Cartao> get todos => List.unmodifiable(_cartoes);
 
   /// So pra teste inspecionar o que foi gravado, sem depender do stream.
-  int? vencimentoDe(String cartaoId, String membroId) =>
-      _vencimentos[cartaoId]?[membroId];
+  int? fechamentoDe(String cartaoId, String membroId) =>
+      _fechamentos[cartaoId]?[membroId];
 
   @override
   Stream<List<Cartao>> observar() => _correnteEDepois(
@@ -310,18 +310,18 @@ class RepositorioCartoesFake implements RepositorioCartoes {
   }
 
   @override
-  Future<int?> meuVencimento(String cartaoId, String membroId) async =>
-      _vencimentos[cartaoId]?[membroId];
+  Future<int?> meuFechamento(String cartaoId, String membroId) async =>
+      _fechamentos[cartaoId]?[membroId];
 
   @override
-  Future<void> definirMeuVencimento(
+  Future<void> definirMeuFechamento(
       String cartaoId, String membroId, int dia) async {
-    (_vencimentos[cartaoId] ??= {})[membroId] = dia;
+    (_fechamentos[cartaoId] ??= {})[membroId] = dia;
   }
 
   @override
-  Future<void> removerMeuVencimento(String cartaoId, String membroId) async {
-    _vencimentos[cartaoId]?.remove(membroId);
+  Future<void> removerMeuFechamento(String cartaoId, String membroId) async {
+    _fechamentos[cartaoId]?.remove(membroId);
   }
 }
 

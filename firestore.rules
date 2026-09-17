@@ -8,7 +8,7 @@ service cloud.firestore {
           get(/databases/$(database)/documents/casas/$(casaId)).data.emailsAtivos;
     }
 
-    // O vencimento de um cartao e privado por pessoa: o Marcos nao pode ler
+    // O fechamento de um cartao e privado por pessoa: o Marcos nao pode ler
     // o dia da Silvia nem ela o dele. So funciona porque cada um mora no
     // proprio documento (id = membroId) -- Firestore nao esconde campo
     // dentro de um documento que a outra pessoa ja tem acesso de leitura.
@@ -22,7 +22,7 @@ service cloud.firestore {
       allow read: if isMembro(casaId);
       allow write: if false;
 
-      match /cartoes/{cartaoId}/vencimentos/{membroId} {
+      match /cartoes/{cartaoId}/fechamentos/{membroId} {
         allow read, write: if isMembro(casaId) && souEu(casaId, membroId);
       }
 

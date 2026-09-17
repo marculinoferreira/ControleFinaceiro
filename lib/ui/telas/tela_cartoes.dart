@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dados/repositorio_gestao_casa.dart';
@@ -61,13 +60,13 @@ class TelaCartoes extends ConsumerWidget {
     final cartoes = ref.read(cartoesProvider).value ?? const <Cartao>[];
     final membroId = ref.read(membroLogadoProvider)?.id;
 
-    // So busca o vencimento de quem esta editando um cartao que ja existe;
-    // um cartao novo nunca tem vencimento de ninguem ainda.
-    int? vencimentoAtual;
+    // So busca o fechamento de quem esta editando um cartao que ja existe;
+    // um cartao novo nunca tem fechamento de ninguem ainda.
+    int? fechamentoAtual;
     if (existente != null && membroId != null) {
-      vencimentoAtual = await ref
+      fechamentoAtual = await ref
           .read(repositorioCartoesProvider)
-          .meuVencimento(existente.id, membroId);
+          .meuFechamento(existente.id, membroId);
     }
     if (!context.mounted) return;
 
@@ -76,11 +75,11 @@ class TelaCartoes extends ConsumerWidget {
       titulo: existente == null ? 'Novo cartão' : 'Editar cartão',
       construir: (c) => _FormularioCartao(
         existente: existente,
-        vencimentoInicial: vencimentoAtual,
+        fechamentoInicial: fechamentoAtual,
       ),
     );
     if (resultado == null) return;
-    final (nome, vencimento) = resultado;
+    final (nome, fechamento) = resultado;
 
     try {
       final cartaoId = await ref.read(repositorioCartoesProvider).salvar(
@@ -92,10 +91,10 @@ class TelaCartoes extends ConsumerWidget {
 
       if (membroId != null) {
         final repo = ref.read(repositorioCartoesProvider);
-        if (vencimento != null) {
-          await repo.definirMeuVencimento(cartaoId, membroId, vencimento);
+        if (fechamento != null) {
+          await repo.definirMeuFechamento(cartaoId, membroId, fechamento);
         } else {
-          await repo.removerMeuVencimento(cartaoId, membroId);
+          await repo.removerMeuFechamento(cartaoId, membroId);
         }
       }
     } catch (e) {
@@ -109,7 +108,7 @@ class TelaCartoes extends ConsumerWidget {
     // Avisa em vez de bloquear por causa dos gastos: gastos antigos guardam
     // o id, e a lista passa a exibir o id cru no lugar do nome. Impedir a
     // exclusao por isso seria pior — o cartao pode ter sido de fato
-    // encerrado. Ja o vencimento de outro integrante bloqueia de verdade
+    // encerrado. Ja o fechamento de outro integrante bloqueia de verdade
     // (ver removerCartao): esse aviso quem da e o servidor, via SnackBar.
     final confirmou = await confirmarExclusao(
       context: context,
@@ -142,36 +141,39 @@ class TelaCartoes extends ConsumerWidget {
 class _FormularioCartao extends StatefulWidget {
   final Cartao? existente;
 
-  /// O MEU dia de vencimento para este cartao (nunca o de outro
+  /// O MEU dia de fechamento para este cartao (nunca o de outro
   /// integrante). Null quando ainda nao cadastrei nenhum, ou quando o
   /// cartao e novo.
-  final int? vencimentoInicial;
+  final int? fechamentoInicial;
 
-  const _FormularioCartao({this.existente, this.vencimentoInicial});
+  const _FormularioCartao({this.existente, this.fechamentoInicial});
 
   @override
   State<_FormularioCartao> createState() => _FormularioCartaoState();
 }
 
+/// Sentinela do dialogo de escolha de dia: precisa de um valor fora de
+/// 1..31 para "remover o fechamento cadastrado" nao se confundir com "o
+/// dialogo fechou sem escolher nada" (os dois, ao cancelar, devolveriam
+/// null a partir do proprio Navigator.pop() sem argumento).
+const _semFechamento = 0;
+
 class _FormularioCartaoState extends State<_FormularioCartao> {
   final _chave = GlobalKey<FormState>();
   late final TextEditingController _nome;
-  late final TextEditingController _vencimento;
+  int? _diaFechamento;
   bool _salvando = false;
 
   @override
   void initState() {
     super.initState();
     _nome = TextEditingController(text: widget.existente?.nome ?? '');
-    _vencimento = TextEditingController(
-      text: widget.vencimentoInicial?.toString() ?? '',
-    );
+    _diaFechamento = widget.fechamentoInicial;
   }
 
   @override
   void dispose() {
     _nome.dispose();
-    _vencimento.dispose();
     super.dispose();
   }
 
@@ -179,9 +181,60 @@ class _FormularioCartaoState extends State<_FormularioCartao> {
     if (_salvando) return;
     if (!_chave.currentState!.validate()) return;
     _salvando = true;
-    final texto = _vencimento.text.trim();
-    final dia = texto.isEmpty ? null : int.parse(texto);
-    Navigator.of(context).pop((_nome.text.trim(), dia));
+    Navigator.of(context).pop((_nome.text.trim(), _diaFechamento));
+  }
+
+  /// Grade de 1 a 31 num dialogo, em vez de digitar o numero: um dia do mes
+  /// nao tem ano nem mes pra escolher, so o calendario "encolhido" faz
+  /// sentido aqui.
+  Future<void> _escolherDiaFechamento() async {
+    final resultado = await showDialog<int>(
+      context: context,
+      builder: (dialogo) => SimpleDialog(
+        title: const Text('Dia de fechamento'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: 280,
+              child: GridView.count(
+                crossAxisCount: 7,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  for (var dia = 1; dia <= 31; dia++)
+                    InkWell(
+                      key: Key('dia_fechamento_$dia'),
+                      onTap: () => Navigator.of(dialogo).pop(dia),
+                      child: Center(
+                        child: Text(
+                          '$dia',
+                          style: dia == _diaFechamento
+                              ? const TextStyle(fontWeight: FontWeight.bold)
+                              : null,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (_diaFechamento != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: TextButton(
+                key: const Key('remover_fechamento'),
+                onPressed: () => Navigator.of(dialogo).pop(_semFechamento),
+                child: const Text('Remover dia cadastrado'),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (resultado == null) return;
+    setState(
+      () => _diaFechamento = resultado == _semFechamento ? null : resultado,
+    );
   }
 
   @override
@@ -206,27 +259,22 @@ class _FormularioCartaoState extends State<_FormularioCartao> {
                 (t == null || t.trim().isEmpty) ? 'Informe o nome.' : null,
           ),
           const SizedBox(height: 20),
-          TextFormField(
-            key: const Key('cartao_vencimento'),
-            controller: _vencimento,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              labelText: 'Meu dia de vencimento (opcional)',
-              helperText: 'Só você vê este dia — o de outra pessoa da casa '
-                  'fica particular dela.',
-              helperMaxLines: 2,
-              border: OutlineInputBorder(),
+          InkWell(
+            key: const Key('cartao_fechamento'),
+            onTap: _escolherDiaFechamento,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Meu dia de fechamento (opcional)',
+                helperText: 'Só você vê este dia — o de outra pessoa da '
+                    'casa fica particular dela.',
+                helperMaxLines: 2,
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.calendar_today, size: 18),
+              ),
+              child: Text(
+                _diaFechamento == null ? '' : 'Dia $_diaFechamento',
+              ),
             ),
-            validator: (t) {
-              if (t == null || t.trim().isEmpty) return null;
-              final dia = int.tryParse(t.trim());
-              if (dia == null || dia < 1 || dia > 31) {
-                return 'Informe um dia entre 1 e 31.';
-              }
-              return null;
-            },
-            onFieldSubmitted: (_) => _salvar(),
           ),
           const SizedBox(height: 20),
           FilledButton(

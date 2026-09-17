@@ -85,29 +85,29 @@ class CartoesFirestore implements RepositorioCartoes {
     return cartao.id;
   }
 
-  DocumentReference<Map<String, dynamic>> _vencimentoDoc(
+  DocumentReference<Map<String, dynamic>> _fechamentoDoc(
     String cartaoId,
     String membroId,
   ) =>
-      _col.doc(cartaoId).collection('vencimentos').doc(membroId);
+      _col.doc(cartaoId).collection('fechamentos').doc(membroId);
 
   @override
-  Future<int?> meuVencimento(String cartaoId, String membroId) async {
-    final doc = await _vencimentoDoc(cartaoId, membroId).get();
+  Future<int?> meuFechamento(String cartaoId, String membroId) async {
+    final doc = await _fechamentoDoc(cartaoId, membroId).get();
     return (doc.data()?['dia'] as num?)?.toInt();
   }
 
   @override
-  Future<void> definirMeuVencimento(
+  Future<void> definirMeuFechamento(
     String cartaoId,
     String membroId,
     int dia,
   ) =>
-      _vencimentoDoc(cartaoId, membroId).set({'dia': dia});
+      _fechamentoDoc(cartaoId, membroId).set({'dia': dia});
 
   @override
-  Future<void> removerMeuVencimento(String cartaoId, String membroId) =>
-      _vencimentoDoc(cartaoId, membroId).delete();
+  Future<void> removerMeuFechamento(String cartaoId, String membroId) =>
+      _fechamentoDoc(cartaoId, membroId).delete();
 }
 
 class GanhosFirestore implements RepositorioGanhos {
