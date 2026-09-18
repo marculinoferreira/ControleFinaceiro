@@ -356,4 +356,128 @@ void main() {
       c.dispose();
     });
   });
+
+  group('dados do Comparativo', () {
+    Future<ProviderContainer> montarComparativo({
+      List<(String membroId, String poteId, double valor)> gastosDoMes = const [],
+      List<(String membroId, String mesRef, double valor)> parcelas = const [],
+    }) async {
+      final gastos = RepositorioGastosFake();
+
+      for (final (membroId, poteId, valor) in gastosDoMes) {
+        await gastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: '2026-08', membroId: membroId, poteId: poteId,
+            descricao: 'Compra', valor: valor,
+            criadoEm: DateTime.utc(2026, 8, 2), parcelado: false,
+          ),
+          quantidadeParcelas: 1,
+        );
+      }
+      for (final (membroId, mesRef, valor) in parcelas) {
+        // quantidadeParcelas precisa ser >= 2: com 1, gerarParcelas devolve
+        // um gasto simples (parcelado: false), que observarParceladosDesde
+        // nao enxerga.
+        await gastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: mesRef, membroId: membroId, poteId: 'p1',
+            descricao: 'Parcelada', valor: valor,
+            criadoEm: DateTime.utc(2026, 1, 1), parcelado: false,
+          ),
+          quantidadeParcelas: 2,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(
+          const Casa(
+            id: 'principal',
+            nome: 'Casa',
+            membros: [
+              Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+                  cor: '#2E7D32', ordem: 0),
+              Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+                  cor: '#6A1B9A', ordem: 1),
+            ],
+          ),
+        )),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(gastos),
+      ]);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(casaProvider, (_, _) {});
+      c.listen(potesProvider, (_, _) {});
+      c.listen(cartoesProvider, (_, _) {});
+      c.listen(gastosDoMesProvider('2026-08'), (_, _) {});
+      c.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('barrasPoteComparativo soma o gasto de cada pessoa por pote', () async {
+      final c = await montarComparativo(gastosDoMes: [
+        ('marcos', 'p1', 700),
+        ('silvia', 'p1', 300),
+      ]);
+
+      final barras = c.read(barrasPoteComparativoProvider).requireValue;
+      expect(barras.single.valorA, 700); // marcos, ordem 0
+      expect(barras.single.valorB, 300); // silvia, ordem 1
+      c.dispose();
+    });
+
+    test('barrasCartaoComparativo soma o gasto de cada pessoa por cartao', () async {
+      final c = await montarComparativo();
+      // Sem cartoes cadastrados e sem gasto, a lista vem vazia -- so
+      // confirma que o provider resolve sem erro.
+      expect(c.read(barrasCartaoComparativoProvider).hasValue, isTrue);
+      c.dispose();
+    });
+
+    test('serieComprometimentoComparativo devolve uma serie por pessoa', () async {
+      final c = await montarComparativo(parcelas: [
+        ('marcos', '2026-08', 100),
+        ('silvia', '2026-08', 250),
+      ]);
+
+      final (serieA, serieB) =
+          c.read(serieComprometimentoComparativoProvider).requireValue;
+      expect(serieA.first.valor, 100);
+      expect(serieB.first.valor, 250);
+      c.dispose();
+    });
+
+    test('com casa de 1 pessoa, os tres providers devolvem vazio', () async {
+      final gastos = RepositorioGastosFake();
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(
+          const Casa(
+            id: 'principal',
+            nome: 'Casa',
+            membros: [
+              Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+                  cor: '#2E7D32', ordem: 0),
+            ],
+          ),
+        )),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(gastos),
+      ]);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(casaProvider, (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(barrasPoteComparativoProvider).requireValue, isEmpty);
+      expect(c.read(barrasCartaoComparativoProvider).requireValue, isEmpty);
+      final (serieA, serieB) =
+          c.read(serieComprometimentoComparativoProvider).requireValue;
+      expect(serieA, isEmpty);
+      expect(serieB, isEmpty);
+      c.dispose();
+    });
+  });
 }

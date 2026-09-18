@@ -221,6 +221,56 @@ final duplaComparativaProvider = Provider<List<Membro>>((ref) {
   return ativos.length == 2 ? ativos : const [];
 });
 
+final barrasPoteComparativoProvider =
+    Provider.autoDispose<AsyncValue<List<BarraComparativa>>>((ref) {
+  final dupla = ref.watch(duplaComparativaProvider);
+  if (dupla.length < 2) return const AsyncData([]);
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+
+  return combinarAsyncValues(
+    ref.watch(potesProvider),
+    ref.watch(gastosDoMesProvider(mes)),
+    (potes, gastos) => barrasComparativasPorPote(
+      porPoteA: somarGastosPorPote(gastos, membroId: dupla[0].id),
+      porPoteB: somarGastosPorPote(gastos, membroId: dupla[1].id),
+      potes: potes,
+    ),
+  );
+});
+
+final barrasCartaoComparativoProvider =
+    Provider.autoDispose<AsyncValue<List<BarraComparativa>>>((ref) {
+  final dupla = ref.watch(duplaComparativaProvider);
+  if (dupla.length < 2) return const AsyncData([]);
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+
+  return combinarAsyncValues(
+    ref.watch(cartoesProvider),
+    ref.watch(gastosDoMesProvider(mes)),
+    (cartoes, gastos) => barrasComparativasPorCartao(
+      porCartaoA: somarGastosPorCartao(gastos, membroId: dupla[0].id),
+      porCartaoB: somarGastosPorCartao(gastos, membroId: dupla[1].id),
+      cartoes: cartoes,
+    ),
+  );
+});
+
+/// (serie de A, serie de B), mesma janela de `serieComprometimentoProvider`.
+final serieComprometimentoComparativoProvider = Provider.autoDispose<
+    AsyncValue<(List<PontoComprometido>, List<PontoComprometido>)>>((ref) {
+  final dupla = ref.watch(duplaComparativaProvider);
+  if (dupla.length < 2) return const AsyncData(([], []));
+  final inicio = ref.watch(mesSelecionadoProvider);
+  final meses = janelaDe(inicio, mesesDaSerie);
+
+  return ref.watch(parceladosDesdeProvider(inicio.valor)).whenData(
+        (parcelas) => (
+          serieComprometimento(meses: meses, parcelas: parcelas, membroId: dupla[0].id),
+          serieComprometimento(meses: meses, parcelas: parcelas, membroId: dupla[1].id),
+        ),
+      );
+});
+
 // --- Dados ----------------------------------------------------------------
 
 final potesProvider = StreamProvider<List<Pote>>(
