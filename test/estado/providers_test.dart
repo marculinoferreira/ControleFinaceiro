@@ -273,4 +273,87 @@ void main() {
       c.dispose();
     });
   });
+
+  group('tipoVisaoGraficosProvider', () {
+    test('comeca em geral', () {
+      final c = ProviderContainer();
+      expect(c.read(tipoVisaoGraficosProvider), TipoVisaoGraficos.geral);
+      c.dispose();
+    });
+
+    test('selecionar muda o tipo', () {
+      final c = ProviderContainer();
+      c.read(tipoVisaoGraficosProvider.notifier)
+          .selecionar(TipoVisaoGraficos.projecao);
+      expect(c.read(tipoVisaoGraficosProvider), TipoVisaoGraficos.projecao);
+      c.dispose();
+    });
+  });
+
+  group('duplaComparativaProvider', () {
+    test('casa com 2 membros ativos devolve os dois, na ordem cadastrada', () async {
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(
+          const Casa(
+            id: 'principal',
+            nome: 'Casa',
+            membros: [
+              Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+                  cor: '#6A1B9A', ordem: 1),
+              Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+                  cor: '#2E7D32', ordem: 0),
+            ],
+          ),
+        )),
+      ]);
+      c.listen(casaProvider, (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      final dupla = c.read(duplaComparativaProvider);
+      expect(dupla.map((m) => m.id).toList(), ['marcos', 'silvia']);
+      c.dispose();
+    });
+
+    test('casa com 1 membro ativo devolve lista vazia', () async {
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(
+          const Casa(
+            id: 'principal',
+            nome: 'Casa',
+            membros: [
+              Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+                  cor: '#2E7D32', ordem: 0),
+            ],
+          ),
+        )),
+      ]);
+      c.listen(casaProvider, (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(duplaComparativaProvider), isEmpty);
+      c.dispose();
+    });
+
+    test('membro removido nao entra na dupla', () async {
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(
+          Casa(
+            id: 'principal',
+            nome: 'Casa',
+            membros: [
+              const Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+                  cor: '#2E7D32', ordem: 0),
+              Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+                  cor: '#6A1B9A', ordem: 1, removidoEm: DateTime.utc(2026, 1, 1)),
+            ],
+          ),
+        )),
+      ]);
+      c.listen(casaProvider, (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(duplaComparativaProvider), isEmpty);
+      c.dispose();
+    });
+  });
 }

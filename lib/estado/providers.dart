@@ -194,6 +194,33 @@ class VisaoNotifier extends Notifier<String?> {
 final visaoProvider =
     NotifierProvider<VisaoNotifier, String?>(VisaoNotifier.new);
 
+enum TipoVisaoGraficos { geral, comparativo, projecao }
+
+/// Qual das 3 visoes da tela de Graficos esta selecionada. Sempre comeca em
+/// `geral` -- trocar de mes ou reabrir a tela nao deve prender a pessoa
+/// numa aba que ela nao escolheu conscientemente.
+class TipoVisaoGraficosNotifier extends Notifier<TipoVisaoGraficos> {
+  @override
+  TipoVisaoGraficos build() => TipoVisaoGraficos.geral;
+
+  void selecionar(TipoVisaoGraficos tipo) => state = tipo;
+}
+
+final tipoVisaoGraficosProvider =
+    NotifierProvider<TipoVisaoGraficosNotifier, TipoVisaoGraficos>(
+        TipoVisaoGraficosNotifier.new);
+
+/// Os dois integrantes ativos, na ordem de `Membro.ordem` -- a mesma ordem
+/// que a pizza de ganhos ja usa. Lista vazia quando a casa tem 0 ou 1
+/// pessoa ativa (a UI esconde a aba Comparativo nesse caso). Nunca mais que
+/// 2: a casa ja e limitada a isso, entao nao ha terceiro integrante pra
+/// decidir quem entra.
+final duplaComparativaProvider = Provider<List<Membro>>((ref) {
+  final ativos = [...ref.watch(membrosAtivosProvider)]
+    ..sort((a, b) => a.ordem.compareTo(b.ordem));
+  return ativos.length == 2 ? ativos : const [];
+});
+
 // --- Dados ----------------------------------------------------------------
 
 final potesProvider = StreamProvider<List<Pote>>(
