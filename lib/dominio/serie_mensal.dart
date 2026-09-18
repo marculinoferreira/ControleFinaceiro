@@ -105,3 +105,42 @@ List<PontoComprometido> serieComprometimento({
           valor: comprometidoNoMes(parcelas, mes.valor, membroId: membroId),
         ),
     ];
+
+/// Um mes projetado: renda repetida do mes de referencia, gasto = o que ja
+/// esta comprometido em parcelas naquele mes.
+class PontoProjecao {
+  final MesRef mes;
+  final double ganhos;
+  final double gastos;
+
+  const PontoProjecao({
+    required this.mes,
+    required this.ganhos,
+    required this.gastos,
+  });
+
+  double get saldo => ganhos - gastos;
+}
+
+/// Projeta [meses] a frente assumindo renda constante (o ganho real do mes
+/// de referencia, repetido) contra o gasto ja comprometido em parcelas.
+///
+/// Nao e previsao nem media: e a mesma renda de hoje, os mesmos
+/// compromissos ja lancados -- a pergunta que responde e "se nada mudar,
+/// sobra ou falta dinheiro nos proximos meses". Compromisso futuro sai de
+/// graca de `comprometidoNoMes`, o mesmo calculo do grafico de
+/// Comprometido.
+List<PontoProjecao> serieProjecao({
+  required List<MesRef> meses,
+  required double ganhoMensalAssumido,
+  required List<Gasto> parcelas,
+  String? membroId,
+}) =>
+    [
+      for (final mes in meses)
+        PontoProjecao(
+          mes: mes,
+          ganhos: ganhoMensalAssumido,
+          gastos: comprometidoNoMes(parcelas, mes.valor, membroId: membroId),
+        ),
+    ];
