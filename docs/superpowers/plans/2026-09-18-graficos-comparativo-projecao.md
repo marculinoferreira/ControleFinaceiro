@@ -1923,7 +1923,7 @@ Esperado: falhas — o seletor de 3 abas ainda não existe, "Comparativo"/"Proje
 
 - [ ] **Step 3: Implementar**
 
-Substitua o conteúdo de `lib/ui/telas/tela_graficos.dart** por:
+Substitua o conteúdo de `lib/ui/telas/tela_graficos.dart` por:
 
 ```dart
 import 'package:flutter/material.dart';
