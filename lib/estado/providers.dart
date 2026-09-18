@@ -271,6 +271,40 @@ final serieComprometimentoComparativoProvider = Provider.autoDispose<
       );
 });
 
+/// Ganho real do mes selecionado, respeitando a visao -- a renda que a
+/// projecao assume constante dali pra frente.
+final ganhoAssumidoProjecaoProvider =
+    Provider.autoDispose<AsyncValue<double>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+  final membroId = ref.watch(visaoProvider);
+
+  return ref.watch(ganhosDoMesProvider(mes)).whenData(
+        (ganhos) => calcularTotais(
+          ganhos: ganhos,
+          gastos: const [],
+          membroId: membroId,
+        ).ganhos,
+      );
+});
+
+final serieProjecaoProvider =
+    Provider.autoDispose<AsyncValue<List<PontoProjecao>>>((ref) {
+  final inicio = ref.watch(mesSelecionadoProvider);
+  final membroId = ref.watch(visaoProvider);
+  final meses = janelaDe(inicio, mesesDaSerie);
+
+  return combinarAsyncValues(
+    ref.watch(ganhoAssumidoProjecaoProvider),
+    ref.watch(parceladosDesdeProvider(inicio.valor)),
+    (ganhoAssumido, parcelas) => serieProjecao(
+      meses: meses,
+      ganhoMensalAssumido: ganhoAssumido,
+      parcelas: parcelas,
+      membroId: membroId,
+    ),
+  );
+});
+
 // --- Dados ----------------------------------------------------------------
 
 final potesProvider = StreamProvider<List<Pote>>(

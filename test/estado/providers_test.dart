@@ -480,4 +480,80 @@ void main() {
       c.dispose();
     });
   });
+
+  group('dados da Projecao', () {
+    Future<ProviderContainer> montarProjecao({
+      double ganhoMarcos = 5000,
+      List<(String mesRef, double valor)> parcelas = const [],
+    }) async {
+      final ganhos = RepositorioGanhosFake();
+      final gastos = RepositorioGastosFake();
+
+      if (ganhoMarcos > 0) {
+        await ganhos.adicionar(Ganho(
+          id: '', mesRef: '2026-08', membroId: 'marcos',
+          descricao: 'Salario', valor: ganhoMarcos,
+          criadoEm: DateTime.utc(2026, 8, 1),
+        ));
+      }
+      for (final (mesRef, valor) in parcelas) {
+        // quantidadeParcelas precisa ser >= 2: com 1, gerarParcelas devolve
+        // um gasto simples (parcelado: false), que observarParceladosDesde
+        // nao enxerga.
+        await gastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: mesRef, membroId: 'marcos', poteId: 'p1',
+            descricao: 'Parcelada', valor: valor,
+            criadoEm: DateTime.utc(2026, 1, 1), parcelado: false,
+          ),
+          quantidadeParcelas: 2,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(gastos),
+      ]);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
+      c.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('ganhoAssumidoProjecao e o total de ganhos do mes selecionado', () async {
+      final c = await montarProjecao(ganhoMarcos: 5000);
+      expect(c.read(ganhoAssumidoProjecaoProvider).requireValue, 5000);
+      c.dispose();
+    });
+
+    test('ganhoAssumidoProjecao respeita a visao selecionada', () async {
+      final c = await montarProjecao(ganhoMarcos: 5000);
+      c.read(visaoProvider.notifier).selecionar('silvia');
+      expect(c.read(ganhoAssumidoProjecaoProvider).requireValue, 0);
+      c.dispose();
+    });
+
+    test('serieProjecao repete a renda e usa o comprometido por mes', () async {
+      // Uma unica compra de 2 parcelas comecando em 2026-08 cai em 2026-08 e
+      // 2026-09 (spillover de gerarParcelas com quantidade >= 2), deixando
+      // 2026-10 sem nenhum comprometimento -- exatamente os tres pontos que
+      // o teste quer distinguir.
+      final c = await montarProjecao(
+        ganhoMarcos: 5000,
+        parcelas: [('2026-08', 100)],
+      );
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie, hasLength(mesesDaSerie));
+      expect(serie.every((p) => p.ganhos == 5000), isTrue);
+      expect(serie[0].gastos, 100);
+      expect(serie[1].gastos, 100);
+      expect(serie[2].gastos, 0);
+      c.dispose();
+    });
+  });
 }
