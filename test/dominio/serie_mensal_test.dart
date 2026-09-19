@@ -365,4 +365,76 @@ void main() {
       expect(serie.every((p) => p.gastos == 0), isTrue);
     });
   });
+
+  group('serieGastoPote', () {
+    Gasto gastoDoPote(String mesRef, String poteId, double valor,
+            {String membroId = 'marcos'}) =>
+        Gasto(
+          id: 'g-$mesRef-$poteId-$membroId',
+          mesRef: mesRef,
+          membroId: membroId,
+          poteId: poteId,
+          descricao: 'Compra',
+          valor: valor,
+          criadoEm: DateTime.utc(2026, 1, 1),
+          parcelado: false,
+        );
+
+    test('mes sem gasto no pote entra com zero', () {
+      final serie = serieGastoPote(
+        meses: janelaAte(const MesRef(2026, 8), 3),
+        gastos: [gastoDoPote('2026-08', 'p1', 500)],
+        poteId: 'p1',
+      );
+
+      expect(serie.map((p) => p.valor).toList(), [0, 0, 500]);
+    });
+
+    test('soma gastos do mesmo pote e mes', () {
+      final serie = serieGastoPote(
+        meses: janelaAte(const MesRef(2026, 8), 1),
+        gastos: [
+          gastoDoPote('2026-08', 'p1', 200),
+          gastoDoPote('2026-08', 'p1', 150),
+        ],
+        poteId: 'p1',
+      );
+
+      expect(serie.single.valor, 350);
+    });
+
+    test('ignora gasto de outro pote', () {
+      final serie = serieGastoPote(
+        meses: janelaAte(const MesRef(2026, 8), 1),
+        gastos: [gastoDoPote('2026-08', 'p2', 999)],
+        poteId: 'p1',
+      );
+
+      expect(serie.single.valor, 0);
+    });
+
+    test('filtra por membroId quando informado', () {
+      final serie = serieGastoPote(
+        meses: janelaAte(const MesRef(2026, 8), 1),
+        gastos: [
+          gastoDoPote('2026-08', 'p1', 200, membroId: 'marcos'),
+          gastoDoPote('2026-08', 'p1', 300, membroId: 'silvia'),
+        ],
+        poteId: 'p1',
+        membroId: 'silvia',
+      );
+
+      expect(serie.single.valor, 300);
+    });
+
+    test('ignora gasto fora da janela', () {
+      final serie = serieGastoPote(
+        meses: janelaAte(const MesRef(2026, 8), 1),
+        gastos: [gastoDoPote('2020-01', 'p1', 999)],
+        poteId: 'p1',
+      );
+
+      expect(serie.single.valor, 0);
+    });
+  });
 }

@@ -144,3 +144,25 @@ List<PontoProjecao> serieProjecao({
           gastos: comprometidoNoMes(parcelas, mes.valor, membroId: membroId),
         ),
     ];
+
+/// Gasto classificado num pote especifico, mes a mes, nos [meses] dados.
+/// Mesma forma de `serieComprometimento`, mas soma gasto real classificado
+/// no pote (nao parcela em aberto) — as duas series sao "um mes, um valor",
+/// so a origem do valor muda, entao reaproveitam `PontoComprometido`.
+List<PontoComprometido> serieGastoPote({
+  required List<MesRef> meses,
+  required List<Gasto> gastos,
+  required String poteId,
+  String? membroId,
+}) {
+  final somaPorMes = <String, double>{};
+  for (final g in gastos) {
+    if (g.poteId != poteId) continue;
+    if (membroId != null && g.membroId != membroId) continue;
+    somaPorMes[g.mesRef] = (somaPorMes[g.mesRef] ?? 0) + g.valor;
+  }
+  return [
+    for (final mes in meses)
+      PontoComprometido(mes: mes, valor: somaPorMes[mes.valor] ?? 0),
+  ];
+}
