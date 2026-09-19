@@ -298,4 +298,41 @@ void main() {
     expect(r.semRenda, isTrue);
     expect(r.rotulo, 'CADASTRE SEUS GANHOS');
   });
+
+  group('projetarGastoPote', () {
+    test('dia zero devolve nulo (evita divisao por zero)', () {
+      expect(
+        projetarGastoPote(gastoAteHoje: 100, diaAtual: 0, diasDoMes: 30),
+        isNull,
+      );
+    });
+
+    test('dia 1: o gasto do dia vale por todo o mes', () {
+      expect(
+        projetarGastoPote(gastoAteHoje: 100, diaAtual: 1, diasDoMes: 30),
+        3000,
+      );
+    });
+
+    test('meio do mes: extrapola o ritmo ate o fim do mes', () {
+      expect(
+        projetarGastoPote(gastoAteHoje: 450, diaAtual: 15, diasDoMes: 30),
+        900,
+      );
+    });
+
+    test('ultimo dia do mes: a projecao e o proprio gasto acumulado', () {
+      expect(
+        projetarGastoPote(gastoAteHoje: 900, diaAtual: 30, diasDoMes: 30),
+        900,
+      );
+    });
+
+    test('sem gasto nenhum, a projecao e zero', () {
+      expect(
+        projetarGastoPote(gastoAteHoje: 0, diaAtual: 10, diasDoMes: 30),
+        0,
+      );
+    });
+  });
 }

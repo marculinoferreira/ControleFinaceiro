@@ -115,3 +115,16 @@ ResultadoCascata calcularCascata({
     totalGanhos: totalGanhos,
   );
 }
+
+/// Projecao linear de gasto de um pote ate o fim do mes, dado o ritmo de
+/// gasto ate [diaAtual]. Nula quando [diaAtual] e zero (nao deveria
+/// acontecer — todo mes tem pelo menos o dia 1 — mas evita divisao por
+/// zero em vez de lancar).
+double? projetarGastoPote({
+  required double gastoAteHoje,
+  required int diaAtual,
+  required int diasDoMes,
+}) {
+  if (diaAtual <= 0) return null;
+  return gastoAteHoje / diaAtual * diasDoMes;
+}
