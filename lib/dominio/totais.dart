@@ -101,8 +101,8 @@ double? percentualComprometido({
 ///
 /// Assume que [ganhosDoMes] ja pertence a um unico mes — "tem ganho real"
 /// precisa ser respondido mes a mes, nao ao longo de uma janela inteira
-/// (ver `ganhosEfetivosPorMes` em serie_mensal.dart para o caso de varios
-/// meses).
+/// (ver `ganhosEfetivosNaJanela`, logo abaixo, e `ganhoEfetivoDoMembroPorMes`
+/// em serie_mensal.dart, para os casos de varios meses).
 List<Ganho> ganhosEfetivos(List<Ganho> ganhosDoMes) {
   final membrosComReal = <String>{
     for (final g in ganhosDoMes)

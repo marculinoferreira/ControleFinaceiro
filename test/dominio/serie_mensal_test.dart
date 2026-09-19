@@ -1,8 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
+import 'package:controle_financeiro/dominio/models/membro.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/serie_mensal.dart';
+
+Membro membro(String id) => Membro(
+      id: id,
+      nome: id,
+      email: '$id@example.com',
+      cor: '#000000',
+      ordem: 0,
+    );
 
 Ganho ganho(String mesRef, double valor, {String membroId = 'marcos'}) => Ganho(
       id: 'g-$mesRef-$membroId-$valor',
@@ -311,20 +320,28 @@ void main() {
           totalParcelas: 2,
         );
 
-    test('renda repete o valor assumido em todos os meses', () {
+    final marcos = membro('marcos');
+    final silvia = membro('silvia');
+
+    test('renda repete a renda assumida de cada membro em todos os meses',
+        () {
       final serie = serieProjecao(
         meses: janelaDe(const MesRef(2026, 8), 3),
-        ganhoMensalAssumido: 5000,
+        membros: [marcos, silvia],
+        ganhoAssumidoPorMembro: const {'marcos': 5000, 'silvia': 3200},
+        ganhosConhecidosPorMembro: const {},
         parcelas: const [],
       );
 
-      expect(serie.map((p) => p.ganhos).toList(), [5000, 5000, 5000]);
+      expect(serie.map((p) => p.ganhos).toList(), [8200, 8200, 8200]);
     });
 
     test('gasto e o comprometido em parcelas daquele mes', () {
       final serie = serieProjecao(
         meses: janelaDe(const MesRef(2026, 8), 3),
-        ganhoMensalAssumido: 5000,
+        membros: [marcos],
+        ganhoAssumidoPorMembro: const {'marcos': 5000},
+        ganhosConhecidosPorMembro: const {},
         parcelas: [parcela('2026-08', 100), parcela('2026-09', 100)],
       );
 
@@ -334,17 +351,21 @@ void main() {
     test('saldo e ganhos menos gastos', () {
       final serie = serieProjecao(
         meses: janelaDe(const MesRef(2026, 8), 1),
-        ganhoMensalAssumido: 5000,
+        membros: [marcos],
+        ganhoAssumidoPorMembro: const {'marcos': 5000},
+        ganhosConhecidosPorMembro: const {},
         parcelas: [parcela('2026-08', 6000)],
       );
 
       expect(serie.single.saldo, -1000);
     });
 
-    test('filtra por membroId quando informado', () {
+    test('filtra gastos por membroId quando informado', () {
       final serie = serieProjecao(
         meses: janelaDe(const MesRef(2026, 8), 1),
-        ganhoMensalAssumido: 3000,
+        membros: [marcos, silvia],
+        ganhoAssumidoPorMembro: const {'marcos': 1000, 'silvia': 2000},
+        ganhosConhecidosPorMembro: const {},
         parcelas: [
           parcela('2026-08', 100, membroId: 'marcos'),
           parcela('2026-08', 200, membroId: 'silvia'),
@@ -353,39 +374,88 @@ void main() {
       );
 
       expect(serie.single.gastos, 200);
+      expect(serie.single.ganhos, 2000); // so a renda assumida da Silvia
     });
 
     test('sem parcela nenhuma, gasto fica zero em todos os meses', () {
       final serie = serieProjecao(
         meses: janelaDe(const MesRef(2026, 8), 2),
-        ganhoMensalAssumido: 5000,
+        membros: [marcos],
+        ganhoAssumidoPorMembro: const {'marcos': 5000},
+        ganhosConhecidosPorMembro: const {},
         parcelas: const [],
       );
 
       expect(serie.every((p) => p.gastos == 0), isTrue);
     });
 
-    test('mes presente em ganhosConhecidos usa o valor do mapa', () {
+    test('membro com ganho conhecido no mes usa o valor conhecido, nao o assumido',
+        () {
       final serie = serieProjecao(
         meses: janelaDe(const MesRef(2026, 8), 3),
-        ganhoMensalAssumido: 5000,
+        membros: [marcos],
+        ganhoAssumidoPorMembro: const {'marcos': 5000},
+        ganhosConhecidosPorMembro: const {
+          'marcos': {'2026-09': 5500},
+        },
         parcelas: const [],
-        ganhosConhecidos: const {'2026-09': 5500},
       );
 
-      expect(serie[0].ganhos, 5000); // 2026-08: nao esta no mapa
-      expect(serie[1].ganhos, 5500); // 2026-09: esta no mapa
-      expect(serie[2].ganhos, 5000); // 2026-10: nao esta no mapa
+      expect(serie[0].ganhos, 5000); // 2026-08: nao esta no mapa do marcos
+      expect(serie[1].ganhos, 5500); // 2026-09: esta no mapa do marcos
+      expect(serie[2].ganhos, 5000); // 2026-10: nao esta no mapa do marcos
     });
 
-    test('mapa vazio (default) se comporta como antes', () {
+    test('mapas vazios (default) caem todos na renda assumida', () {
       final serie = serieProjecao(
         meses: janelaDe(const MesRef(2026, 8), 2),
-        ganhoMensalAssumido: 5000,
+        membros: [marcos],
+        ganhoAssumidoPorMembro: const {'marcos': 5000},
+        ganhosConhecidosPorMembro: const {},
         parcelas: const [],
       );
 
       expect(serie.every((p) => p.ganhos == 5000), isTrue);
+    });
+
+    test(
+        'cenario do usuario: previsto so de uma pessoa nao apaga a renda assumida da outra',
+        () {
+      // Renda assumida do mes de referencia: Marcos 5000 + Silvia 3200 = 8200.
+      // So o Marcos lancou (previsto ou real) 3800 para o mes seguinte;
+      // a Silvia nao lancou nada para aquele mes.
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 9), 3),
+        membros: [marcos, silvia],
+        ganhoAssumidoPorMembro: const {'marcos': 5000, 'silvia': 3200},
+        ganhosConhecidosPorMembro: const {
+          'marcos': {'2026-10': 3800},
+        },
+        parcelas: const [],
+      );
+
+      expect(serie[0].ganhos, 8200); // 2026-09: ninguem lancou -> assumido
+      // 2026-10: marcos usa o que lancou (3800), silvia cai no assumido dela
+      // (3200) -- nunca 3800 sozinho, nem 8200 inteiro.
+      expect(serie[1].ganhos, 7000);
+      expect(serie[2].ganhos, 8200); // 2026-11: ninguem lancou -> assumido
+    });
+
+    test(
+        'visao de uma pessoa so: se so a OUTRA pessoa lancou algo no mes, a '
+        'pessoa selecionada continua com a propria renda assumida', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 10), 1),
+        membros: [marcos, silvia],
+        ganhoAssumidoPorMembro: const {'marcos': 5000, 'silvia': 3200},
+        ganhosConhecidosPorMembro: const {
+          'marcos': {'2026-10': 3800},
+        },
+        parcelas: const [],
+        membroId: 'silvia',
+      );
+
+      expect(serie.single.ganhos, 3200);
     });
   });
 
@@ -461,7 +531,7 @@ void main() {
     });
   });
 
-  group('ganhosEfetivosPorMes', () {
+  group('ganhoEfetivoDoMembroPorMes', () {
     Ganho ganhoDoMes(String mesRef, String membroId, double valor,
             {bool previsto = false}) =>
         Ganho(
@@ -475,51 +545,42 @@ void main() {
         );
 
     test('mes sem ganho nenhum fica fora do mapa', () {
-      final mapa = ganhosEfetivosPorMes(
+      final mapa = ganhoEfetivoDoMembroPorMes(
         ganhosDoIntervalo: const [],
         meses: janelaDe(const MesRef(2026, 9), 2),
+        membroId: 'marcos',
       );
 
       expect(mapa, isEmpty);
     });
 
-    test('mes com so previsto entra com o valor do previsto', () {
-      final mapa = ganhosEfetivosPorMes(
+    test('mes com previsto do proprio membro entra com o valor do previsto',
+        () {
+      final mapa = ganhoEfetivoDoMembroPorMes(
         ganhosDoIntervalo: [ganhoDoMes('2026-10', 'marcos', 3800, previsto: true)],
         meses: janelaDe(const MesRef(2026, 9), 2),
+        membroId: 'marcos',
       );
 
       expect(mapa['2026-09'], isNull);
       expect(mapa['2026-10'], 3800);
     });
 
-    test('filtra por membroId quando informado', () {
-      final mapa = ganhosEfetivosPorMes(
-        ganhosDoIntervalo: [
-          ganhoDoMes('2026-10', 'marcos', 3800, previsto: true),
-          ganhoDoMes('2026-10', 'silvia', 3200, previsto: true),
-        ],
-        meses: janelaDe(const MesRef(2026, 9), 2),
-        membroId: 'silvia',
-      );
-
-      expect(mapa['2026-10'], 3200);
-    });
-
-    test('mes com real de uma pessoa e nada da pessoa pedida entra com zero',
+    test(
+        'mes com lancamento so de OUTRO membro fica fora do mapa do membro pedido '
+        '(nunca entra com zero -- quem consome cai na renda assumida dele)',
         () {
-      final mapa = ganhosEfetivosPorMes(
+      final mapa = ganhoEfetivoDoMembroPorMes(
         ganhosDoIntervalo: [ganhoDoMes('2026-10', 'marcos', 5000)],
         meses: janelaDe(const MesRef(2026, 9), 2),
         membroId: 'silvia',
       );
 
-      expect(mapa.containsKey('2026-10'), isTrue);
-      expect(mapa['2026-10'], 0);
+      expect(mapa.containsKey('2026-10'), isFalse);
     });
 
     test('real vence previsto no mesmo mes e pessoa', () {
-      final mapa = ganhosEfetivosPorMes(
+      final mapa = ganhoEfetivoDoMembroPorMes(
         ganhosDoIntervalo: [
           ganhoDoMes('2026-10', 'marcos', 3800, previsto: true),
           ganhoDoMes('2026-10', 'marcos', 4200),
@@ -531,16 +592,17 @@ void main() {
       expect(mapa['2026-10'], 4200);
     });
 
-    test('sem membroId (visao casal), soma todo mundo', () {
-      final mapa = ganhosEfetivosPorMes(
+    test('ganho de outro membro no mesmo mes nao interfere no proprio', () {
+      final mapa = ganhoEfetivoDoMembroPorMes(
         ganhosDoIntervalo: [
           ganhoDoMes('2026-10', 'marcos', 5000),
           ganhoDoMes('2026-10', 'silvia', 3200, previsto: true),
         ],
         meses: janelaDe(const MesRef(2026, 9), 2),
+        membroId: 'silvia',
       );
 
-      expect(mapa['2026-10'], 8200);
+      expect(mapa['2026-10'], 3200);
     });
   });
 }

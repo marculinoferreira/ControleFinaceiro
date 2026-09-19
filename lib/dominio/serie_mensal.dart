@@ -1,5 +1,6 @@
 import 'models/ganho.dart';
 import 'models/gasto.dart';
+import 'models/membro.dart';
 import 'models/mes_ref.dart';
 import 'totais.dart';
 
@@ -122,29 +123,50 @@ class PontoProjecao {
   double get saldo => ganhos - gastos;
 }
 
-/// Projeta [meses] a frente assumindo renda constante (o ganho real do mes
-/// de referencia, repetido) contra o gasto ja comprometido em parcelas.
+/// Projeta [meses] a frente somando, mes a mes, a renda de cada membro de
+/// [membros]: quem lancou algo (real ou previsto, ver `ganhosEfetivos` em
+/// totais.dart) naquele mes usa o que lancou; quem nao lancou nada continua
+/// com a propria renda assumida (`ganhoAssumidoPorMembro`), mesmo que outra
+/// pessoa ja tenha dado dado para aquele mes.
 ///
-/// Nao e previsao nem media: e a mesma renda de hoje, os mesmos
-/// compromissos ja lancados -- a pergunta que responde e "se nada mudar,
-/// sobra ou falta dinheiro nos proximos meses". Compromisso futuro sai de
-/// graca de `comprometidoNoMes`, o mesmo calculo do grafico de
-/// Comprometido.
+/// Isso e o que evita o bug de "mais dado piora a projecao": resolver so
+/// pelo mes inteiro (um previsto so de uma pessoa "preenchendo" o mes)
+/// faria a renda da outra pessoa sumir da conta em vez de cair na media
+/// dela. Aqui cada membro e resolvido de forma independente, e so depois
+/// os resultados sao somados.
+///
+/// Nao e previsao nem media: e a mesma renda de hoje (ou o previsto ja
+/// lancado), os mesmos compromissos ja lancados -- a pergunta que responde
+/// e "se nada mudar, sobra ou falta dinheiro nos proximos meses".
+/// Compromisso futuro sai de graca de `comprometidoNoMes`, o mesmo calculo
+/// do grafico de Comprometido.
+///
+/// Com [membroId] informado, so aquele membro entra na soma de ganhos (e
+/// `comprometidoNoMes` tambem filtra os gastos por ele); com nulo, soma
+/// todo mundo em [membros] (visao Casal).
 List<PontoProjecao> serieProjecao({
   required List<MesRef> meses,
-  required double ganhoMensalAssumido,
+  required List<Membro> membros,
+  required Map<String, double> ganhoAssumidoPorMembro,
+  required Map<String, Map<String, double>> ganhosConhecidosPorMembro,
   required List<Gasto> parcelas,
   String? membroId,
-  Map<String, double> ganhosConhecidos = const {},
-}) =>
-    [
-      for (final mes in meses)
-        PontoProjecao(
-          mes: mes,
-          ganhos: ganhosConhecidos[mes.valor] ?? ganhoMensalAssumido,
-          gastos: comprometidoNoMes(parcelas, mes.valor, membroId: membroId),
-        ),
-    ];
+}) {
+  final consideradas =
+      membroId == null ? membros : membros.where((m) => m.id == membroId);
+  return [
+    for (final mes in meses)
+      PontoProjecao(
+        mes: mes,
+        ganhos: [
+          for (final m in consideradas)
+            ganhosConhecidosPorMembro[m.id]?[mes.valor] ??
+                (ganhoAssumidoPorMembro[m.id] ?? 0),
+        ].fold(0.0, (a, b) => a + b),
+        gastos: comprometidoNoMes(parcelas, mes.valor, membroId: membroId),
+      ),
+  ];
+}
 
 /// Gasto classificado num pote especifico, mes a mes, nos [meses] dados.
 /// Mesma forma de `serieComprometimento`, mas soma gasto real classificado
@@ -169,22 +191,23 @@ List<PontoComprometido> serieGastoPote({
 }
 
 /// Ganho efetivo (real-ou-previsto, ver `ganhosEfetivos` em totais.dart) de
-/// [membroId] em cada mes de [meses], a partir de uma janela com varios
-/// meses misturados (ex.: `gastosDoIntervaloProvider`/
-/// `ganhosDoIntervaloProvider`).
+/// UM membro especifico, mes a mes, a partir de uma janela com varios meses
+/// misturados (ex.: `ganhosDoIntervaloProvider`).
 ///
-/// Um mes sem NENHUM ganho (nem real, nem previsto, de ninguem) fica de
-/// fora do mapa — quem consome decide o que fazer (`serieProjecao` cai no
-/// `ganhoMensalAssumido` nesse caso). Um mes com ganho de outra pessoa mas
-/// nao de [membroId] entra no mapa com o valor 0.0, igual `calcularTotais`
-/// ja faz hoje pra um mes so — nao ha tratamento especial novo aqui.
-Map<String, double> ganhosEfetivosPorMes({
+/// So entra no mapa nos meses em que [membroId] ELE MESMO lancou algo (real
+/// ou previsto) — quem nao lancou nada naquele mes fica de fora, para que
+/// quem consome caia na renda assumida dele (`serieProjecao`). Diferente de
+/// decidir "o mes tem dado" olhando a janela inteira: aqui a pergunta e
+/// sempre por pessoa, entao o previsto de uma pessoa nunca faz a renda
+/// assumida de outra sumir da conta.
+Map<String, double> ganhoEfetivoDoMembroPorMes({
   required List<Ganho> ganhosDoIntervalo,
   required List<MesRef> meses,
-  String? membroId,
+  required String membroId,
 }) {
   final porMes = <String, List<Ganho>>{};
   for (final g in ganhosDoIntervalo) {
+    if (g.membroId != membroId) continue;
     (porMes[g.mesRef] ??= []).add(g);
   }
 

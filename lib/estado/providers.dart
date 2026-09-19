@@ -273,48 +273,53 @@ final serieComprometimentoComparativoProvider = Provider.autoDispose<
       );
 });
 
-/// Ganho real do mes selecionado, respeitando a visao -- a renda que a
-/// projecao assume constante dali pra frente.
-final ganhoAssumidoProjecaoProvider =
-    Provider.autoDispose<AsyncValue<double>>((ref) {
-  final mes = ref.watch(mesSelecionadoProvider).valor;
-  final membroId = ref.watch(visaoProvider);
-
-  return ref.watch(ganhosDoMesProvider(mes)).whenData(
-        (ganhos) => calcularTotais(
-          ganhos: ganhosEfetivos(ganhos),
-          gastos: const [],
-          membroId: membroId,
-        ).ganhos,
-      );
-});
-
+/// Serie de saldo projetado nos proximos meses, respeitando a visao: cada
+/// membro de `membrosParaVisaoProvider` e resolvido de forma independente
+/// (quem lancou ganho real ou previsto naquele mes usa o que lancou; quem
+/// nao lancou nada continua com a propria renda assumida, o ganho real do
+/// mes selecionado) e so depois os resultados sao somados -- ver o
+/// docstring de `serieProjecao` (serie_mensal.dart) para o motivo de
+/// resolver por pessoa em vez de pelo mes inteiro.
 final serieProjecaoProvider =
     Provider.autoDispose<AsyncValue<List<PontoProjecao>>>((ref) {
   final inicio = ref.watch(mesSelecionadoProvider);
   final membroId = ref.watch(visaoProvider);
+  final membros = ref.watch(membrosParaVisaoProvider);
   final meses = janelaDe(inicio, mesesDaSerie);
   final janela = (inicio: meses.first.valor, fim: meses.last.valor);
 
   return combinarAsyncValues(
-    combinarAsyncValues(
-      ref.watch(ganhoAssumidoProjecaoProvider),
-      ref.watch(parceladosDesdeProvider(inicio.valor)),
-      (ganhoAssumido, parcelas) => (ganhoAssumido, parcelas),
-    ),
-    ref.watch(ganhosDoIntervaloProvider(janela)).whenData(
-          (ganhosDoIntervalo) => ganhosEfetivosPorMes(
-            ganhosDoIntervalo: ganhosDoIntervalo,
-            meses: meses,
-            membroId: membroId,
-          ),
+    ref.watch(ganhosDoMesProvider(inicio.valor)).whenData(
+          (ganhosDoMes) => {
+            for (final m in membros)
+              m.id: calcularTotais(
+                ganhos: ganhosEfetivos(ganhosDoMes),
+                gastos: const [],
+                membroId: m.id,
+              ).ganhos,
+          },
         ),
-    (par, ganhosPorMes) => serieProjecao(
+    combinarAsyncValues(
+      ref.watch(parceladosDesdeProvider(inicio.valor)),
+      ref.watch(ganhosDoIntervaloProvider(janela)).whenData(
+            (ganhosDoIntervalo) => {
+              for (final m in membros)
+                m.id: ganhoEfetivoDoMembroPorMes(
+                  ganhosDoIntervalo: ganhosDoIntervalo,
+                  meses: meses,
+                  membroId: m.id,
+                ),
+            },
+          ),
+      (parcelas, ganhosPorMembro) => (parcelas, ganhosPorMembro),
+    ),
+    (assumidoPorMembro, par) => serieProjecao(
       meses: meses,
-      ganhoMensalAssumido: par.$1,
-      parcelas: par.$2,
+      membros: membros,
+      ganhoAssumidoPorMembro: assumidoPorMembro,
+      ganhosConhecidosPorMembro: par.$2,
+      parcelas: par.$1,
       membroId: membroId,
-      ganhosConhecidos: ganhosPorMes,
     ),
   );
 });

@@ -603,6 +603,17 @@ void main() {
   });
 
   group('dados da Projecao', () {
+    const casaDuasPessoas = Casa(
+      id: 'principal',
+      nome: 'Casa',
+      membros: [
+        Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+            cor: '#2E7D32', ordem: 0),
+        Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+            cor: '#6A1B9A', ordem: 1),
+      ],
+    );
+
     Future<ProviderContainer> montarProjecao({
       double ganhoMarcos = 5000,
       List<(String mesRef, double valor)> parcelas = const [],
@@ -632,13 +643,14 @@ void main() {
       }
 
       final c = ProviderContainer(overrides: [
-        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaDuasPessoas)),
         repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
         repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGanhosProvider.overrideWithValue(ganhos),
         repositorioGastosProvider.overrideWithValue(gastos),
       ]);
       c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(casaProvider, (_, _) {});
       c.listen(potesProvider, (_, _) {});
       c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
       c.listen(ganhosDoMesProvider('2026-09'), (_, _) {});
@@ -652,19 +664,6 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       return c;
     }
-
-    test('ganhoAssumidoProjecao e o total de ganhos do mes selecionado', () async {
-      final c = await montarProjecao(ganhoMarcos: 5000);
-      expect(c.read(ganhoAssumidoProjecaoProvider).requireValue, 5000);
-      c.dispose();
-    });
-
-    test('ganhoAssumidoProjecao respeita a visao selecionada', () async {
-      final c = await montarProjecao(ganhoMarcos: 5000);
-      c.read(visaoProvider.notifier).selecionar('silvia');
-      expect(c.read(ganhoAssumidoProjecaoProvider).requireValue, 0);
-      c.dispose();
-    });
 
     test('serieProjecao repete a renda e usa o comprometido por mes', () async {
       // Uma unica compra de 2 parcelas comecando em 2026-08 cai em 2026-08 e
@@ -1045,18 +1044,20 @@ void main() {
         closeTo(0.1, 0.0001),
       );
     });
-
-    test('ganhoAssumidoProjecaoProvider usa previsto quando so ha previsto',
-        () async {
-      final c = await montarComGanhos(
-        ganhosDoMes: [('marcos', 3800, true)],
-      );
-
-      expect(c.read(ganhoAssumidoProjecaoProvider).requireValue, 3800);
-    });
   });
 
   group('serieProjecaoProvider com ganhos efetivos', () {
+    const casaDuasPessoas = Casa(
+      id: 'principal',
+      nome: 'Casa',
+      membros: [
+        Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+            cor: '#2E7D32', ordem: 0),
+        Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+            cor: '#6A1B9A', ordem: 1),
+      ],
+    );
+
     Future<ProviderContainer> montarProjecaoComGanhos({
       double ganhoMarcosOutubro = 5000,
       List<(String mesRef, double valor, bool previsto)> ganhosFuturos = const [],
@@ -1078,7 +1079,7 @@ void main() {
       }
 
       final c = ProviderContainer(overrides: [
-        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaDuasPessoas)),
         repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
         repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGanhosProvider.overrideWithValue(ganhos),
@@ -1086,6 +1087,7 @@ void main() {
       ]);
       addTearDown(c.dispose);
       c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 10));
+      c.listen(casaProvider, (_, _) {});
       c.listen(ganhosDoMesProvider('2026-10'), (_, _) {});
       c.listen(
         ganhosDoIntervaloProvider(
@@ -1147,10 +1149,10 @@ void main() {
     });
 
     test(
-        'visao por pessoa: previsto de uma pessoa nao vaza pra quem nao tem '
-        'previsto', () async {
+        'visao por pessoa: previsto de uma pessoa nao apaga a renda assumida '
+        'de quem nao lancou nada naquele mes', () async {
       final ganhos = RepositorioGanhosFake();
-      // Outubro: as duas pessoas tem ganho real.
+      // Outubro (mes de referencia): as duas pessoas tem ganho real.
       await ganhos.adicionar(Ganho(
         id: '', mesRef: '2026-10', membroId: 'marcos',
         descricao: 'Salario', valor: 5000,
@@ -1161,15 +1163,22 @@ void main() {
         descricao: 'Salario', valor: 4000,
         criadoEm: DateTime.utc(2026, 10, 1),
       ));
-      // Novembro: so Marcos tem previsto.
+      // Novembro: so Marcos tem previsto -- Silvia nao lancou nada.
       await ganhos.adicionar(Ganho(
         id: '', mesRef: '2026-11', membroId: 'marcos',
         descricao: 'Previsto', valor: 5500,
         criadoEm: DateTime.utc(2026, 10, 1), previsto: true,
       ));
+      // Dezembro: Silvia tambem lanca o dela -- prova que ela usa o proprio
+      // dado quando existe, nao so o assumido.
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-12', membroId: 'silvia',
+        descricao: 'Previsto', valor: 4300,
+        criadoEm: DateTime.utc(2026, 10, 1), previsto: true,
+      ));
 
       final c = ProviderContainer(overrides: [
-        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaDuasPessoas)),
         repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
         repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
         repositorioGanhosProvider.overrideWithValue(ganhos),
@@ -1177,6 +1186,7 @@ void main() {
       ]);
       addTearDown(c.dispose);
       c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 10));
+      c.listen(casaProvider, (_, _) {});
       c.listen(ganhosDoMesProvider('2026-10'), (_, _) {});
       c.listen(
         ganhosDoIntervaloProvider(
@@ -1194,20 +1204,24 @@ void main() {
       expect(serieMarcos[1].ganhos, 5500); // novembro: previsto de Marcos
 
       // Visao Silvia: em novembro so existe o previsto de Marcos -- nao o
-      // dela. Isso prova que o previsto de Marcos nao vaza pra ela: o mes
-      // fica em zero para Silvia (mesma convencao de `calcularTotais` e do
-      // proprio `ganhosEfetivosPorMes`, ver o teste de dominio "mes com real
-      // de uma pessoa e nada da pessoa pedida entra com zero" em
-      // serie_mensal_test.dart) -- e nao o valor do previsto de Marcos.
+      // dela. Isso prova que o previsto de Marcos nao apaga a renda dela: em
+      // vez de zerar (bug antigo), novembro cai na renda assumida da propria
+      // Silvia (4000, o real dela em outubro), e dezembro usa o previsto
+      // dela mesma, ja que ela lancou algo naquele mes.
       c.read(visaoProvider.notifier).selecionar('silvia');
       final serieSilvia = c.read(serieProjecaoProvider).requireValue;
       expect(serieSilvia[0].ganhos, 4000); // outubro: real de Silvia
-      expect(serieSilvia[1].ganhos, 0); // novembro: sem dado dela, nao 5500
-      // Dezembro: ninguem tem lancamento nenhum -- ai sim o mes fica fora do
-      // mapa de `ganhosEfetivosPorMes` e a serie volta ao ganho assumido
-      // (o real de Silvia em outubro), provando que o fallback existe, so
-      // nao se aplica a novembro (onde ha dado de Marcos, so nao dela).
-      expect(serieSilvia[2].ganhos, 4000);
+      expect(serieSilvia[1].ganhos, 4000); // novembro: sem dado dela, cai no assumido dela
+      expect(serieSilvia[2].ganhos, 4300); // dezembro: previsto da propria Silvia
+
+      // Visao Casal: soma as duas resolvidas de forma independente -- prova
+      // o cenario do usuario (previsto so de uma pessoa nao "some" com a
+      // renda assumida da outra).
+      c.read(visaoProvider.notifier).selecionar(null);
+      final serieCasal = c.read(serieProjecaoProvider).requireValue;
+      expect(serieCasal[0].ganhos, 9000); // outubro: 5000 + 4000
+      expect(serieCasal[1].ganhos, 9500); // novembro: 5500 (previsto) + 4000 (assumido)
+      expect(serieCasal[2].ganhos, 9300); // dezembro: 5000 (assumido) + 4300 (previsto)
     });
   });
 }
