@@ -28,75 +28,84 @@ class _TendenciaPoteState extends ConsumerState<TendenciaPote> {
   @override
   Widget build(BuildContext context) {
     final potesAsync = ref.watch(potesProvider);
+    final potes = potesAsync.value;
 
-    return potesAsync.when(
-      loading: () => const SizedBox(
-        height: 240,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => SizedBox(
-        height: 240,
-        child: Center(child: Text('Erro: $e')),
-      ),
-      data: (potes) {
-        if (potes.isEmpty) {
-          return MolduraGrafico<List<PontoComprometido>>(
-            titulo: 'Tendência por pote',
-            vazio: 'Cadastre um pote para ver a tendência de gasto.',
-            dados: const AsyncData(<PontoComprometido>[]),
-            estaVazio: (_) => true,
-            legenda: (_) => [],
-            aoRecarregar: () => ref.invalidate(potesProvider),
-            construir: (_) => const SizedBox.shrink(),
-          );
-        }
+    // potesProvider ainda carregando ou com erro: sem a lista nao ha como
+    // montar o seletor (o dropdown precisa de potes de verdade), mas o
+    // proprio estado de loading/erro precisa passar pela MolduraGrafico --
+    // assim como os outros graficos da Visao Geral que dependem de potes,
+    // em vez de um `.when` proprio que derrubaria o widget inteiro (incluido
+    // o card do seletor) e escondido do isolamento de erro da tela.
+    if (potes == null) {
+      return MolduraGrafico<List<PontoComprometido>>(
+        titulo: 'Tendência por pote',
+        vazio: 'Cadastre um pote para ver a tendência de gasto.',
+        dados: potesAsync.whenData((_) => const <PontoComprometido>[]),
+        estaVazio: (_) => true,
+        legenda: (_) => [],
+        aoRecarregar: () => ref.invalidate(potesProvider),
+        construir: (_) => const SizedBox.shrink(),
+      );
+    }
 
-        final selecionado = potes.any((p) => p.id == _poteSelecionadoId)
-            ? _poteSelecionadoId!
-            : potes.first.id;
-        final poteAtual = potes.firstWhere((p) => p.id == selecionado);
+    if (potes.isEmpty) {
+      // Zero potes cadastrados e um AsyncData([]) normal, nao um erro --
+      // caso diferente do ramo acima, que mantem o mesmo texto de "vazio".
+      return MolduraGrafico<List<PontoComprometido>>(
+        titulo: 'Tendência por pote',
+        vazio: 'Cadastre um pote para ver a tendência de gasto.',
+        dados: const AsyncData(<PontoComprometido>[]),
+        estaVazio: (_) => true,
+        legenda: (_) => [],
+        aoRecarregar: () => ref.invalidate(potesProvider),
+        construir: (_) => const SizedBox.shrink(),
+      );
+    }
 
-        // `MolduraGrafico.subtitulo` e String, nao Widget -- nao ha slot ali
-        // para um dropdown. O seletor de pote fica FORA da moldura, num
-        // Card proprio acima dela, mantendo a moldura em si intocada.
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Card(
-              margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: DropdownButton<String>(
-                  value: selecionado,
-                  isExpanded: true,
-                  underline: const SizedBox.shrink(),
-                  items: [
-                    for (final p in potes)
-                      DropdownMenuItem(value: p.id, child: Text(p.nome)),
-                  ],
-                  onChanged: (novoId) =>
-                      setState(() => _poteSelecionadoId = novoId),
-                ),
-              ),
+    final selecionado = potes.any((p) => p.id == _poteSelecionadoId)
+        ? _poteSelecionadoId!
+        : potes.first.id;
+    final poteAtual = potes.firstWhere((p) => p.id == selecionado);
+
+    // `MolduraGrafico.subtitulo` e String, nao Widget -- nao ha slot ali
+    // para um dropdown. O seletor de pote fica FORA da moldura, num
+    // Card proprio acima dela, mantendo a moldura em si intocada.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Card(
+          margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: DropdownButton<String>(
+              value: selecionado,
+              isExpanded: true,
+              underline: const SizedBox.shrink(),
+              items: [
+                for (final p in potes)
+                  DropdownMenuItem(value: p.id, child: Text(p.nome)),
+              ],
+              onChanged: (novoId) =>
+                  setState(() => _poteSelecionadoId = novoId),
             ),
-            MolduraGrafico<List<PontoComprometido>>(
-              titulo: 'Tendência por pote',
-              vazio:
-                  'Nenhum gasto neste pote nos últimos $mesesDaTendencia meses.',
-              dados: ref.watch(tendenciaPoteProvider(selecionado)),
-              estaVazio: (serie) =>
-                  serie.isEmpty || serieVazia([for (final p in serie) p.valor]),
-              aoRecarregar: () {
-                ref.invalidate(potesProvider);
-                ref.invalidate(tendenciaPoteProvider(selecionado));
-              },
-              legenda: (_) => [],
-              construir: (serie) =>
-                  _Linha(serie: serie, cor: corDeHex(poteAtual.cor)),
-            ),
-          ],
-        );
-      },
+          ),
+        ),
+        MolduraGrafico<List<PontoComprometido>>(
+          titulo: 'Tendência por pote',
+          vazio:
+              'Nenhum gasto neste pote nos últimos $mesesDaTendencia meses.',
+          dados: ref.watch(tendenciaPoteProvider(selecionado)),
+          estaVazio: (serie) =>
+              serie.isEmpty || serieVazia([for (final p in serie) p.valor]),
+          aoRecarregar: () {
+            ref.invalidate(potesProvider);
+            ref.invalidate(tendenciaPoteProvider(selecionado));
+          },
+          legenda: (_) => [],
+          construir: (serie) =>
+              _Linha(serie: serie, cor: corDeHex(poteAtual.cor)),
+        ),
+      ],
     );
   }
 }

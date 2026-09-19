@@ -10,6 +10,19 @@ import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/widgets/graficos/tendencia_pote.dart';
+import 'package:controle_financeiro/ui/widgets/moldura_grafico.dart';
+
+/// Simula potesProvider falhando (permissao negada, offline etc.) -- o
+/// mesmo fake usado em tela_graficos_test.dart para o achado 2 (isolamento
+/// de erro).
+class _PotesQueFalha implements RepositorioPotes {
+  @override
+  Stream<List<Pote>> observar() => Stream.error(Exception('sem permissao'));
+  @override
+  Future<void> salvarTodos(List<Pote> potes) async {}
+  @override
+  Future<void> remover(String id) async {}
+}
 
 const casa = Casa(
   id: 'principal',
@@ -112,6 +125,46 @@ void main() {
 
       expect(find.byType(DropdownButton<String>), findsNothing);
       expect(find.byType(LineChart), findsNothing);
+    });
+
+    testWidgets(
+        'potesProvider com erro mostra o cartao de erro padrao, sem o '
+        'seletor, respeitando o isolamento de erro da tela',
+        (tester) async {
+      tester.view.physicalSize = const Size(900, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final container = ProviderContainer(
+        retry: (_, _) => null,
+        overrides: [
+          repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+          repositorioPotesProvider.overrideWithValue(_PotesQueFalha()),
+          repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+          repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+          repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      container.listen(potesProvider, (_, _) {});
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(body: SingleChildScrollView(child: TendenciaPote())),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Sem dropdown: nao ha lista de potes para montar o seletor.
+      expect(find.byType(DropdownButton<String>), findsNothing);
+      // O erro passa pela MolduraGrafico, igual aos outros graficos que
+      // dependem de potes -- inclui o botao "Tentar de novo", nao um texto
+      // de erro solto.
+      expect(find.byWidgetPredicate((w) => w is MolduraGrafico),
+          findsOneWidget);
+      expect(find.text('Tentar de novo'), findsOneWidget);
     });
   });
 }

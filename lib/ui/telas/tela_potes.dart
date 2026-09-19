@@ -7,6 +7,7 @@ import '../../dominio/models/pote.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
 import '../tema/tema.dart';
+import '../widgets/campo_moeda.dart';
 import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/primeira_maiuscula.dart';
@@ -96,7 +97,7 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
     return _controladoresGuardado.putIfAbsent(
       indice,
       () => TextEditingController(
-        text: valor == null ? '' : valor.toStringAsFixed(2),
+        text: valor == null ? '' : formatarReais(valor),
       ),
     );
   }
@@ -105,7 +106,7 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
     return _controladoresVaiGanhar.putIfAbsent(
       indice,
       () => TextEditingController(
-        text: valor == null ? '' : valor.toStringAsFixed(2),
+        text: valor == null ? '' : formatarReais(valor),
       ),
     );
   }
@@ -331,6 +332,7 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
                         controller: _controladorGuardado(i, pote.valorGuardado),
                         keyboardType:
                             const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FormatadorMoeda()],
                         decoration: const InputDecoration(
                           labelText: 'Guardado',
                           prefixText: 'R\$ ',
@@ -347,8 +349,7 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
                             cor: atual.cor,
                             icone: atual.icone,
                             ehReserva: atual.ehReserva,
-                            valorGuardado:
-                                double.tryParse(v.replaceAll(',', '.')),
+                            valorGuardado: parsearMoeda(v),
                             proximoGanhoEsperado: atual.proximoGanhoEsperado,
                           );
                         }),
@@ -362,6 +363,7 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
                             _controladorVaiGanhar(i, pote.proximoGanhoEsperado),
                         keyboardType:
                             const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FormatadorMoeda()],
                         decoration: const InputDecoration(
                           labelText: 'Vai ganhar (próx. mês)',
                           prefixText: 'R\$ ',
@@ -379,8 +381,7 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
                             icone: atual.icone,
                             ehReserva: atual.ehReserva,
                             valorGuardado: atual.valorGuardado,
-                            proximoGanhoEsperado:
-                                double.tryParse(v.replaceAll(',', '.')),
+                            proximoGanhoEsperado: parsearMoeda(v),
                           );
                         }),
                       ),

@@ -186,11 +186,12 @@ void main() {
         (tester) async {
       await montar(tester, repoPotes: _PotesQueFalha());
 
-      // Os sete continuam montados.
-      expect(molduras, findsNWidgets(7));
+      // Os oito continuam montados.
+      expect(molduras, findsNWidgets(8));
 
-      // Rosca, barras e cascata dependem de potes e mostram o erro.
-      expect(find.text('Tentar de novo'), findsNWidgets(3));
+      // Rosca, barras, cascata e tendencia por pote dependem de potes e
+      // mostram o erro.
+      expect(find.text('Tentar de novo'), findsNWidgets(4));
 
       // Os que nao dependem de potes seguem desenhando.
       expect(find.byType(LineChart), findsWidgets);

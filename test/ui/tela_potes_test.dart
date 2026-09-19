@@ -562,7 +562,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('reserva_0')));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('guardado_0')), '6000');
+      // Digitos lidos como centavos (mesma convencao de CampoMoeda): '600000'
+      // -> R$ 6000,00.
+      await tester.enterText(find.byKey(const Key('guardado_0')), '600000');
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('salvar_potes')));
