@@ -220,4 +220,64 @@ void main() {
       );
     });
   });
+
+  group('ganhosEfetivos', () {
+    Ganho ganhoMarcado(String membroId, double valor, {required bool previsto}) =>
+        Ganho(
+          id: 'g-$membroId-$previsto',
+          mesRef: '2026-10',
+          membroId: membroId,
+          descricao: previsto ? 'Salario previsto' : 'Salario',
+          valor: valor,
+          criadoEm: DateTime.utc(2026, 9, 1),
+          previsto: previsto,
+        );
+
+    test('pessoa so com real: usa o real', () {
+      final efetivos = ganhosEfetivos([
+        ganhoMarcado('marcos', 5000, previsto: false),
+      ]);
+
+      expect(efetivos, hasLength(1));
+      expect(efetivos.single.valor, 5000);
+      expect(efetivos.single.previsto, isFalse);
+    });
+
+    test('pessoa so com previsto: usa o previsto', () {
+      final efetivos = ganhosEfetivos([
+        ganhoMarcado('marcos', 3800, previsto: true),
+      ]);
+
+      expect(efetivos, hasLength(1));
+      expect(efetivos.single.valor, 3800);
+      expect(efetivos.single.previsto, isTrue);
+    });
+
+    test('pessoa com real e previsto no mesmo mes: real vence, previsto some',
+        () {
+      final efetivos = ganhosEfetivos([
+        ganhoMarcado('marcos', 5000, previsto: false),
+        ganhoMarcado('marcos', 3800, previsto: true),
+      ]);
+
+      expect(efetivos, hasLength(1));
+      expect(efetivos.single.valor, 5000);
+      expect(efetivos.single.previsto, isFalse);
+    });
+
+    test('duas pessoas, cada uma com sua propria regra', () {
+      final efetivos = ganhosEfetivos([
+        ganhoMarcado('marcos', 5000, previsto: false),
+        ganhoMarcado('silvia', 3200, previsto: true),
+      ]);
+
+      expect(efetivos, hasLength(2));
+      expect(efetivos.firstWhere((g) => g.membroId == 'marcos').valor, 5000);
+      expect(efetivos.firstWhere((g) => g.membroId == 'silvia').valor, 3200);
+    });
+
+    test('lista vazia devolve lista vazia', () {
+      expect(ganhosEfetivos(const []), isEmpty);
+    });
+  });
 }

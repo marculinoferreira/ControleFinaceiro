@@ -94,3 +94,22 @@ double? percentualComprometido({
   if (renda <= toleranciaCentavo) return null;
   return comprometido / renda;
 }
+
+/// Filtra os ganhos de UM MES para "o que efetivamente conta" na renda:
+/// os ganhos reais de cada pessoa quando existir pelo menos um; senao, os
+/// previstos dela. Nunca mistura real e previsto da mesma pessoa.
+///
+/// Assume que [ganhosDoMes] ja pertence a um unico mes — "tem ganho real"
+/// precisa ser respondido mes a mes, nao ao longo de uma janela inteira
+/// (ver `ganhosEfetivosPorMes` em serie_mensal.dart para o caso de varios
+/// meses).
+List<Ganho> ganhosEfetivos(List<Ganho> ganhosDoMes) {
+  final membrosComReal = <String>{
+    for (final g in ganhosDoMes)
+      if (!g.previsto) g.membroId,
+  };
+  return [
+    for (final g in ganhosDoMes)
+      if (!g.previsto || !membrosComReal.contains(g.membroId)) g,
+  ];
+}
