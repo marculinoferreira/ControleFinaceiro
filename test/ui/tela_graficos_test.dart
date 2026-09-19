@@ -300,4 +300,88 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('seletor de tipo de visao', () {
+    testWidgets('comeca em Visao Geral, mostrando os 7 graficos de sempre',
+        (tester) async {
+      await montar(tester, tamanho: const Size(500, 2400));
+
+      expect(find.byKey(const Key('graficos_coluna_unica')), findsOneWidget);
+      expect(find.text('Comparativo'), findsOneWidget);
+      expect(find.text('Projeção'), findsOneWidget);
+    });
+
+    testWidgets('trocar para Comparativo esconde o seletor de pessoa',
+        (tester) async {
+      await montar(tester);
+
+      expect(find.byKey(const Key('graficos_visao')), findsOneWidget);
+
+      await tester.tap(find.text('Comparativo'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('graficos_visao')), findsNothing);
+    });
+
+    testWidgets('Comparativo mostra os 3 graficos novos, nao os 7 de sempre',
+        (tester) async {
+      await montar(tester);
+
+      await tester.tap(find.text('Comparativo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Gasto por pote'), findsOneWidget);
+      expect(find.text('Gasto por cartão'), findsOneWidget);
+      expect(find.textContaining('Comprometido nos próximos'), findsOneWidget);
+      expect(find.text('Ganhos por pessoa'), findsNothing); // grafico da Visao Geral
+    });
+
+    testWidgets('trocar para Projecao mantem o seletor de pessoa',
+        (tester) async {
+      await montar(tester);
+
+      await tester.tap(find.text('Projeção'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('graficos_visao')), findsOneWidget);
+      expect(find.text('Projeção de saldo'), findsOneWidget);
+    });
+
+    testWidgets('casa com 1 pessoa ativa nao oferece Comparativo',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(
+          const Casa(
+            id: 'principal',
+            nome: 'Casa',
+            membros: [
+              Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+                  cor: '#2E7D32', ordem: 0),
+            ],
+          ),
+        )),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(container.dispose);
+      container.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      container.listen(casaProvider, (_, _) {});
+
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: TelaGraficos())),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Visão Geral'), findsOneWidget);
+      expect(find.text('Projeção'), findsOneWidget);
+      expect(find.text('Comparativo'), findsNothing);
+    });
+  });
 }
