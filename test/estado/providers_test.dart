@@ -766,4 +766,83 @@ void main() {
       expect(serie.every((p) => p.valor == 0), isTrue);
     });
   });
+
+  group('poteReservaProvider e mesesCoberturaReservaProvider', () {
+    const potesSemReserva = [
+      Pote(id: 'p1', nome: 'Custo fixo', percentual: 60, ordem: 0,
+          cor: '#2E7D32', icone: 'casa'),
+      Pote(id: 'p2', nome: 'Reserva', percentual: 40, ordem: 1,
+          cor: '#1565C0', icone: 'cofre'),
+    ];
+
+    Future<ProviderContainer> montarReserva({
+      List<Pote> potesDaCasa = potesSemReserva,
+      double gastoDoMes = 0,
+    }) async {
+      final repoGastos = RepositorioGastosFake();
+      if (gastoDoMes > 0) {
+        await repoGastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: '2026-08', membroId: 'marcos', poteId: 'p1',
+            descricao: 'Compra', valor: gastoDoMes,
+            criadoEm: DateTime.utc(2026, 8, 2), parcelado: false,
+          ),
+          quantidadeParcelas: 1,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider
+            .overrideWithValue(RepositorioPotesFake(potesDaCasa)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(repoGastos),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(potesProvider, (_, _) {});
+      c.listen(gastosDoMesProvider('2026-08'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('sem pote marcado como reserva, os dois providers sao nulos',
+        () async {
+      final c = await montarReserva(gastoDoMes: 1000);
+
+      expect(c.read(poteReservaProvider).requireValue, isNull);
+      expect(c.read(mesesCoberturaReservaProvider).requireValue, isNull);
+    });
+
+    test('com pote marcado e valor guardado, calcula meses de cobertura',
+        () async {
+      final potesComReserva = [
+        potesSemReserva[0],
+        potesSemReserva[1].copyWith(ehReserva: true, valorGuardado: 6000),
+      ];
+      final c = await montarReserva(
+        potesDaCasa: potesComReserva,
+        gastoDoMes: 1500,
+      );
+
+      expect(c.read(poteReservaProvider).requireValue?.id, 'p2');
+      expect(c.read(mesesCoberturaReservaProvider).requireValue, 4);
+    });
+
+    test('pote marcado mas sem valor guardado preenchido: cobertura nula',
+        () async {
+      final potesComReserva = [
+        potesSemReserva[0],
+        potesSemReserva[1].copyWith(ehReserva: true),
+      ];
+      final c = await montarReserva(
+        potesDaCasa: potesComReserva,
+        gastoDoMes: 1500,
+      );
+
+      expect(c.read(poteReservaProvider).requireValue, isNotNull);
+      expect(c.read(mesesCoberturaReservaProvider).requireValue, isNull);
+    });
+  });
 }

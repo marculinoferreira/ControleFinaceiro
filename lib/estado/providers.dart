@@ -17,6 +17,7 @@ import '../dominio/models/mes_ref.dart';
 import '../dominio/models/pote.dart';
 import '../dominio/ordem_gastos.dart';
 import '../dominio/parcelas.dart';
+import '../dominio/reserva.dart';
 import '../dominio/serie_mensal.dart';
 import '../dominio/totais.dart';
 
@@ -733,4 +734,35 @@ final tendenciaPoteProvider =
           membroId: membroId,
         ),
       );
+});
+
+/// O pote marcado como reserva, se houver algum. No maximo um por casa.
+final poteReservaProvider = Provider.autoDispose<AsyncValue<Pote?>>((ref) {
+  return ref.watch(potesProvider).whenData((potes) {
+    for (final p in potes) {
+      if (p.ehReserva) return p;
+    }
+    return null;
+  });
+});
+
+/// Meses que a reserva cobre, dado o gasto da casa inteira no mes
+/// selecionado. Nulo sem pote de reserva, sem valor guardado preenchido, ou
+/// sem gasto no mes.
+final mesesCoberturaReservaProvider =
+    Provider.autoDispose<AsyncValue<double?>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+
+  return combinarAsyncValues(
+    ref.watch(poteReservaProvider),
+    ref.watch(gastosDoMesProvider(mes)),
+    (reserva, gastos) {
+      if (reserva == null) return null;
+      final gastoDaCasa = gastos.fold(0.0, (s, g) => s + g.valor);
+      return mesesDeCobertura(
+        valorGuardado: reserva.valorGuardado,
+        gastoDoMes: gastoDaCasa,
+      );
+    },
+  );
 });
