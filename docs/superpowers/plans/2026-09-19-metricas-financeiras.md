@@ -2238,6 +2238,12 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Ajustar o helper de teste, depois escrever os testes que falham**
 
+O tipo `Override` (usado no novo parâmetro abaixo) não é exportado pelo barrel principal `package:flutter_riverpod/flutter_riverpod.dart` nesta versão do Riverpod (3.3.2) — confirmado lendo o `show` explícito do pacote. Adicione este import no topo de `test/ui/tela_potes_test.dart`, junto dos outros imports:
+
+```dart
+import 'package:flutter_riverpod/misc.dart' show Override;
+```
+
 Em `test/ui/tela_potes_test.dart`, localize o `montar()` existente (perto da linha 127) e substitua por:
 
 ```dart
