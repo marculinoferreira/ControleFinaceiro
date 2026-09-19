@@ -12,6 +12,7 @@ import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/widgets/graficos/barras_cartao_comparativo.dart';
 import 'package:controle_financeiro/ui/widgets/graficos/barras_pote_comparativo.dart';
+import 'package:controle_financeiro/ui/widgets/graficos/linha_comprometimento_comparativo.dart';
 
 const casaComDupla = Casa(
   id: 'principal',
@@ -151,6 +152,75 @@ void main() {
 
       expect(find.byType(BarChart), findsNothing);
       expect(find.textContaining('Nenhum gasto'), findsOneWidget);
+    });
+  });
+
+  group('LinhaComprometimentoComparativo', () {
+    Future<void> montarComParcelas(
+      WidgetTester tester, {
+      List<(String membroId, String mesRef, double valor)> parcelas = const [],
+    }) async {
+      tester.view.physicalSize = const Size(900, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final gastos = RepositorioGastosFake();
+      for (final (membroId, mesRef, valor) in parcelas) {
+        await gastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: mesRef, membroId: membroId, poteId: 'p1',
+            descricao: 'Parcelada', valor: valor,
+            criadoEm: DateTime.utc(2026, 1, 1), parcelado: true,
+            compraId: 'c1', parcela: 1, totalParcelas: 2,
+          ),
+          // quantidadeParcelas precisa ser >= 2: gerarParcelas forca
+          // parcelado:false quando quantidade == 1, entao com 1
+          // parceladosDesdeProvider nunca enxergaria este gasto. Com 2, a
+          // parcela nasce tambem no mes seguinte (mesmo valor, sem
+          // dividir) -- so afeta o segundo ponto de cada serie, que os
+          // testes abaixo nao verificam.
+          quantidadeParcelas: 2,
+        );
+      }
+
+      final container = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaComDupla)),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake(cartoes)),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(gastos),
+      ]);
+      addTearDown(container.dispose);
+      container.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      container.listen(casaProvider, (_, _) {});
+      container.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(body: LinhaComprometimentoComparativo()),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('duas series, uma por pessoa', (tester) async {
+      await montarComParcelas(tester, parcelas: [
+        ('marcos', '2026-08', 100),
+        ('silvia', '2026-08', 250),
+      ]);
+
+      final dados = tester.widget<LineChart>(find.byType(LineChart)).data;
+      expect(dados.lineBarsData, hasLength(2));
+      expect(dados.lineBarsData[0].spots.first.y, 100);
+      expect(dados.lineBarsData[1].spots.first.y, 250);
+    });
+
+    testWidgets('sem parcela nenhuma mostra a frase', (tester) async {
+      await montarComParcelas(tester);
+
+      expect(find.byType(LineChart), findsNothing);
+      expect(find.textContaining('Nenhuma parcela'), findsOneWidget);
     });
   });
 }
