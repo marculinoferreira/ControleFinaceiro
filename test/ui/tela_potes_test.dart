@@ -527,18 +527,16 @@ void main() {
 
       expect(find.byKey(const Key('reserva_0')), findsOneWidget);
       expect(find.byKey(const Key('guardado_0')), findsNothing);
-      expect(find.byKey(const Key('vai_ganhar_0')), findsNothing);
     });
 
-    testWidgets('marcar reserva mostra os campos Guardado e Vai ganhar',
-        (tester) async {
+    testWidgets('marcar reserva mostra o campo Guardado', (tester) async {
       await montar(tester);
 
       await tester.tap(find.byKey(const Key('reserva_0')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('guardado_0')), findsOneWidget);
-      expect(find.byKey(const Key('vai_ganhar_0')), findsOneWidget);
+      expect(find.byKey(const Key('vai_ganhar_0')), findsNothing);
     });
 
     testWidgets('marcar um pote como reserva desmarca o anterior',

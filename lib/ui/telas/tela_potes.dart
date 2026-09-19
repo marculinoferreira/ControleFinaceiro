@@ -49,7 +49,6 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
   final _controladores = <int, TextEditingController>{};
   final _controladoresNome = <int, TextEditingController>{};
   final _controladoresGuardado = <int, TextEditingController>{};
-  final _controladoresVaiGanhar = <int, TextEditingController>{};
 
   /// Guarda de reentrancia: sem ela, um toque duplo no Salvar (facil de
   /// acontecer enquanto a escrita ainda esta em voo, ex. offline) dispara
@@ -67,9 +66,6 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
       c.dispose();
     }
     for (final c in _controladoresGuardado.values) {
-      c.dispose();
-    }
-    for (final c in _controladoresVaiGanhar.values) {
       c.dispose();
     }
     super.dispose();
@@ -102,15 +98,6 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
     );
   }
 
-  TextEditingController _controladorVaiGanhar(int indice, double? valor) {
-    return _controladoresVaiGanhar.putIfAbsent(
-      indice,
-      () => TextEditingController(
-        text: valor == null ? '' : formatarReais(valor),
-      ),
-    );
-  }
-
   void _resincronizarControladores() {
     for (final c in _controladores.values) {
       c.dispose();
@@ -124,10 +111,6 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
       c.dispose();
     }
     _controladoresGuardado.clear();
-    for (final c in _controladoresVaiGanhar.values) {
-      c.dispose();
-    }
-    _controladoresVaiGanhar.clear();
   }
 
   double get _soma =>
@@ -324,69 +307,30 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
             if (pote.ehReserva)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        key: Key('guardado_$i'),
-                        controller: _controladorGuardado(i, pote.valorGuardado),
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [FormatadorMoeda()],
-                        decoration: const InputDecoration(
-                          labelText: 'Guardado',
-                          prefixText: 'R\$ ',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (v) => setState(() {
-                          final atual = _rascunho![i];
-                          _rascunho![i] = Pote(
-                            id: atual.id,
-                            nome: atual.nome,
-                            percentual: atual.percentual,
-                            ordem: atual.ordem,
-                            cor: atual.cor,
-                            icone: atual.icone,
-                            ehReserva: atual.ehReserva,
-                            valorGuardado: parsearMoeda(v),
-                            proximoGanhoEsperado: atual.proximoGanhoEsperado,
-                          );
-                        }),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        key: Key('vai_ganhar_$i'),
-                        controller:
-                            _controladorVaiGanhar(i, pote.proximoGanhoEsperado),
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [FormatadorMoeda()],
-                        decoration: const InputDecoration(
-                          labelText: 'Vai ganhar (próx. mês)',
-                          prefixText: 'R\$ ',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (v) => setState(() {
-                          final atual = _rascunho![i];
-                          _rascunho![i] = Pote(
-                            id: atual.id,
-                            nome: atual.nome,
-                            percentual: atual.percentual,
-                            ordem: atual.ordem,
-                            cor: atual.cor,
-                            icone: atual.icone,
-                            ehReserva: atual.ehReserva,
-                            valorGuardado: atual.valorGuardado,
-                            proximoGanhoEsperado: parsearMoeda(v),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
+                child: TextFormField(
+                  key: Key('guardado_$i'),
+                  controller: _controladorGuardado(i, pote.valorGuardado),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FormatadorMoeda()],
+                  decoration: const InputDecoration(
+                    labelText: 'Guardado',
+                    prefixText: 'R\$ ',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (v) => setState(() {
+                    final atual = _rascunho![i];
+                    _rascunho![i] = Pote(
+                      id: atual.id,
+                      nome: atual.nome,
+                      percentual: atual.percentual,
+                      ordem: atual.ordem,
+                      cor: atual.cor,
+                      icone: atual.icone,
+                      ehReserva: atual.ehReserva,
+                      valorGuardado: parsearMoeda(v),
+                    );
+                  }),
                 ),
               ),
           ],

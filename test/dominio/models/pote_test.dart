@@ -4,7 +4,6 @@ import 'package:controle_financeiro/dominio/models/pote.dart';
 Pote poteBase({
   bool ehReserva = false,
   double? valorGuardado,
-  double? proximoGanhoEsperado,
 }) =>
     Pote(
       id: 'p1',
@@ -15,7 +14,6 @@ Pote poteBase({
       icone: 'cofre',
       ehReserva: ehReserva,
       valorGuardado: valorGuardado,
-      proximoGanhoEsperado: proximoGanhoEsperado,
     );
 
 void main() {
@@ -32,21 +30,18 @@ void main() {
 
       expect(pote.ehReserva, isFalse);
       expect(pote.valorGuardado, isNull);
-      expect(pote.proximoGanhoEsperado, isNull);
     });
 
-    test('toMap/fromMap fazem round-trip com os 3 campos preenchidos', () {
+    test('toMap/fromMap fazem round-trip com os campos preenchidos', () {
       final pote = poteBase(
         ehReserva: true,
         valorGuardado: 6000,
-        proximoGanhoEsperado: 5000,
       );
 
       final reconstruido = Pote.fromMap('p1', pote.toMap());
 
       expect(reconstruido.ehReserva, isTrue);
       expect(reconstruido.valorGuardado, 6000);
-      expect(reconstruido.proximoGanhoEsperado, 5000);
     });
 
     test('fromMap sem os campos novos (dado legado) cai nos defaults', () {
@@ -60,14 +55,12 @@ void main() {
 
       expect(pote.ehReserva, isFalse);
       expect(pote.valorGuardado, isNull);
-      expect(pote.proximoGanhoEsperado, isNull);
     });
 
-    test('toMap de pote sem reserva nao inclui guardado/vaiGanhar', () {
+    test('toMap de pote sem reserva nao inclui guardado', () {
       final mapa = poteBase().toMap();
 
       expect(mapa.containsKey('valorGuardado'), isFalse);
-      expect(mapa.containsKey('proximoGanhoEsperado'), isFalse);
       expect(mapa['ehReserva'], isFalse);
     });
 
