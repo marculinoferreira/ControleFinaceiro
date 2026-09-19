@@ -15,6 +15,7 @@ import '../widgets/graficos/linha_projecao.dart';
 import '../widgets/graficos/pizza_ganhos.dart';
 import '../widgets/graficos/rosca_por_cartao.dart';
 import '../widgets/graficos/rosca_por_pote.dart';
+import '../widgets/graficos/tendencia_pote.dart';
 
 /// A tela de Graficos tem 3 visoes, escolhidas por `_SeletorTipoVisao`:
 /// Visao Geral (os sete graficos de sempre), Comparativo (as duas pessoas
@@ -35,6 +36,7 @@ class TelaGraficos extends ConsumerWidget {
     BarraCascata(),
     LinhaComprometimento(),
     RoscaPorCartao(),
+    TendenciaPote(),
   ];
 
   static const _graficosComparativo = <Widget>[

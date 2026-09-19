@@ -137,10 +137,10 @@ final molduras = find.byWidgetPredicate((w) => w is MolduraGrafico);
 
 void main() {
   group('composicao', () {
-    testWidgets('mostra os sete graficos', (tester) async {
+    testWidgets('mostra os oito graficos', (tester) async {
       await montar(tester);
 
-      expect(molduras, findsNWidgets(7));
+      expect(molduras, findsNWidgets(8));
     });
 
     testWidgets('os titulos aparecem na ordem da spec 10', (tester) async {
@@ -177,7 +177,7 @@ void main() {
 
       expect(find.byKey(const Key('graficos_coluna_unica')), findsOneWidget);
       expect(find.byKey(const Key('graficos_coluna_esquerda')), findsNothing);
-      expect(molduras, findsNWidgets(7));
+      expect(molduras, findsNWidgets(8));
     });
   });
 
@@ -289,11 +289,11 @@ void main() {
   });
 
   group('mes sem nada', () {
-    testWidgets('os sete mostram frase de vazio, nenhum desenho quebrado',
+    testWidgets('os oito mostram frase de vazio, nenhum desenho quebrado',
         (tester) async {
       await montar(tester, comDados: false);
 
-      expect(molduras, findsNWidgets(7));
+      expect(molduras, findsNWidgets(8));
       expect(find.byType(PieChart), findsNothing);
       expect(find.byType(LineChart), findsNothing);
       expect(find.byType(BarChart), findsNothing);
@@ -407,6 +407,13 @@ void main() {
       expect(find.text('Visão Geral'), findsOneWidget);
       expect(find.text('Projeção'), findsOneWidget);
       expect(find.text('Comparativo'), findsNothing);
+    });
+
+    testWidgets('Visao Geral tem 8 graficos, incluindo a Tendencia por pote',
+        (tester) async {
+      await montar(tester);
+
+      expect(find.text('Tendência por pote'), findsOneWidget);
     });
   });
 }
