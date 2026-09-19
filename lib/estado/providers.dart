@@ -656,3 +656,22 @@ bool _passaNoCartao(String? doGasto, String? filtro) {
   if (filtro.isEmpty) return doGasto == null || doGasto.isEmpty;
   return doGasto == filtro;
 }
+
+/// Percentual da renda do mes selecionado ja comprometido em parcelas,
+/// respeitando a visao. Nulo sem renda no mes.
+final percentualComprometidoProvider =
+    Provider.autoDispose<AsyncValue<double?>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+  final membroId = ref.watch(visaoProvider);
+
+  return combinarAsyncValues(
+    ref.watch(parceladosDesdeProvider(mes)),
+    ref.watch(ganhosDoMesProvider(mes)),
+    (parcelas, ganhos) => percentualComprometido(
+      comprometido: comprometidoNoMes(parcelas, mes, membroId: membroId),
+      renda:
+          calcularTotais(ganhos: ganhos, gastos: const [], membroId: membroId)
+              .ganhos,
+    ),
+  );
+});

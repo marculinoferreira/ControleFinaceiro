@@ -556,4 +556,70 @@ void main() {
       c.dispose();
     });
   });
+
+  group('percentualComprometidoProvider', () {
+    Future<ProviderContainer> montarComprometimento({
+      double ganhoMarcos = 0,
+      List<(String mesRef, double valor)> parcelas = const [],
+    }) async {
+      final ganhos = RepositorioGanhosFake();
+      final gastos = RepositorioGastosFake();
+
+      if (ganhoMarcos > 0) {
+        await ganhos.adicionar(Ganho(
+          id: '', mesRef: '2026-08', membroId: 'marcos',
+          descricao: 'Salario', valor: ganhoMarcos,
+          criadoEm: DateTime.utc(2026, 8, 1),
+        ));
+      }
+      for (final (mesRef, valor) in parcelas) {
+        await gastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: mesRef, membroId: 'marcos', poteId: 'p1',
+            descricao: 'Parcelada', valor: valor,
+            criadoEm: DateTime.utc(2026, 1, 1), parcelado: true,
+            compraId: 'c1', parcela: 1, totalParcelas: 2,
+          ),
+          quantidadeParcelas: 2,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(gastos),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
+      c.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('sem renda devolve nulo', () async {
+      final c = await montarComprometimento(
+        ganhoMarcos: 0,
+        parcelas: [('2026-08', 100)],
+      );
+
+      expect(c.read(percentualComprometidoProvider).requireValue, isNull);
+    });
+
+    test('calcula a fracao do comprometido de 2026-08 sobre a renda', () async {
+      // Uma compra de 2 parcelas de 100 gera uma em 2026-08 e outra em
+      // 2026-09; comprometidoNoMes('2026-08') pega so a primeira.
+      final c = await montarComprometimento(
+        ganhoMarcos: 1000,
+        parcelas: [('2026-08', 100)],
+      );
+
+      expect(
+        c.read(percentualComprometidoProvider).requireValue,
+        closeTo(0.1, 0.0001),
+      );
+    });
+  });
 }
