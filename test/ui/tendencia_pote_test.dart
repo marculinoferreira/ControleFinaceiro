@@ -10,6 +10,7 @@ import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/widgets/graficos/tendencia_pote.dart';
+import 'package:controle_financeiro/ui/widgets/legenda_grafico.dart';
 import 'package:controle_financeiro/ui/widgets/moldura_grafico.dart';
 
 /// Simula potesProvider falhando (permissao negada, offline etc.) -- o
@@ -83,35 +84,58 @@ Future<void> montar(
 
 void main() {
   group('TendenciaPote', () {
-    testWidgets('mostra o dropdown com os potes cadastrados', (tester) async {
-      await montar(tester);
-
-      expect(find.text('Custo fixo'), findsOneWidget);
-    });
-
-    testWidgets('comeca mostrando o primeiro pote', (tester) async {
-      await montar(tester, gastos: const [('p1', 400)]);
-
-      final dados =
-          tester.widget<LineChart>(find.byType(LineChart)).data;
-      expect(dados.lineBarsData.single.spots.last.y, 400);
-    });
-
-    testWidgets('trocar o pote no dropdown troca a serie exibida',
+    testWidgets('mostra uma linha por pote cadastrado, sem seletor',
         (tester) async {
       await montar(tester, gastos: const [('p1', 400), ('p2', 700)]);
 
-      await tester.tap(find.byType(DropdownButton<String>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Lazer').last);
-      await tester.pumpAndSettle();
-
-      final dados =
-          tester.widget<LineChart>(find.byType(LineChart)).data;
-      expect(dados.lineBarsData.single.spots.last.y, 700);
+      expect(find.byType(DropdownButton<String>), findsNothing);
+      final dados = tester.widget<LineChart>(find.byType(LineChart)).data;
+      expect(dados.lineBarsData, hasLength(2));
     });
 
-    testWidgets('pote sem gasto nos ultimos 6 meses mostra a frase vazia',
+    testWidgets('cada linha usa a cor cadastrada do proprio pote',
+        (tester) async {
+      await montar(tester, gastos: const [('p1', 400), ('p2', 700)]);
+
+      final dados = tester.widget<LineChart>(find.byType(LineChart)).data;
+      expect(dados.lineBarsData[0].color, const Color(0xFF2E7D32));
+      expect(dados.lineBarsData[1].color, const Color(0xFFAD1457));
+    });
+
+    testWidgets('a legenda mostra o nome de cada pote', (tester) async {
+      await montar(tester, gastos: const [('p1', 400)]);
+
+      expect(find.byType(MarcadorLegenda), findsNWidgets(2));
+      expect(find.text('Custo fixo'), findsOneWidget);
+      expect(find.text('Lazer'), findsOneWidget);
+    });
+
+    testWidgets(
+        'cada pote tem a propria escala: um pico no p1 nao move a linha do p2',
+        (tester) async {
+      await montar(tester, gastos: const [('p1', 400)]);
+
+      final dados = tester.widget<LineChart>(find.byType(LineChart)).data;
+      // p1 e o primeiro pote (faixa de cima, base em y=1): o unico ponto com
+      // gasto e tambem o maximo do proprio pote, entao ele sobe ate o topo
+      // da propria faixa (base + amplitude maxima).
+      expect(dados.lineBarsData[0].spots.last.y, closeTo(1.8, 0.0001));
+      // p2 nao tem gasto nenhum: fica parado na propria base (y=0), sem
+      // qualquer influencia do p1.
+      expect(dados.lineBarsData[1].spots.last.y, 0);
+    });
+
+    testWidgets('cada pote tem sua propria linha de base (zero)',
+        (tester) async {
+      await montar(tester, gastos: const [('p1', 400)]);
+
+      final dados = tester.widget<LineChart>(find.byType(LineChart)).data;
+      final bases = dados.extraLinesData.horizontalLines.map((l) => l.y).toSet();
+      expect(bases, {0, 1});
+    });
+
+    testWidgets(
+        'nenhum pote com gasto nos ultimos 6 meses mostra a frase vazia',
         (tester) async {
       await montar(tester);
 
@@ -119,18 +143,17 @@ void main() {
       expect(find.textContaining('Nenhum gasto'), findsOneWidget);
     });
 
-    testWidgets('sem pote cadastrado, mostra a frase vazia sem montar o dropdown',
+    testWidgets('sem pote cadastrado, mostra a frase vazia sem grafico',
         (tester) async {
       await montar(tester, comPotes: const []);
 
-      expect(find.byType(DropdownButton<String>), findsNothing);
       expect(find.byType(LineChart), findsNothing);
+      expect(find.textContaining('Cadastre um pote'), findsOneWidget);
     });
 
     testWidgets(
-        'potesProvider com erro mostra o cartao de erro padrao, sem o '
-        'seletor, respeitando o isolamento de erro da tela',
-        (tester) async {
+        'potesProvider com erro mostra o cartao de erro padrao, respeitando '
+        'o isolamento de erro da tela', (tester) async {
       tester.view.physicalSize = const Size(900, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -157,8 +180,6 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Sem dropdown: nao ha lista de potes para montar o seletor.
-      expect(find.byType(DropdownButton<String>), findsNothing);
       // O erro passa pela MolduraGrafico, igual aos outros graficos que
       // dependem de potes -- inclui o botao "Tentar de novo", nao um texto
       // de erro solto.

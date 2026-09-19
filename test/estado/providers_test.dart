@@ -835,7 +835,7 @@ void main() {
     });
   });
 
-  group('tendenciaPoteProvider', () {
+  group('tendenciaTodosPotesProvider', () {
     Future<ProviderContainer> montarTendencia({
       List<(String mesRef, String poteId, double valor)> gastos = const [],
     }) async {
@@ -860,6 +860,7 @@ void main() {
       ]);
       addTearDown(c.dispose);
       c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(potesProvider, (_, _) {});
       final janela = (
         inicio: janelaAte(const MesRef(2026, 8), mesesDaTendencia).first.valor,
         fim: '2026-08',
@@ -869,29 +870,32 @@ void main() {
       return c;
     }
 
-    test('serie de 6 meses terminando no mes selecionado', () async {
+    test('uma serie de 6 meses por pote, terminando no mes selecionado',
+        () async {
       final c = await montarTendencia(gastos: [('2026-08', 'p1', 400)]);
 
-      final serie = c.read(tendenciaPoteProvider('p1')).requireValue;
-      expect(serie, hasLength(mesesDaTendencia));
-      expect(serie.last.valor, 400);
+      final porPote = c.read(tendenciaTodosPotesProvider).requireValue;
+      expect(porPote['p1'], hasLength(mesesDaTendencia));
+      expect(porPote['p1']!.last.valor, 400);
     });
 
-    test('filtra pelo poteId pedido', () async {
+    test('cada pote so soma o proprio gasto', () async {
       final c = await montarTendencia(gastos: [
         ('2026-08', 'p1', 400),
         ('2026-08', 'p2', 999),
       ]);
 
-      final serie = c.read(tendenciaPoteProvider('p1')).requireValue;
-      expect(serie.last.valor, 400);
+      final porPote = c.read(tendenciaTodosPotesProvider).requireValue;
+      expect(porPote['p1']!.last.valor, 400);
+      expect(porPote['p2']!.last.valor, 999);
     });
 
-    test('mes sem gasto no pote entra com zero', () async {
+    test('mapa cobre todos os potes cadastrados, mesmo sem gasto', () async {
       final c = await montarTendencia();
 
-      final serie = c.read(tendenciaPoteProvider('p1')).requireValue;
-      expect(serie.every((p) => p.valor == 0), isTrue);
+      final porPote = c.read(tendenciaTodosPotesProvider).requireValue;
+      expect(porPote.keys, containsAll(potes.map((p) => p.id)));
+      expect(porPote['p1']!.every((p) => p.valor == 0), isTrue);
     });
   });
 

@@ -738,24 +738,29 @@ final estouroProjetadoProvider =
 /// tendencia recente, nao repetir o grafico de evolucao anual.
 const int mesesDaTendencia = 6;
 
-/// Serie de gasto de um pote nos ultimos [mesesDaTendencia] meses,
-/// terminando no mes selecionado.
-final tendenciaPoteProvider =
-    Provider.autoDispose.family<AsyncValue<List<PontoComprometido>>, String>(
-        (ref, poteId) {
+/// Serie de gasto de CADA pote nos ultimos [mesesDaTendencia] meses,
+/// terminando no mes selecionado -- uma serie por pote, para o grafico
+/// desenhar todas as linhas de uma vez, sem precisar de um seletor.
+final tendenciaTodosPotesProvider = Provider.autoDispose<
+    AsyncValue<Map<String, List<PontoComprometido>>>>((ref) {
   final fim = ref.watch(mesSelecionadoProvider);
   final membroId = ref.watch(visaoProvider);
   final meses = janelaAte(fim, mesesDaTendencia);
   final janela = (inicio: meses.first.valor, fim: fim.valor);
 
-  return ref.watch(gastosDoIntervaloProvider(janela)).whenData(
-        (gastos) => serieGastoPote(
+  return combinarAsyncValues(
+    ref.watch(potesProvider),
+    ref.watch(gastosDoIntervaloProvider(janela)),
+    (potes, gastos) => {
+      for (final p in potes)
+        p.id: serieGastoPote(
           meses: meses,
           gastos: gastos,
-          poteId: poteId,
+          poteId: p.id,
           membroId: membroId,
         ),
-      );
+    },
+  );
 });
 
 /// O pote marcado como reserva, se houver algum. No maximo um por casa.
