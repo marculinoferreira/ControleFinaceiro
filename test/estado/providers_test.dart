@@ -622,4 +622,88 @@ void main() {
       );
     });
   });
+
+  group('estouroProjetadoProvider', () {
+    Future<ProviderContainer> montarEstouro({
+      required MesRef mesSelecionado,
+      double ganhoMarcos = 1000,
+      double gastoNoPote = 0,
+    }) async {
+      final ganhos = RepositorioGanhosFake();
+      final gastos = RepositorioGastosFake();
+      final mesRef = mesSelecionado.valor;
+
+      if (ganhoMarcos > 0) {
+        await ganhos.adicionar(Ganho(
+          id: '', mesRef: mesRef, membroId: 'marcos',
+          descricao: 'Salario', valor: ganhoMarcos,
+          criadoEm: DateTime.utc(2026, 1, 1),
+        ));
+      }
+      if (gastoNoPote > 0) {
+        await gastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: mesRef, membroId: 'marcos', poteId: 'p1',
+            descricao: 'Compra', valor: gastoNoPote,
+            criadoEm: DateTime.utc(2026, 1, 2), parcelado: false,
+          ),
+          quantidadeParcelas: 1,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(gastos),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(mesSelecionado);
+      c.listen(ganhosDoMesProvider(mesRef), (_, _) {});
+      c.listen(gastosDoMesProvider(mesRef), (_, _) {});
+      c.listen(potesProvider, (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('mes selecionado diferente de hoje: mapa vazio', () async {
+      // Janeiro de 2020 nunca vai ser "hoje" de novo.
+      final c = await montarEstouro(mesSelecionado: const MesRef(2020, 1));
+
+      expect(c.read(estouroProjetadoProvider).requireValue, isEmpty);
+    });
+
+    test('mes selecionado e hoje, gasto no ritmo do previsto: sem excesso',
+        () async {
+      // potes = [p1 60%, p2 40%] sobre 1000 de renda -> previsto p1 = 600.
+      // Gasta so uma fracao pequena, sempre abaixo do previsto projetado.
+      final c = await montarEstouro(
+        mesSelecionado: MesRef.atual(),
+        ganhoMarcos: 1000,
+        gastoNoPote: 1,
+      );
+
+      expect(c.read(estouroProjetadoProvider).requireValue, isEmpty);
+    });
+
+    test('mes selecionado e hoje, ritmo de gasto estoura o previsto',
+        () async {
+      final hoje = DateTime.now();
+      final diasDoMes = DateTime(hoje.year, hoje.month + 1, 0).day;
+      // previsto p1 = 600 (60% de 1000). Gasta o suficiente no dia de hoje
+      // para que a extrapolacao linear passe de 600.
+      final gastoNoPote = 600.0 / diasDoMes * hoje.day + 50;
+
+      final c = await montarEstouro(
+        mesSelecionado: MesRef.atual(),
+        ganhoMarcos: 1000,
+        gastoNoPote: gastoNoPote,
+      );
+
+      final excessos = c.read(estouroProjetadoProvider).requireValue;
+      expect(excessos.containsKey('p1'), isTrue);
+      expect(excessos['p1'], greaterThan(0));
+    });
+  });
 }

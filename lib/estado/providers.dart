@@ -675,3 +675,37 @@ final percentualComprometidoProvider =
     ),
   );
 });
+
+/// Pote -> quanto ele deve passar do previsto ate o fim do mes, no ritmo
+/// atual. So calcula no mes real de hoje; em qualquer outro mes selecionado
+/// devolve um mapa vazio (nenhum alerta).
+final estouroProjetadoProvider =
+    Provider.autoDispose<AsyncValue<Map<String, double>>>((ref) {
+  final mesSelecionado = ref.watch(mesSelecionadoProvider);
+  if (mesSelecionado != MesRef.atual()) {
+    return const AsyncData({});
+  }
+
+  final hoje = DateTime.now();
+  final diasDoMes = DateTime(hoje.year, hoje.month + 1, 0).day;
+
+  return combinarAsyncValues(
+    ref.watch(resumoCascataProvider),
+    ref.watch(gastosPorPoteProvider),
+    (resumo, porPote) {
+      final excessos = <String, double>{};
+      for (final linha in resumo.linhas) {
+        final gastoAteHoje = porPote[linha.pote.id] ?? 0;
+        final projetado = projetarGastoPote(
+          gastoAteHoje: gastoAteHoje,
+          diaAtual: hoje.day,
+          diasDoMes: diasDoMes,
+        );
+        if (projetado == null) continue;
+        final excesso = projetado - linha.previsto;
+        if (excesso > toleranciaCentavo) excessos[linha.pote.id] = excesso;
+      }
+      return excessos;
+    },
+  );
+});
