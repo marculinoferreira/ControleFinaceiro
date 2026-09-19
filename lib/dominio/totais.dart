@@ -113,3 +113,19 @@ List<Ganho> ganhosEfetivos(List<Ganho> ganhosDoMes) {
       if (!g.previsto || !membrosComReal.contains(g.membroId)) g,
   ];
 }
+
+/// Filtra os ganhos de uma janela com varios meses para "o que
+/// efetivamente conta", mes a mes -- mesma regra de `ganhosEfetivos`
+/// (real vence previsto, por pessoa), mas aplicada dentro de cada mes
+/// separadamente, nunca sobre a janela inteira de uma vez (o que
+/// misturaria "tem real em setembro" com "tem previsto em novembro" da
+/// mesma pessoa, quando sao perguntas independentes).
+List<Ganho> ganhosEfetivosNaJanela(List<Ganho> ganhosDoIntervalo) {
+  final porMes = <String, List<Ganho>>{};
+  for (final g in ganhosDoIntervalo) {
+    (porMes[g.mesRef] ??= []).add(g);
+  }
+  return [
+    for (final lista in porMes.values) ...ganhosEfetivos(lista),
+  ];
+}

@@ -31,6 +31,9 @@ class LinhaProjecao extends ConsumerWidget {
       aoRecarregar: () {
         ref.invalidate(ganhosDoMesProvider(inicio.valor));
         ref.invalidate(parceladosDesdeProvider(inicio.valor));
+        final meses = janelaDe(inicio, mesesDaSerie);
+        final janela = (inicio: meses.first.valor, fim: meses.last.valor);
+        ref.invalidate(ganhosDoIntervaloProvider(janela));
       },
       legenda: (_) => [
         ItemLegenda(rotulo: 'Renda projetada', cor: esquema.primary),

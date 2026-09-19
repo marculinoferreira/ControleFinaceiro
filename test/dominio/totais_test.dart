@@ -280,4 +280,79 @@ void main() {
       expect(ganhosEfetivos(const []), isEmpty);
     });
   });
+
+  group('ganhosEfetivosNaJanela', () {
+    Ganho ganhoNoMes(String mesRef, String membroId, double valor,
+            {required bool previsto}) =>
+        Ganho(
+          id: 'g-$mesRef-$membroId-$previsto',
+          mesRef: mesRef,
+          membroId: membroId,
+          descricao: previsto ? 'Salario previsto' : 'Salario',
+          valor: valor,
+          criadoEm: DateTime.utc(2026, 9, 1),
+          previsto: previsto,
+        );
+
+    test('real em um mes nao suprime previsto da mesma pessoa em outro mes',
+        () {
+      final efetivos = ganhosEfetivosNaJanela([
+        ganhoNoMes('2026-09', 'marcos', 5000, previsto: false),
+        ganhoNoMes('2026-11', 'marcos', 3800, previsto: true),
+      ]);
+
+      expect(efetivos, hasLength(2));
+      expect(
+        efetivos.firstWhere((g) => g.mesRef == '2026-09').valor,
+        5000,
+      );
+      expect(
+        efetivos.firstWhere((g) => g.mesRef == '2026-11').valor,
+        3800,
+      );
+    });
+
+    test('dentro do mesmo mes, real ainda vence previsto', () {
+      final efetivos = ganhosEfetivosNaJanela([
+        ganhoNoMes('2026-10', 'marcos', 5000, previsto: false),
+        ganhoNoMes('2026-10', 'marcos', 3800, previsto: true),
+      ]);
+
+      expect(efetivos, hasLength(1));
+      expect(efetivos.single.valor, 5000);
+      expect(efetivos.single.previsto, isFalse);
+    });
+
+    test('meses e pessoas diferentes, cada um com sua propria regra', () {
+      final efetivos = ganhosEfetivosNaJanela([
+        ganhoNoMes('2026-09', 'marcos', 5000, previsto: false),
+        ganhoNoMes('2026-09', 'silvia', 3200, previsto: true),
+        ganhoNoMes('2026-10', 'silvia', 3300, previsto: false),
+      ]);
+
+      expect(efetivos, hasLength(3));
+      expect(
+        efetivos
+            .firstWhere((g) => g.mesRef == '2026-09' && g.membroId == 'marcos')
+            .valor,
+        5000,
+      );
+      expect(
+        efetivos
+            .firstWhere((g) => g.mesRef == '2026-09' && g.membroId == 'silvia')
+            .valor,
+        3200,
+      );
+      expect(
+        efetivos
+            .firstWhere((g) => g.mesRef == '2026-10' && g.membroId == 'silvia')
+            .valor,
+        3300,
+      );
+    });
+
+    test('lista vazia devolve lista vazia', () {
+      expect(ganhosEfetivosNaJanela(const []), isEmpty);
+    });
+  });
 }

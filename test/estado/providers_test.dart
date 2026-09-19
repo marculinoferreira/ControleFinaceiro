@@ -231,6 +231,127 @@ void main() {
       expect(c.read(serieMensalProvider).isLoading, isTrue);
       c.dispose();
     });
+
+    test(
+        'usa ganhos efetivos: previsto conta quando falta real, real vence '
+        'quando os dois existem', () async {
+      final ganhos = RepositorioGanhosFake();
+      final gastos = RepositorioGastosFake();
+
+      // Junho: so previsto -> deve contar.
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-06', membroId: 'marcos',
+        descricao: 'Previsto', valor: 4000,
+        criadoEm: DateTime.utc(2026, 1, 1), previsto: true,
+      ));
+      // Agosto: real e previsto -> real vence.
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-08', membroId: 'marcos',
+        descricao: 'Previsto', valor: 3000,
+        criadoEm: DateTime.utc(2026, 1, 1), previsto: true,
+      ));
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-08', membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 1, 1),
+      ));
+
+      final c = ProviderContainer(overrides: [
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(gastos),
+      ]);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      await assinarSerie(c);
+
+      final serie = c.read(serieMensalProvider).requireValue;
+      final junho = serie.firstWhere((p) => p.mes.valor == '2026-06');
+      expect(junho.ganhos, 4000); // so previsto: conta
+
+      final agosto = serie.firstWhere((p) => p.mes.valor == '2026-08');
+      expect(agosto.ganhos, 5000); // real vence o previsto no mesmo mes
+      c.dispose();
+    });
+  });
+
+  group('fatiasPorMembroProvider usa ganhos efetivos', () {
+    const casaDuasPessoas = Casa(
+      id: 'principal',
+      nome: 'Casa',
+      membros: [
+        Membro(id: 'marcos', nome: 'Marcos', email: 'm@x.com',
+            cor: '#2E7D32', ordem: 0),
+        Membro(id: 'silvia', nome: 'Silvia', email: 's@x.com',
+            cor: '#6A1B9A', ordem: 1),
+      ],
+    );
+
+    test('previsto conta quando a pessoa nao tem ganho real no mes',
+        () async {
+      final ganhos = RepositorioGanhosFake();
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-08', membroId: 'marcos',
+        descricao: 'Salario', valor: 6000,
+        criadoEm: DateTime.utc(2026, 8, 1),
+      ));
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-08', membroId: 'silvia',
+        descricao: 'Previsto', valor: 4000,
+        criadoEm: DateTime.utc(2026, 8, 1), previsto: true,
+      ));
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaDuasPessoas)),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(casaProvider, (_, _) {});
+      c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      final fatias = c.read(fatiasPorMembroProvider).requireValue;
+      expect(fatias, hasLength(2));
+      expect(fatias.firstWhere((f) => f.id == 'marcos').valor, 6000);
+      expect(fatias.firstWhere((f) => f.id == 'silvia').valor, 4000);
+    });
+
+    test('previsto some quando a mesma pessoa tem ganho real no mes',
+        () async {
+      final ganhos = RepositorioGanhosFake();
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-08', membroId: 'marcos',
+        descricao: 'Previsto', valor: 3000,
+        criadoEm: DateTime.utc(2026, 8, 1), previsto: true,
+      ));
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-08', membroId: 'marcos',
+        descricao: 'Salario', valor: 6000,
+        criadoEm: DateTime.utc(2026, 8, 1),
+      ));
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casaDuasPessoas)),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(casaProvider, (_, _) {});
+      c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      final fatias = c.read(fatiasPorMembroProvider).requireValue;
+      // Nao soma 3000 + 6000 = 9000: o previsto de Marcos some porque ele
+      // tem um ganho real no mesmo mes.
+      expect(fatias.firstWhere((f) => f.id == 'marcos').valor, 6000);
+    });
   });
 
   group('membrosProvider', () {
@@ -1023,6 +1144,70 @@ void main() {
       expect(serie[1].ganhos, 3800); // novembro
       expect(serie[2].ganhos, 4100); // dezembro
       expect(serie[3].ganhos, 5000); // janeiro: sem dado, volta ao assumido
+    });
+
+    test(
+        'visao por pessoa: previsto de uma pessoa nao vaza pra quem nao tem '
+        'previsto', () async {
+      final ganhos = RepositorioGanhosFake();
+      // Outubro: as duas pessoas tem ganho real.
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-10', membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+      ));
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-10', membroId: 'silvia',
+        descricao: 'Salario', valor: 4000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+      ));
+      // Novembro: so Marcos tem previsto.
+      await ganhos.adicionar(Ganho(
+        id: '', mesRef: '2026-11', membroId: 'marcos',
+        descricao: 'Previsto', valor: 5500,
+        criadoEm: DateTime.utc(2026, 10, 1), previsto: true,
+      ));
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 10));
+      c.listen(ganhosDoMesProvider('2026-10'), (_, _) {});
+      c.listen(
+        ganhosDoIntervaloProvider(
+          (inicio: '2026-10', fim: janelaDe(const MesRef(2026, 10), mesesDaSerie).last.valor),
+        ),
+        (_, _) {},
+      );
+      c.listen(parceladosDesdeProvider('2026-10'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+
+      // Visao Marcos: novembro usa o previsto dele.
+      c.read(visaoProvider.notifier).selecionar('marcos');
+      final serieMarcos = c.read(serieProjecaoProvider).requireValue;
+      expect(serieMarcos[0].ganhos, 5000); // outubro: real de Marcos
+      expect(serieMarcos[1].ganhos, 5500); // novembro: previsto de Marcos
+
+      // Visao Silvia: em novembro so existe o previsto de Marcos -- nao o
+      // dela. Isso prova que o previsto de Marcos nao vaza pra ela: o mes
+      // fica em zero para Silvia (mesma convencao de `calcularTotais` e do
+      // proprio `ganhosEfetivosPorMes`, ver o teste de dominio "mes com real
+      // de uma pessoa e nada da pessoa pedida entra com zero" em
+      // serie_mensal_test.dart) -- e nao o valor do previsto de Marcos.
+      c.read(visaoProvider.notifier).selecionar('silvia');
+      final serieSilvia = c.read(serieProjecaoProvider).requireValue;
+      expect(serieSilvia[0].ganhos, 4000); // outubro: real de Silvia
+      expect(serieSilvia[1].ganhos, 0); // novembro: sem dado dela, nao 5500
+      // Dezembro: ninguem tem lancamento nenhum -- ai sim o mes fica fora do
+      // mapa de `ganhosEfetivosPorMes` e a serie volta ao ganho assumido
+      // (o real de Silvia em outubro), provando que o fallback existe, so
+      // nao se aplica a novembro (onde ha dado de Marcos, so nao dela).
+      expect(serieSilvia[2].ganhos, 4000);
     });
   });
 }

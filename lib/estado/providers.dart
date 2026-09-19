@@ -430,7 +430,7 @@ final serieMensalProvider =
     ref.watch(gastosDoIntervaloProvider(janela)),
     (ganhos, gastos) => montarSerie(
       meses: meses,
-      ganhos: ganhos,
+      ganhos: ganhosEfetivosNaJanela(ganhos),
       gastos: gastos,
       membroId: membroId,
     ),
@@ -484,7 +484,7 @@ final fatiasPorMembroProvider =
 
   return ref.watch(ganhosDoMesProvider(mes)).whenData(
         (ganhos) => fatiasPorMembro(
-          porMembro: somarGanhosPorMembro(ganhos),
+          porMembro: somarGanhosPorMembro(ganhosEfetivos(ganhos)),
           membros: membros,
         ),
       );
