@@ -709,3 +709,28 @@ final estouroProjetadoProvider =
     },
   );
 });
+
+/// Quantos meses a tendencia por pote cobre, terminando no mes selecionado.
+/// Janela mais curta que `mesesDaSerie` (12): o objetivo aqui e enxergar
+/// tendencia recente, nao repetir o grafico de evolucao anual.
+const int mesesDaTendencia = 6;
+
+/// Serie de gasto de um pote nos ultimos [mesesDaTendencia] meses,
+/// terminando no mes selecionado.
+final tendenciaPoteProvider =
+    Provider.autoDispose.family<AsyncValue<List<PontoComprometido>>, String>(
+        (ref, poteId) {
+  final fim = ref.watch(mesSelecionadoProvider);
+  final membroId = ref.watch(visaoProvider);
+  final meses = janelaAte(fim, mesesDaTendencia);
+  final janela = (inicio: meses.first.valor, fim: fim.valor);
+
+  return ref.watch(gastosDoIntervaloProvider(janela)).whenData(
+        (gastos) => serieGastoPote(
+          meses: meses,
+          gastos: gastos,
+          poteId: poteId,
+          membroId: membroId,
+        ),
+      );
+});

@@ -706,4 +706,64 @@ void main() {
       expect(excessos['p1'], greaterThan(0));
     });
   });
+
+  group('tendenciaPoteProvider', () {
+    Future<ProviderContainer> montarTendencia({
+      List<(String mesRef, String poteId, double valor)> gastos = const [],
+    }) async {
+      final repoGastos = RepositorioGastosFake();
+      for (final (mesRef, poteId, valor) in gastos) {
+        await repoGastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: mesRef, membroId: 'marcos', poteId: poteId,
+            descricao: 'Compra', valor: valor,
+            criadoEm: DateTime.utc(2026, 1, 1), parcelado: false,
+          ),
+          quantidadeParcelas: 1,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(repoGastos),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      final janela = (
+        inicio: janelaAte(const MesRef(2026, 8), mesesDaTendencia).first.valor,
+        fim: '2026-08',
+      );
+      c.listen(gastosDoIntervaloProvider(janela), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('serie de 6 meses terminando no mes selecionado', () async {
+      final c = await montarTendencia(gastos: [('2026-08', 'p1', 400)]);
+
+      final serie = c.read(tendenciaPoteProvider('p1')).requireValue;
+      expect(serie, hasLength(mesesDaTendencia));
+      expect(serie.last.valor, 400);
+    });
+
+    test('filtra pelo poteId pedido', () async {
+      final c = await montarTendencia(gastos: [
+        ('2026-08', 'p1', 400),
+        ('2026-08', 'p2', 999),
+      ]);
+
+      final serie = c.read(tendenciaPoteProvider('p1')).requireValue;
+      expect(serie.last.valor, 400);
+    });
+
+    test('mes sem gasto no pote entra com zero', () async {
+      final c = await montarTendencia();
+
+      final serie = c.read(tendenciaPoteProvider('p1')).requireValue;
+      expect(serie.every((p) => p.valor == 0), isTrue);
+    });
+  });
 }
