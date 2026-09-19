@@ -364,6 +364,29 @@ void main() {
 
       expect(serie.every((p) => p.gastos == 0), isTrue);
     });
+
+    test('mes presente em ganhosConhecidos usa o valor do mapa', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 8), 3),
+        ganhoMensalAssumido: 5000,
+        parcelas: const [],
+        ganhosConhecidos: const {'2026-09': 5500},
+      );
+
+      expect(serie[0].ganhos, 5000); // 2026-08: nao esta no mapa
+      expect(serie[1].ganhos, 5500); // 2026-09: esta no mapa
+      expect(serie[2].ganhos, 5000); // 2026-10: nao esta no mapa
+    });
+
+    test('mapa vazio (default) se comporta como antes', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 8), 2),
+        ganhoMensalAssumido: 5000,
+        parcelas: const [],
+      );
+
+      expect(serie.every((p) => p.ganhos == 5000), isTrue);
+    });
   });
 
   group('serieGastoPote', () {

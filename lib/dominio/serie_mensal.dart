@@ -135,12 +135,13 @@ List<PontoProjecao> serieProjecao({
   required double ganhoMensalAssumido,
   required List<Gasto> parcelas,
   String? membroId,
+  Map<String, double> ganhosConhecidos = const {},
 }) =>
     [
       for (final mes in meses)
         PontoProjecao(
           mes: mes,
-          ganhos: ganhoMensalAssumido,
+          ganhos: ganhosConhecidos[mes.valor] ?? ganhoMensalAssumido,
           gastos: comprometidoNoMes(parcelas, mes.valor, membroId: membroId),
         ),
     ];
