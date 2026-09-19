@@ -1838,7 +1838,7 @@ class _IndicadorDoPote extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final excesso = ref.watch(estouroProjetadoProvider).valueOrNull?[poteId];
+    final excesso = ref.watch(estouroProjetadoProvider).value?[poteId];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2463,11 +2463,11 @@ Em `lib/ui/telas/tela_potes.dart`:
             ],
           ),
         ),
-        if (reservaAsync.valueOrNull != null)
+        if (reservaAsync.value != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text(
-              coberturaAsync.valueOrNull != null
+              coberturaAsync.value != null
                   ? 'Sua reserva cobre ${coberturaAsync.requireValue!.toStringAsFixed(1)} meses de gasto.'
                   : 'Preencha o valor guardado para ver quantos meses sua reserva cobre.',
               key: const Key('meses_cobertura'),
