@@ -486,4 +486,78 @@ void main() {
       expect(repo.todos.single.membroId, 'silvia');
     });
   });
+
+  group('ganho previsto', () {
+    testWidgets('marcar previsto no formulario grava Ganho.previsto true',
+        (tester) async {
+      await comLargura(tester, 1400);
+      final repo = await montar(tester);
+
+      await tester.tap(find.byKey(const Key('novo_ganho')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('form_descricao')), 'Salario previsto');
+      await tester.enterText(find.byType(TextFormField).last, '380000');
+      await tester.tap(find.byKey(const Key('form_previsto')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('form_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos, hasLength(1));
+      expect(repo.todos.single.previsto, isTrue);
+      expect(repo.todos.single.valor, 3800.0);
+    });
+
+    testWidgets('sem marcar previsto, grava Ganho.previsto false (padrao)',
+        (tester) async {
+      await comLargura(tester, 1400);
+      final repo = await montar(tester);
+
+      await tester.tap(find.byKey(const Key('novo_ganho')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const Key('form_descricao')), 'Salario');
+      await tester.enterText(find.byType(TextFormField).last, '500000');
+      await tester.tap(find.byKey(const Key('form_salvar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.single.previsto, isFalse);
+    });
+
+    testWidgets('lista mostra o rotulo Previsto so nos ganhos marcados',
+        (tester) async {
+      await comLargura(tester, 1400);
+      await montar(tester, iniciais: [
+        Ganho(
+          id: '', mesRef: '2026-08', membroId: 'marcos',
+          descricao: 'Salario previsto', valor: 3800,
+          criadoEm: DateTime.utc(2026, 8, 1), previsto: true,
+        ),
+        ganho('', 'marcos', 4000),
+      ]);
+
+      expect(find.textContaining('Previsto'), findsOneWidget);
+    });
+
+    testWidgets('editar um ganho existente preserva o estado de previsto',
+        (tester) async {
+      await comLargura(tester, 1400);
+      final repo = await montar(tester, iniciais: [
+        Ganho(
+          id: 'g1', mesRef: '2026-08', membroId: 'marcos',
+          descricao: 'Salario previsto', valor: 3800,
+          criadoEm: DateTime.utc(2026, 8, 1), previsto: true,
+        ),
+      ]);
+      final id = repo.todos.single.id;
+
+      await tester.tap(find.byKey(Key('ganho_$id')));
+      await tester.pumpAndSettle();
+
+      final checkbox =
+          tester.widget<CheckboxListTile>(find.byKey(const Key('form_previsto')));
+      expect(checkbox.value, isTrue);
+    });
+  });
 }

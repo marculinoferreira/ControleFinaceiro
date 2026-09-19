@@ -206,7 +206,17 @@ class _ColunaMembro extends ConsumerWidget {
                             return ListTile(
                               key: Key('ganho_${g.id}'),
                               title: Text(g.descricao),
-                              subtitle: Text(formatarReais(g.valor)),
+                              subtitle: g.previsto
+                                  ? Text(
+                                      '${formatarReais(g.valor)} · Previsto',
+                                      style: TextStyle(
+                                        fontStyle: FontStyle.italic,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .outline,
+                                      ),
+                                    )
+                                  : Text(formatarReais(g.valor)),
                               onTap: () => _abrir(
                                 context,
                                 ref,
@@ -282,6 +292,7 @@ class _FormularioState extends State<_Formulario> {
   late final TextEditingController _descricao;
   late final TextEditingController _valor;
   late String _membroId;
+  bool _previsto = false;
 
   @override
   void initState() {
@@ -292,6 +303,7 @@ class _FormularioState extends State<_Formulario> {
       text: g == null ? '' : formatarReais(g.valor),
     );
     _membroId = g?.membroId ?? widget.membros.first.id;
+    _previsto = g?.previsto ?? false;
   }
 
   @override
@@ -312,6 +324,7 @@ class _FormularioState extends State<_Formulario> {
       descricao: _descricao.text.trim(),
       valor: parsearMoeda(_valor.text) ?? 0,
       criadoEm: base?.criadoEm ?? DateTime.now(),
+      previsto: _previsto,
     );
     Navigator.of(context).pop(ganho);
   }
@@ -350,6 +363,15 @@ class _FormularioState extends State<_Formulario> {
             validator: (t) => (t == null || t.trim().isEmpty)
                 ? 'Informe a descrição.'
                 : null,
+          ),
+          const SizedBox(height: 12),
+          CheckboxListTile(
+            key: const Key('form_previsto'),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: const Text('Isto é uma previsão (ainda não recebi)'),
+            value: _previsto,
+            onChanged: (v) => setState(() => _previsto = v ?? false),
           ),
           const SizedBox(height: 12),
           CampoMoeda(controlador: _valor),
