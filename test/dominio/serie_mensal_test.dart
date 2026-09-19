@@ -460,4 +460,87 @@ void main() {
       expect(serie.single.valor, 0);
     });
   });
+
+  group('ganhosEfetivosPorMes', () {
+    Ganho ganhoDoMes(String mesRef, String membroId, double valor,
+            {bool previsto = false}) =>
+        Ganho(
+          id: 'g-$mesRef-$membroId-$previsto',
+          mesRef: mesRef,
+          membroId: membroId,
+          descricao: previsto ? 'Previsto' : 'Real',
+          valor: valor,
+          criadoEm: DateTime.utc(2026, 1, 1),
+          previsto: previsto,
+        );
+
+    test('mes sem ganho nenhum fica fora do mapa', () {
+      final mapa = ganhosEfetivosPorMes(
+        ganhosDoIntervalo: const [],
+        meses: janelaDe(const MesRef(2026, 9), 2),
+      );
+
+      expect(mapa, isEmpty);
+    });
+
+    test('mes com so previsto entra com o valor do previsto', () {
+      final mapa = ganhosEfetivosPorMes(
+        ganhosDoIntervalo: [ganhoDoMes('2026-10', 'marcos', 3800, previsto: true)],
+        meses: janelaDe(const MesRef(2026, 9), 2),
+      );
+
+      expect(mapa['2026-09'], isNull);
+      expect(mapa['2026-10'], 3800);
+    });
+
+    test('filtra por membroId quando informado', () {
+      final mapa = ganhosEfetivosPorMes(
+        ganhosDoIntervalo: [
+          ganhoDoMes('2026-10', 'marcos', 3800, previsto: true),
+          ganhoDoMes('2026-10', 'silvia', 3200, previsto: true),
+        ],
+        meses: janelaDe(const MesRef(2026, 9), 2),
+        membroId: 'silvia',
+      );
+
+      expect(mapa['2026-10'], 3200);
+    });
+
+    test('mes com real de uma pessoa e nada da pessoa pedida entra com zero',
+        () {
+      final mapa = ganhosEfetivosPorMes(
+        ganhosDoIntervalo: [ganhoDoMes('2026-10', 'marcos', 5000)],
+        meses: janelaDe(const MesRef(2026, 9), 2),
+        membroId: 'silvia',
+      );
+
+      expect(mapa.containsKey('2026-10'), isTrue);
+      expect(mapa['2026-10'], 0);
+    });
+
+    test('real vence previsto no mesmo mes e pessoa', () {
+      final mapa = ganhosEfetivosPorMes(
+        ganhosDoIntervalo: [
+          ganhoDoMes('2026-10', 'marcos', 3800, previsto: true),
+          ganhoDoMes('2026-10', 'marcos', 4200),
+        ],
+        meses: janelaDe(const MesRef(2026, 9), 2),
+        membroId: 'marcos',
+      );
+
+      expect(mapa['2026-10'], 4200);
+    });
+
+    test('sem membroId (visao casal), soma todo mundo', () {
+      final mapa = ganhosEfetivosPorMes(
+        ganhosDoIntervalo: [
+          ganhoDoMes('2026-10', 'marcos', 5000),
+          ganhoDoMes('2026-10', 'silvia', 3200, previsto: true),
+        ],
+        meses: janelaDe(const MesRef(2026, 9), 2),
+      );
+
+      expect(mapa['2026-10'], 8200);
+    });
+  });
 }

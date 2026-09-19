@@ -167,3 +167,34 @@ List<PontoComprometido> serieGastoPote({
       PontoComprometido(mes: mes, valor: somaPorMes[mes.valor] ?? 0),
   ];
 }
+
+/// Ganho efetivo (real-ou-previsto, ver `ganhosEfetivos` em totais.dart) de
+/// [membroId] em cada mes de [meses], a partir de uma janela com varios
+/// meses misturados (ex.: `gastosDoIntervaloProvider`/
+/// `ganhosDoIntervaloProvider`).
+///
+/// Um mes sem NENHUM ganho (nem real, nem previsto, de ninguem) fica de
+/// fora do mapa — quem consome decide o que fazer (`serieProjecao` cai no
+/// `ganhoMensalAssumido` nesse caso). Um mes com ganho de outra pessoa mas
+/// nao de [membroId] entra no mapa com o valor 0.0, igual `calcularTotais`
+/// ja faz hoje pra um mes so — nao ha tratamento especial novo aqui.
+Map<String, double> ganhosEfetivosPorMes({
+  required List<Ganho> ganhosDoIntervalo,
+  required List<MesRef> meses,
+  String? membroId,
+}) {
+  final porMes = <String, List<Ganho>>{};
+  for (final g in ganhosDoIntervalo) {
+    (porMes[g.mesRef] ??= []).add(g);
+  }
+
+  return {
+    for (final mes in meses)
+      if (porMes[mes.valor] != null)
+        mes.valor: calcularTotais(
+          ganhos: ganhosEfetivos(porMes[mes.valor]!),
+          gastos: const [],
+          membroId: membroId,
+        ).ganhos,
+  };
+}
