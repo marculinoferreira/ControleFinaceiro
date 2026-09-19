@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/totais.dart';
+import 'package:controle_financeiro/dominio/cascata.dart' show toleranciaCentavo;
 
 Ganho ganho(String membroId, double valor, {String mesRef = '2026-08'}) =>
     Ganho(
@@ -176,6 +177,47 @@ void main() {
 
     test('membroId nulo soma o casal inteiro', () {
       expect(comprometidoNoMes(futuros, '2026-09', membroId: null), 350);
+    });
+  });
+
+  group('percentualComprometido', () {
+    test('sem renda devolve nulo', () {
+      expect(
+        percentualComprometido(comprometido: 300, renda: 0),
+        isNull,
+      );
+    });
+
+    test('comprometido zero da 0%', () {
+      expect(
+        percentualComprometido(comprometido: 0, renda: 1000),
+        0,
+      );
+    });
+
+    test('comprometido igual a renda da 100%', () {
+      expect(
+        percentualComprometido(comprometido: 1000, renda: 1000),
+        1,
+      );
+    });
+
+    test('fracao normal', () {
+      expect(
+        percentualComprometido(comprometido: 300, renda: 1000),
+        closeTo(0.3, 0.0001),
+      );
+    });
+
+    test('renda dentro da tolerancia de centavo tambem conta como sem renda',
+        () {
+      expect(
+        percentualComprometido(
+          comprometido: 100,
+          renda: toleranciaCentavo / 2,
+        ),
+        isNull,
+      );
     });
   });
 }

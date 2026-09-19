@@ -1,5 +1,6 @@
 import 'models/ganho.dart';
 import 'models/gasto.dart';
+import 'cascata.dart' show toleranciaCentavo;
 
 /// Totais de um mes, para uma pessoa ou para o casal.
 class TotaisMes {
@@ -81,4 +82,15 @@ double comprometidoNoMes(List<Gasto> gastos, String mesRef,
     soma += g.valor;
   }
   return soma;
+}
+
+/// Fracao da renda do mes ja comprometida em parcelas. Nula sem renda, para
+/// nao dividir por zero — a UI mostra "sem renda" nesse caso, nao 0% nem
+/// infinito.
+double? percentualComprometido({
+  required double comprometido,
+  required double renda,
+}) {
+  if (renda <= toleranciaCentavo) return null;
+  return comprometido / renda;
 }
