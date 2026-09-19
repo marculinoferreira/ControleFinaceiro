@@ -347,6 +347,31 @@ void main() {
       expect(find.text('Projeção de saldo'), findsOneWidget);
     });
 
+    testWidgets(
+        'Projecao no desktop usa coluna unica, com um so grafico nao ha o que dividir',
+        (tester) async {
+      await montar(tester);
+
+      await tester.tap(find.text('Projeção'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('graficos_coluna_unica')), findsOneWidget);
+      expect(find.byKey(const Key('graficos_coluna_esquerda')), findsNothing);
+      expect(find.byKey(const Key('graficos_coluna_direita')), findsNothing);
+    });
+
+    testWidgets('Comparativo no desktop continua em duas colunas',
+        (tester) async {
+      await montar(tester);
+
+      await tester.tap(find.text('Comparativo'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('graficos_coluna_esquerda')), findsOneWidget);
+      expect(find.byKey(const Key('graficos_coluna_direita')), findsOneWidget);
+      expect(find.byKey(const Key('graficos_coluna_unica')), findsNothing);
+    });
+
     testWidgets('casa com 1 pessoa ativa nao oferece Comparativo',
         (tester) async {
       final container = ProviderContainer(overrides: [

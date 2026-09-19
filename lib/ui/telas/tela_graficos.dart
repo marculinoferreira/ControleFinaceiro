@@ -65,7 +65,9 @@ class TelaGraficos extends ConsumerWidget {
         Expanded(
           child: SingleChildScrollView(
             key: const Key('graficos_rolagem'),
-            child: desktop ? _duasColunas(graficos) : _colunaUnica(graficos),
+            child: desktop && graficos.length > 1
+                ? _duasColunas(graficos)
+                : _colunaUnica(graficos),
           ),
         ),
       ],

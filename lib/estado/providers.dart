@@ -197,8 +197,9 @@ final visaoProvider =
 enum TipoVisaoGraficos { geral, comparativo, projecao }
 
 /// Qual das 3 visoes da tela de Graficos esta selecionada. Sempre comeca em
-/// `geral` -- trocar de mes ou reabrir a tela nao deve prender a pessoa
-/// numa aba que ela nao escolheu conscientemente.
+/// `geral`, mas so a cada nova sessao do app -- o provider nao e autoDispose,
+/// entao reabrir a tela pelo bottom-nav preserva a aba escolhida. Trocar de
+/// mes tambem nao mexe nela, ja que esse estado e independente do mes.
 class TipoVisaoGraficosNotifier extends Notifier<TipoVisaoGraficos> {
   @override
   TipoVisaoGraficos build() => TipoVisaoGraficos.geral;
