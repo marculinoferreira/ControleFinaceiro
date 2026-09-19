@@ -294,4 +294,75 @@ void main() {
       expect(serie.first.valor, 100);
     });
   });
+
+  group('serieProjecao', () {
+    Gasto parcela(String mesRef, double valor, {String membroId = 'marcos'}) =>
+        Gasto(
+          id: 'p-$mesRef-$membroId',
+          mesRef: mesRef,
+          membroId: membroId,
+          poteId: 'p1',
+          descricao: 'geladeira',
+          valor: valor,
+          criadoEm: DateTime.utc(2026, 1, 1),
+          parcelado: true,
+          compraId: 'c1',
+          parcela: 1,
+          totalParcelas: 2,
+        );
+
+    test('renda repete o valor assumido em todos os meses', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 8), 3),
+        ganhoMensalAssumido: 5000,
+        parcelas: const [],
+      );
+
+      expect(serie.map((p) => p.ganhos).toList(), [5000, 5000, 5000]);
+    });
+
+    test('gasto e o comprometido em parcelas daquele mes', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 8), 3),
+        ganhoMensalAssumido: 5000,
+        parcelas: [parcela('2026-08', 100), parcela('2026-09', 100)],
+      );
+
+      expect(serie.map((p) => p.gastos).toList(), [100, 100, 0]);
+    });
+
+    test('saldo e ganhos menos gastos', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 8), 1),
+        ganhoMensalAssumido: 5000,
+        parcelas: [parcela('2026-08', 6000)],
+      );
+
+      expect(serie.single.saldo, -1000);
+    });
+
+    test('filtra por membroId quando informado', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 8), 1),
+        ganhoMensalAssumido: 3000,
+        parcelas: [
+          parcela('2026-08', 100, membroId: 'marcos'),
+          parcela('2026-08', 200, membroId: 'silvia'),
+        ],
+        membroId: 'silvia',
+      );
+
+      expect(serie.single.gastos, 200);
+    });
+
+    test('sem parcela nenhuma, gasto fica zero em todos os meses', () {
+      final serie = serieProjecao(
+        meses: janelaDe(const MesRef(2026, 8), 2),
+        ganhoMensalAssumido: 5000,
+        parcelas: const [],
+      );
+
+      expect(serie.every((p) => p.gastos == 0), isTrue);
+    });
+  });
 }

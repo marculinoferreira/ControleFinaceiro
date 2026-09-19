@@ -194,6 +194,118 @@ class VisaoNotifier extends Notifier<String?> {
 final visaoProvider =
     NotifierProvider<VisaoNotifier, String?>(VisaoNotifier.new);
 
+enum TipoVisaoGraficos { geral, comparativo, projecao }
+
+/// Qual das 3 visoes da tela de Graficos esta selecionada. Sempre comeca em
+/// `geral`, mas so a cada nova sessao do app -- o provider nao e autoDispose,
+/// entao reabrir a tela pelo bottom-nav preserva a aba escolhida. Trocar de
+/// mes tambem nao mexe nela, ja que esse estado e independente do mes.
+class TipoVisaoGraficosNotifier extends Notifier<TipoVisaoGraficos> {
+  @override
+  TipoVisaoGraficos build() => TipoVisaoGraficos.geral;
+
+  void selecionar(TipoVisaoGraficos tipo) => state = tipo;
+}
+
+final tipoVisaoGraficosProvider =
+    NotifierProvider<TipoVisaoGraficosNotifier, TipoVisaoGraficos>(
+        TipoVisaoGraficosNotifier.new);
+
+/// Os dois integrantes ativos, na ordem de `Membro.ordem` -- a mesma ordem
+/// que a pizza de ganhos ja usa. Lista vazia quando a casa tem 0 ou 1
+/// pessoa ativa (a UI esconde a aba Comparativo nesse caso). Nunca mais que
+/// 2: a casa ja e limitada a isso, entao nao ha terceiro integrante pra
+/// decidir quem entra.
+final duplaComparativaProvider = Provider<List<Membro>>((ref) {
+  final ativos = [...ref.watch(membrosAtivosProvider)]
+    ..sort((a, b) => a.ordem.compareTo(b.ordem));
+  return ativos.length == 2 ? ativos : const [];
+});
+
+final barrasPoteComparativoProvider =
+    Provider.autoDispose<AsyncValue<List<BarraComparativa>>>((ref) {
+  final dupla = ref.watch(duplaComparativaProvider);
+  if (dupla.length < 2) return const AsyncData([]);
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+
+  return combinarAsyncValues(
+    ref.watch(potesProvider),
+    ref.watch(gastosDoMesProvider(mes)),
+    (potes, gastos) => barrasComparativasPorPote(
+      porPoteA: somarGastosPorPote(gastos, membroId: dupla[0].id),
+      porPoteB: somarGastosPorPote(gastos, membroId: dupla[1].id),
+      potes: potes,
+    ),
+  );
+});
+
+final barrasCartaoComparativoProvider =
+    Provider.autoDispose<AsyncValue<List<BarraComparativa>>>((ref) {
+  final dupla = ref.watch(duplaComparativaProvider);
+  if (dupla.length < 2) return const AsyncData([]);
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+
+  return combinarAsyncValues(
+    ref.watch(cartoesProvider),
+    ref.watch(gastosDoMesProvider(mes)),
+    (cartoes, gastos) => barrasComparativasPorCartao(
+      porCartaoA: somarGastosPorCartao(gastos, membroId: dupla[0].id),
+      porCartaoB: somarGastosPorCartao(gastos, membroId: dupla[1].id),
+      cartoes: cartoes,
+    ),
+  );
+});
+
+/// (serie de A, serie de B), mesma janela de `serieComprometimentoProvider`.
+final serieComprometimentoComparativoProvider = Provider.autoDispose<
+    AsyncValue<(List<PontoComprometido>, List<PontoComprometido>)>>((ref) {
+  final dupla = ref.watch(duplaComparativaProvider);
+  if (dupla.length < 2) return const AsyncData(([], []));
+  final inicio = ref.watch(mesSelecionadoProvider);
+  final meses = janelaDe(inicio, mesesDaSerie);
+
+  return ref.watch(parceladosDesdeProvider(inicio.valor)).whenData(
+        (parcelas) => (
+          serieComprometimento(meses: meses, parcelas: parcelas, membroId: dupla[0].id),
+          serieComprometimento(meses: meses, parcelas: parcelas, membroId: dupla[1].id),
+        ),
+      );
+});
+
+/// Ganho real do mes selecionado, respeitando a visao -- a renda que a
+/// projecao assume constante dali pra frente.
+final ganhoAssumidoProjecaoProvider =
+    Provider.autoDispose<AsyncValue<double>>((ref) {
+  final mes = ref.watch(mesSelecionadoProvider).valor;
+  final membroId = ref.watch(visaoProvider);
+
+  return ref.watch(ganhosDoMesProvider(mes)).whenData(
+        (ganhos) => calcularTotais(
+          ganhos: ganhos,
+          gastos: const [],
+          membroId: membroId,
+        ).ganhos,
+      );
+});
+
+final serieProjecaoProvider =
+    Provider.autoDispose<AsyncValue<List<PontoProjecao>>>((ref) {
+  final inicio = ref.watch(mesSelecionadoProvider);
+  final membroId = ref.watch(visaoProvider);
+  final meses = janelaDe(inicio, mesesDaSerie);
+
+  return combinarAsyncValues(
+    ref.watch(ganhoAssumidoProjecaoProvider),
+    ref.watch(parceladosDesdeProvider(inicio.valor)),
+    (ganhoAssumido, parcelas) => serieProjecao(
+      meses: meses,
+      ganhoMensalAssumido: ganhoAssumido,
+      parcelas: parcelas,
+      membroId: membroId,
+    ),
+  );
+});
+
 // --- Dados ----------------------------------------------------------------
 
 final potesProvider = StreamProvider<List<Pote>>(

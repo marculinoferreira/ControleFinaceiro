@@ -402,4 +402,88 @@ void main() {
       expect(serieVazia(const []), isTrue);
     });
   });
+
+  group('barrasComparativasPorPote', () {
+    test('uma barra por pote, na ordem de prioridade, com os dois valores', () {
+      final barras = barrasComparativasPorPote(
+        porPoteA: const {'p1': 700},
+        porPoteB: const {'p1': 300, 'p2': 200},
+        potes: potes,
+      );
+
+      expect(barras.map((b) => b.id).toList(), ['p1', 'p2']);
+      expect(barras[0].valorA, 700);
+      expect(barras[0].valorB, 300);
+      expect(barras[0].nome, 'Custo fixo');
+      expect(barras[0].cor, '#2E7D32');
+      expect(barras[1].valorA, 0);
+      expect(barras[1].valorB, 200);
+    });
+
+    test('pote sem gasto de nenhuma das duas pessoas nao entra', () {
+      final barras = barrasComparativasPorPote(
+        porPoteA: const {'p1': 700},
+        porPoteB: const {},
+        potes: potes,
+      );
+
+      expect(barras, hasLength(1));
+      expect(barras.single.id, 'p1');
+    });
+
+    test('pote com gasto de so uma das duas ainda entra', () {
+      final barras = barrasComparativasPorPote(
+        porPoteA: const {},
+        porPoteB: const {'p2': 200},
+        potes: potes,
+      );
+
+      expect(barras, hasLength(1));
+      expect(barras.single.id, 'p2');
+      expect(barras.single.valorA, 0);
+      expect(barras.single.valorB, 200);
+    });
+
+    test('gasto em pote apagado de qualquer uma das duas cai em Outros', () {
+      final barras = barrasComparativasPorPote(
+        porPoteA: const {'p1': 700, 'fantasma': 50},
+        porPoteB: const {'fantasma2': 20},
+        potes: potes,
+      );
+
+      expect(barras, hasLength(2));
+      expect(barras.last.nome, 'Outros');
+      expect(barras.last.valorA, 50);
+      expect(barras.last.valorB, 20);
+    });
+  });
+
+  group('barrasComparativasPorCartao', () {
+    test('uma barra por cartao, na ordem cadastrada, com cor da paleta', () {
+      final barras = barrasComparativasPorCartao(
+        porCartaoA: const {'inter': 300, 'nubank': 700},
+        porCartaoB: const {'nubank': 100},
+        cartoes: cartoes,
+      );
+
+      expect(barras.map((b) => b.id).toList(), ['nubank', 'inter']);
+      expect(barras[0].valorA, 700);
+      expect(barras[0].valorB, 100);
+      expect(barras[0].cor, paletaCartoes[0]);
+      expect(barras[1].valorA, 300);
+      expect(barras[1].valorB, 0);
+    });
+
+    test('gasto sem cartao (chave vazia) de qualquer uma cai em Sem cartao', () {
+      final barras = barrasComparativasPorCartao(
+        porCartaoA: const {'nubank': 700, '': 50},
+        porCartaoB: const {},
+        cartoes: cartoes,
+      );
+
+      expect(barras.last.nome, 'Sem cartão');
+      expect(barras.last.valorA, 50);
+      expect(barras.last.valorB, 0);
+    });
+  });
 }

@@ -225,3 +225,104 @@ List<Fatia> fatiasPorCartao({
     nomeOrfaos: 'Sem cartão',
   );
 }
+
+/// Uma barra do Comparativo: o que ela representa e quanto cada uma das
+/// duas pessoas da casa gastou nela.
+class BarraComparativa {
+  final String id;
+  final String nome;
+  final String cor;
+  final double valorA;
+  final double valorB;
+
+  const BarraComparativa({
+    required this.id,
+    required this.nome,
+    required this.cor,
+    required this.valorA,
+    required this.valorB,
+  });
+}
+
+/// Miolo do Comparativo, no mesmo espirito de `_fatiar`: ordena pela lista
+/// dada, ignora quem nao tem gasto de nenhum dos dois lados, agrega
+/// desconhecidos numa barra "Outros"/"Sem cartao" no fim.
+List<BarraComparativa> _barrar({
+  required Map<String, double> valoresA,
+  required Map<String, double> valoresB,
+  required List<String> ids,
+  required Map<String, String> nome,
+  required Map<String, String> cor,
+  String nomeOrfaos = 'Outros',
+}) {
+  final conhecidos = ids.toSet();
+  final barras = <BarraComparativa>[];
+
+  for (final id in ids) {
+    final a = valoresA[id] ?? 0;
+    final b = valoresB[id] ?? 0;
+    if (a <= toleranciaCentavo && b <= toleranciaCentavo) continue;
+    barras.add(BarraComparativa(
+      id: id,
+      nome: nome[id] ?? id,
+      cor: cor[id] ?? corNeutra,
+      valorA: a,
+      valorB: b,
+    ));
+  }
+
+  var orfaosA = 0.0, orfaosB = 0.0;
+  for (final entrada in valoresA.entries) {
+    if (!conhecidos.contains(entrada.key)) orfaosA += entrada.value;
+  }
+  for (final entrada in valoresB.entries) {
+    if (!conhecidos.contains(entrada.key)) orfaosB += entrada.value;
+  }
+  if (orfaosA > toleranciaCentavo || orfaosB > toleranciaCentavo) {
+    barras.add(BarraComparativa(
+      id: '',
+      nome: nomeOrfaos,
+      cor: corNeutra,
+      valorA: orfaosA,
+      valorB: orfaosB,
+    ));
+  }
+
+  return barras;
+}
+
+/// Gasto por pote, pessoa A x pessoa B (aba Comparativo).
+List<BarraComparativa> barrasComparativasPorPote({
+  required Map<String, double> porPoteA,
+  required Map<String, double> porPoteB,
+  required List<Pote> potes,
+}) {
+  final ordenados = [...potes]..sort((a, b) => a.ordem.compareTo(b.ordem));
+  return _barrar(
+    valoresA: porPoteA,
+    valoresB: porPoteB,
+    ids: [for (final p in ordenados) p.id],
+    nome: {for (final p in ordenados) p.id: p.nome},
+    cor: {for (final p in ordenados) p.id: p.cor},
+  );
+}
+
+/// Gasto por cartao, pessoa A x pessoa B (aba Comparativo).
+List<BarraComparativa> barrasComparativasPorCartao({
+  required Map<String, double> porCartaoA,
+  required Map<String, double> porCartaoB,
+  required List<Cartao> cartoes,
+}) {
+  final ordenados = [...cartoes]..sort((a, b) => a.ordem.compareTo(b.ordem));
+  return _barrar(
+    valoresA: porCartaoA,
+    valoresB: porCartaoB,
+    ids: [for (final c in ordenados) c.id],
+    nome: {for (final c in ordenados) c.id: c.nome},
+    cor: {
+      for (final (i, c) in ordenados.indexed)
+        c.id: paletaCartoes[i % paletaCartoes.length]
+    },
+    nomeOrfaos: 'Sem cartão',
+  );
+}
