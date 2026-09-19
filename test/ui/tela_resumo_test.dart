@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
 import 'package:controle_financeiro/dominio/models/casa.dart';
@@ -69,6 +70,7 @@ Future<void> montar(
   RepositorioPotes? repoPotes,
   Size tamanho = const Size(1400, 1400),
   bool semRetry = false,
+  List<Override> overridesExtras = const [],
 }) async {
   tester.view.physicalSize = tamanho;
   tester.view.devicePixelRatio = 1.0;
@@ -123,6 +125,7 @@ Future<void> montar(
           .overrideWithValue(repoPotes ?? RepositorioPotesFake(comPotes)),
       repositorioGanhosProvider.overrideWithValue(ganhos),
       repositorioGastosProvider.overrideWithValue(gastos),
+      ...overridesExtras,
     ],
   );
   addTearDown(container.dispose);
@@ -409,6 +412,54 @@ void main() {
       expect(find.byType(Card), findsWidgets);
       // A barra de progresso sobrevive ao layout de card.
       expect(find.byType(LinearProgressIndicator), findsNWidgets(2));
+    });
+  });
+
+  group('alerta de estouro projetado', () {
+    testWidgets('aparece quando o provider tem excesso para o pote',
+        (tester) async {
+      await montar(
+        tester,
+        ganhoMarcos: 10000,
+        gastoMarcos: 3000,
+        overridesExtras: [
+          estouroProjetadoProvider.overrideWith(
+            (ref) => const AsyncData({'p1': 120.0}),
+          ),
+        ],
+      );
+
+      expect(find.byKey(const Key('estouro_p1')), findsOneWidget);
+      expect(find.textContaining(formatarReais(120)), findsOneWidget);
+    });
+
+    testWidgets('nao aparece quando o provider nao tem excesso',
+        (tester) async {
+      await montar(
+        tester,
+        ganhoMarcos: 10000,
+        gastoMarcos: 3000,
+        overridesExtras: [
+          estouroProjetadoProvider.overrideWith((ref) => const AsyncData({})),
+        ],
+      );
+
+      expect(find.byKey(const Key('estouro_p1')), findsNothing);
+      expect(find.byKey(const Key('estouro_p2')), findsNothing);
+    });
+
+    testWidgets('a barra de progresso do pote continua funcionando',
+        (tester) async {
+      await montar(
+        tester,
+        ganhoMarcos: 10000,
+        gastoMarcos: 3000,
+        overridesExtras: [
+          estouroProjetadoProvider.overrideWith((ref) => const AsyncData({})),
+        ],
+      );
+
+      expect(find.byType(LinearProgressIndicator), findsWidgets);
     });
   });
 }

@@ -84,11 +84,56 @@ class TelaResumo extends ConsumerWidget {
         formatarReais(ultrapassou),
         formatarReais(sobra),
       ],
-      indicador: _BarraDoPote(
+      indicador: _IndicadorDoPote(
         previsto: linha.previsto,
         consumido: consumido,
         cor: linha.pote.cor,
+        poteId: linha.pote.id,
       ),
+    );
+  }
+}
+
+/// Barra de consumo do pote mais o alerta de estouro projetado quando
+/// existir. `ConsumerWidget` proprio porque `_linha` continua um metodo
+/// puro (sem `WidgetRef`) -- so este widget composto precisa ler o
+/// provider.
+class _IndicadorDoPote extends ConsumerWidget {
+  final double previsto;
+  final double consumido;
+  final String cor;
+  final String poteId;
+
+  const _IndicadorDoPote({
+    required this.previsto,
+    required this.consumido,
+    required this.cor,
+    required this.poteId,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final excesso = ref.watch(estouroProjetadoProvider).value?[poteId];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _BarraDoPote(previsto: previsto, consumido: consumido, cor: cor),
+        if (excesso != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              'No ritmo atual, vai passar ${formatarReais(excesso)} do previsto',
+              key: Key('estouro_$poteId'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
