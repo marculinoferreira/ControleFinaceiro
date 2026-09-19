@@ -294,41 +294,27 @@ final serieProjecaoProvider =
   final inicio = ref.watch(mesSelecionadoProvider);
   final membroId = ref.watch(visaoProvider);
   final meses = janelaDe(inicio, mesesDaSerie);
-  final mesSeguinte = inicio.avancar(1).valor;
-
-  final baseAsync = combinarAsyncValues(
-    ref.watch(ganhoAssumidoProjecaoProvider),
-    ref.watch(parceladosDesdeProvider(inicio.valor)),
-    (ganhoAssumido, parcelas) => (ganhoAssumido, parcelas),
-  );
-
-  final ganhosConhecidosAsync = membroId != null
-      ? const AsyncData<Map<String, double>>({})
-      : combinarAsyncValues(
-          ref.watch(ganhosDoMesProvider(mesSeguinte)),
-          ref.watch(poteReservaProvider),
-          (ganhosDoMesSeguinte, reserva) {
-            final realDoMesSeguinte =
-                ganhosDoMesSeguinte.fold(0.0, (s, g) => s + g.valor);
-            if (realDoMesSeguinte > toleranciaCentavo) {
-              return <String, double>{mesSeguinte: realDoMesSeguinte};
-            }
-            final estimativa = reserva?.proximoGanhoEsperado;
-            return estimativa == null
-                ? const <String, double>{}
-                : {mesSeguinte: estimativa};
-          },
-        );
+  final janela = (inicio: meses.first.valor, fim: meses.last.valor);
 
   return combinarAsyncValues(
-    baseAsync,
-    ganhosConhecidosAsync,
-    (par, ganhosConhecidos) => serieProjecao(
+    combinarAsyncValues(
+      ref.watch(ganhoAssumidoProjecaoProvider),
+      ref.watch(parceladosDesdeProvider(inicio.valor)),
+      (ganhoAssumido, parcelas) => (ganhoAssumido, parcelas),
+    ),
+    ref.watch(ganhosDoIntervaloProvider(janela)).whenData(
+          (ganhosDoIntervalo) => ganhosEfetivosPorMes(
+            ganhosDoIntervalo: ganhosDoIntervalo,
+            meses: meses,
+            membroId: membroId,
+          ),
+        ),
+    (par, ganhosPorMes) => serieProjecao(
       meses: meses,
       ganhoMensalAssumido: par.$1,
       parcelas: par.$2,
       membroId: membroId,
-      ganhosConhecidos: ganhosConhecidos,
+      ganhosConhecidos: ganhosPorMes,
     ),
   );
 });

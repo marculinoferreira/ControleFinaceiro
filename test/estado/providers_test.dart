@@ -521,6 +521,12 @@ void main() {
       c.listen(potesProvider, (_, _) {});
       c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
       c.listen(ganhosDoMesProvider('2026-09'), (_, _) {});
+      c.listen(
+        ganhosDoIntervaloProvider(
+          (inicio: '2026-08', fim: janelaDe(const MesRef(2026, 8), mesesDaSerie).last.valor),
+        ),
+        (_, _) {},
+      );
       c.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
       await Future<void>.delayed(Duration.zero);
       return c;
@@ -848,105 +854,6 @@ void main() {
     });
   });
 
-  group('serieProjecaoProvider com proximoGanhoEsperado', () {
-    const potesSimples = [
-      Pote(id: 'p1', nome: 'Custo fixo', percentual: 100, ordem: 0,
-          cor: '#2E7D32', icone: 'casa'),
-    ];
-
-    Future<ProviderContainer> montarProjecaoComReserva({
-      double ganhoMarcosAgosto = 5000,
-      double? proximoGanhoEsperado,
-      double ganhoMarcosSetembro = 0,
-    }) async {
-      final ganhos = RepositorioGanhosFake();
-      if (ganhoMarcosAgosto > 0) {
-        await ganhos.adicionar(Ganho(
-          id: '', mesRef: '2026-08', membroId: 'marcos',
-          descricao: 'Salario', valor: ganhoMarcosAgosto,
-          criadoEm: DateTime.utc(2026, 8, 1),
-        ));
-      }
-      if (ganhoMarcosSetembro > 0) {
-        await ganhos.adicionar(Ganho(
-          id: '', mesRef: '2026-09', membroId: 'marcos',
-          descricao: 'Salario', valor: ganhoMarcosSetembro,
-          criadoEm: DateTime.utc(2026, 9, 1),
-        ));
-      }
-
-      final potes = [
-        if (proximoGanhoEsperado != null)
-          potesSimples[0].copyWith(
-            ehReserva: true,
-            proximoGanhoEsperado: proximoGanhoEsperado,
-          )
-        else
-          potesSimples[0],
-      ];
-
-      final c = ProviderContainer(overrides: [
-        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
-        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
-        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
-        repositorioGanhosProvider.overrideWithValue(ganhos),
-        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
-      ]);
-      addTearDown(c.dispose);
-      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
-      c.listen(potesProvider, (_, _) {});
-      c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
-      c.listen(ganhosDoMesProvider('2026-09'), (_, _) {});
-      c.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
-      await Future<void>.delayed(Duration.zero);
-      return c;
-    }
-
-    test('sem pote de reserva, repete o ganho do mes selecionado (antigo)',
-        () async {
-      final c = await montarProjecaoComReserva(ganhoMarcosAgosto: 5000);
-
-      final serie = c.read(serieProjecaoProvider).requireValue;
-      expect(serie.every((p) => p.ganhos == 5000), isTrue);
-    });
-
-    test('com proximoGanhoEsperado e sem ganho real em setembro, usa a estimativa so em setembro',
-        () async {
-      final c = await montarProjecaoComReserva(
-        ganhoMarcosAgosto: 5000,
-        proximoGanhoEsperado: 5800,
-      );
-
-      final serie = c.read(serieProjecaoProvider).requireValue;
-      expect(serie[0].ganhos, 5000); // agosto: mes selecionado, valor real
-      expect(serie[1].ganhos, 5800); // setembro: estimativa
-      expect(serie[2].ganhos, 5000); // outubro: volta a repetir o assumido
-    });
-
-    test('com ganho real em setembro, o real tem prioridade sobre a estimativa',
-        () async {
-      final c = await montarProjecaoComReserva(
-        ganhoMarcosAgosto: 5000,
-        proximoGanhoEsperado: 5800,
-        ganhoMarcosSetembro: 6200,
-      );
-
-      final serie = c.read(serieProjecaoProvider).requireValue;
-      expect(serie[1].ganhos, 6200);
-    });
-
-    test('na visao de uma pessoa, a estimativa nunca e usada', () async {
-      final c = await montarProjecaoComReserva(
-        ganhoMarcosAgosto: 5000,
-        proximoGanhoEsperado: 5800,
-      );
-      c.read(visaoProvider.notifier).selecionar('marcos');
-
-      final serie = c.read(serieProjecaoProvider).requireValue;
-      expect(serie[1].ganhos, 5000); // repete o assumido, ignora a estimativa
-    });
-  });
-
   group('ganhos efetivos nos providers existentes', () {
     Future<ProviderContainer> montarComGanhos({
       List<(String membroId, double valor, bool previsto)> ganhosDoMes = const [],
@@ -1025,6 +932,97 @@ void main() {
       );
 
       expect(c.read(ganhoAssumidoProjecaoProvider).requireValue, 3800);
+    });
+  });
+
+  group('serieProjecaoProvider com ganhos efetivos', () {
+    Future<ProviderContainer> montarProjecaoComGanhos({
+      double ganhoMarcosOutubro = 5000,
+      List<(String mesRef, double valor, bool previsto)> ganhosFuturos = const [],
+    }) async {
+      final ganhos = RepositorioGanhosFake();
+      if (ganhoMarcosOutubro > 0) {
+        await ganhos.adicionar(Ganho(
+          id: '', mesRef: '2026-10', membroId: 'marcos',
+          descricao: 'Salario', valor: ganhoMarcosOutubro,
+          criadoEm: DateTime.utc(2026, 10, 1),
+        ));
+      }
+      for (final (mesRef, valor, previsto) in ganhosFuturos) {
+        await ganhos.adicionar(Ganho(
+          id: '', mesRef: mesRef, membroId: 'marcos',
+          descricao: previsto ? 'Previsto' : 'Real', valor: valor,
+          criadoEm: DateTime.utc(2026, 10, 1), previsto: previsto,
+        ));
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 10));
+      c.listen(ganhosDoMesProvider('2026-10'), (_, _) {});
+      c.listen(
+        ganhosDoIntervaloProvider(
+          (inicio: '2026-10', fim: janelaDe(const MesRef(2026, 10), mesesDaSerie).last.valor),
+        ),
+        (_, _) {},
+      );
+      c.listen(parceladosDesdeProvider('2026-10'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('sem nenhum dado no mes seguinte, repete o ganho assumido', () async {
+      final c = await montarProjecaoComGanhos(ganhoMarcosOutubro: 5000);
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie.every((p) => p.ganhos == 5000), isTrue);
+    });
+
+    test('mes seguinte so com previsto usa o previsto', () async {
+      final c = await montarProjecaoComGanhos(
+        ganhoMarcosOutubro: 5000,
+        ganhosFuturos: [('2026-11', 3800, true)],
+      );
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie[0].ganhos, 5000); // outubro: mes selecionado
+      expect(serie[1].ganhos, 3800); // novembro: previsto
+      expect(serie[2].ganhos, 5000); // dezembro: volta a repetir o assumido
+    });
+
+    test('mes com real e previsto: real vence', () async {
+      final c = await montarProjecaoComGanhos(
+        ganhoMarcosOutubro: 5000,
+        ganhosFuturos: [
+          ('2026-11', 3800, true),
+          ('2026-11', 4200, false),
+        ],
+      );
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie[1].ganhos, 4200);
+    });
+
+    test('previsto em mais de um mes futuro: cada mes usa o seu', () async {
+      final c = await montarProjecaoComGanhos(
+        ganhoMarcosOutubro: 5000,
+        ganhosFuturos: [
+          ('2026-11', 3800, true),
+          ('2026-12', 4100, true),
+        ],
+      );
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie[0].ganhos, 5000); // outubro
+      expect(serie[1].ganhos, 3800); // novembro
+      expect(serie[2].ganhos, 4100); // dezembro
+      expect(serie[3].ganhos, 5000); // janeiro: sem dado, volta ao assumido
     });
   });
 }
