@@ -294,15 +294,41 @@ final serieProjecaoProvider =
   final inicio = ref.watch(mesSelecionadoProvider);
   final membroId = ref.watch(visaoProvider);
   final meses = janelaDe(inicio, mesesDaSerie);
+  final mesSeguinte = inicio.avancar(1).valor;
 
-  return combinarAsyncValues(
+  final baseAsync = combinarAsyncValues(
     ref.watch(ganhoAssumidoProjecaoProvider),
     ref.watch(parceladosDesdeProvider(inicio.valor)),
-    (ganhoAssumido, parcelas) => serieProjecao(
+    (ganhoAssumido, parcelas) => (ganhoAssumido, parcelas),
+  );
+
+  final ganhosConhecidosAsync = membroId != null
+      ? const AsyncData<Map<String, double>>({})
+      : combinarAsyncValues(
+          ref.watch(ganhosDoMesProvider(mesSeguinte)),
+          ref.watch(poteReservaProvider),
+          (ganhosDoMesSeguinte, reserva) {
+            final realDoMesSeguinte =
+                ganhosDoMesSeguinte.fold(0.0, (s, g) => s + g.valor);
+            if (realDoMesSeguinte > toleranciaCentavo) {
+              return <String, double>{mesSeguinte: realDoMesSeguinte};
+            }
+            final estimativa = reserva?.proximoGanhoEsperado;
+            return estimativa == null
+                ? const <String, double>{}
+                : {mesSeguinte: estimativa};
+          },
+        );
+
+  return combinarAsyncValues(
+    baseAsync,
+    ganhosConhecidosAsync,
+    (par, ganhosConhecidos) => serieProjecao(
       meses: meses,
-      ganhoMensalAssumido: ganhoAssumido,
-      parcelas: parcelas,
+      ganhoMensalAssumido: par.$1,
+      parcelas: par.$2,
       membroId: membroId,
+      ganhosConhecidos: ganhosConhecidos,
     ),
   );
 });

@@ -518,7 +518,9 @@ void main() {
         repositorioGastosProvider.overrideWithValue(gastos),
       ]);
       c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(potesProvider, (_, _) {});
       c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
+      c.listen(ganhosDoMesProvider('2026-09'), (_, _) {});
       c.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
       await Future<void>.delayed(Duration.zero);
       return c;
@@ -843,6 +845,105 @@ void main() {
 
       expect(c.read(poteReservaProvider).requireValue, isNotNull);
       expect(c.read(mesesCoberturaReservaProvider).requireValue, isNull);
+    });
+  });
+
+  group('serieProjecaoProvider com proximoGanhoEsperado', () {
+    const potesSimples = [
+      Pote(id: 'p1', nome: 'Custo fixo', percentual: 100, ordem: 0,
+          cor: '#2E7D32', icone: 'casa'),
+    ];
+
+    Future<ProviderContainer> montarProjecaoComReserva({
+      double ganhoMarcosAgosto = 5000,
+      double? proximoGanhoEsperado,
+      double ganhoMarcosSetembro = 0,
+    }) async {
+      final ganhos = RepositorioGanhosFake();
+      if (ganhoMarcosAgosto > 0) {
+        await ganhos.adicionar(Ganho(
+          id: '', mesRef: '2026-08', membroId: 'marcos',
+          descricao: 'Salario', valor: ganhoMarcosAgosto,
+          criadoEm: DateTime.utc(2026, 8, 1),
+        ));
+      }
+      if (ganhoMarcosSetembro > 0) {
+        await ganhos.adicionar(Ganho(
+          id: '', mesRef: '2026-09', membroId: 'marcos',
+          descricao: 'Salario', valor: ganhoMarcosSetembro,
+          criadoEm: DateTime.utc(2026, 9, 1),
+        ));
+      }
+
+      final potes = [
+        if (proximoGanhoEsperado != null)
+          potesSimples[0].copyWith(
+            ehReserva: true,
+            proximoGanhoEsperado: proximoGanhoEsperado,
+          )
+        else
+          potesSimples[0],
+      ];
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(ganhos),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 8));
+      c.listen(potesProvider, (_, _) {});
+      c.listen(ganhosDoMesProvider('2026-08'), (_, _) {});
+      c.listen(ganhosDoMesProvider('2026-09'), (_, _) {});
+      c.listen(parceladosDesdeProvider('2026-08'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('sem pote de reserva, repete o ganho do mes selecionado (antigo)',
+        () async {
+      final c = await montarProjecaoComReserva(ganhoMarcosAgosto: 5000);
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie.every((p) => p.ganhos == 5000), isTrue);
+    });
+
+    test('com proximoGanhoEsperado e sem ganho real em setembro, usa a estimativa so em setembro',
+        () async {
+      final c = await montarProjecaoComReserva(
+        ganhoMarcosAgosto: 5000,
+        proximoGanhoEsperado: 5800,
+      );
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie[0].ganhos, 5000); // agosto: mes selecionado, valor real
+      expect(serie[1].ganhos, 5800); // setembro: estimativa
+      expect(serie[2].ganhos, 5000); // outubro: volta a repetir o assumido
+    });
+
+    test('com ganho real em setembro, o real tem prioridade sobre a estimativa',
+        () async {
+      final c = await montarProjecaoComReserva(
+        ganhoMarcosAgosto: 5000,
+        proximoGanhoEsperado: 5800,
+        ganhoMarcosSetembro: 6200,
+      );
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie[1].ganhos, 6200);
+    });
+
+    test('na visao de uma pessoa, a estimativa nunca e usada', () async {
+      final c = await montarProjecaoComReserva(
+        ganhoMarcosAgosto: 5000,
+        proximoGanhoEsperado: 5800,
+      );
+      c.read(visaoProvider.notifier).selecionar('marcos');
+
+      final serie = c.read(serieProjecaoProvider).requireValue;
+      expect(serie[1].ganhos, 5000); // repete o assumido, ignora a estimativa
     });
   });
 }
