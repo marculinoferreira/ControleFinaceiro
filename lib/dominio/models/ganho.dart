@@ -7,6 +7,12 @@ class Ganho {
   final double valor;
   final DateTime criadoEm;
 
+  /// Marca que este ganho e uma previsao ("eu sei que vou ganhar X"), nao
+  /// um ganho ja recebido. So conta nos calculos de renda quando a mesma
+  /// pessoa nao tiver nenhum ganho real (previsto == false) no mesmo mes —
+  /// ver `ganhosEfetivos` em totais.dart.
+  final bool previsto;
+
   const Ganho({
     required this.id,
     required this.mesRef,
@@ -14,6 +20,7 @@ class Ganho {
     required this.descricao,
     required this.valor,
     required this.criadoEm,
+    this.previsto = false,
   });
 
   factory Ganho.fromMap(String id, Map<String, dynamic> mapa) => Ganho(
@@ -23,6 +30,7 @@ class Ganho {
         descricao: mapa['descricao'] as String,
         valor: (mapa['valor'] as num).toDouble(),
         criadoEm: _lerData(mapa['criadoEm']),
+        previsto: mapa['previsto'] as bool? ?? false,
       );
 
   Map<String, dynamic> toMap() => {
@@ -31,6 +39,7 @@ class Ganho {
         'descricao': descricao,
         'valor': valor,
         'criadoEm': criadoEm,
+        'previsto': previsto,
       };
 
   Ganho copyWith({
@@ -40,6 +49,7 @@ class Ganho {
     String? descricao,
     double? valor,
     DateTime? criadoEm,
+    bool? previsto,
   }) =>
       Ganho(
         id: id ?? this.id,
@@ -48,6 +58,7 @@ class Ganho {
         descricao: descricao ?? this.descricao,
         valor: valor ?? this.valor,
         criadoEm: criadoEm ?? this.criadoEm,
+        previsto: previsto ?? this.previsto,
       );
 }
 
