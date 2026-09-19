@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
@@ -127,6 +128,7 @@ const tresPotes = [
 Future<RepositorioPotesFake> montar(
   WidgetTester tester, {
   List<Pote> iniciais = tresPotes,
+  List<Override> overridesExtras = const [],
 }) async {
   tester.view.physicalSize = const Size(1400, 1200);
   tester.view.devicePixelRatio = 1.0;
@@ -137,6 +139,8 @@ Future<RepositorioPotesFake> montar(
     overrides: [
       repositorioPotesProvider.overrideWithValue(repo),
       repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+      repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ...overridesExtras,
     ],
     child: const MaterialApp(home: TelaPotes()),
   ));
@@ -514,6 +518,80 @@ void main() {
       final botao =
           tester.widget<FilledButton>(find.byKey(const Key('salvar_potes')));
       expect(botao.onPressed, isNotNull);
+    });
+  });
+
+  group('reserva de emergencia', () {
+    testWidgets('checkbox e campos nao aparecem por padrao', (tester) async {
+      await montar(tester);
+
+      expect(find.byKey(const Key('reserva_0')), findsOneWidget);
+      expect(find.byKey(const Key('guardado_0')), findsNothing);
+      expect(find.byKey(const Key('vai_ganhar_0')), findsNothing);
+    });
+
+    testWidgets('marcar reserva mostra os campos Guardado e Vai ganhar',
+        (tester) async {
+      await montar(tester);
+
+      await tester.tap(find.byKey(const Key('reserva_0')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('guardado_0')), findsOneWidget);
+      expect(find.byKey(const Key('vai_ganhar_0')), findsOneWidget);
+    });
+
+    testWidgets('marcar um pote como reserva desmarca o anterior',
+        (tester) async {
+      await montar(tester);
+
+      await tester.tap(find.byKey(const Key('reserva_0')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('guardado_0')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('reserva_1')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('guardado_0')), findsNothing);
+      expect(find.byKey(const Key('guardado_1')), findsOneWidget);
+    });
+
+    testWidgets('editar Guardado atualiza o rascunho e persiste ao salvar',
+        (tester) async {
+      final repo = await montar(tester);
+
+      await tester.tap(find.byKey(const Key('reserva_0')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('guardado_0')), '6000');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('salvar_potes')));
+      await tester.pumpAndSettle();
+
+      expect(repo.todos.firstWhere((p) => p.ehReserva).valorGuardado, 6000);
+    });
+
+    testWidgets('mostra os meses de cobertura quando o provider tem valor',
+        (tester) async {
+      await montar(tester, overridesExtras: [
+        mesesCoberturaReservaProvider.overrideWith((ref) => const AsyncData(4.0)),
+        poteReservaProvider.overrideWith(
+          (ref) => AsyncData(tresPotes.first.copyWith(ehReserva: true)),
+        ),
+      ]);
+
+      expect(find.byKey(const Key('meses_cobertura')), findsOneWidget);
+      expect(find.textContaining('4'), findsWidgets);
+    });
+
+    testWidgets('sem pote de reserva, o texto de cobertura nao aparece',
+        (tester) async {
+      await montar(tester, overridesExtras: [
+        poteReservaProvider.overrideWith((ref) => const AsyncData(null)),
+        mesesCoberturaReservaProvider.overrideWith((ref) => const AsyncData(null)),
+      ]);
+
+      expect(find.byKey(const Key('meses_cobertura')), findsNothing);
     });
   });
 }

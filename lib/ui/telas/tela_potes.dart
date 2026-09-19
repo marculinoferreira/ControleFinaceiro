@@ -47,6 +47,8 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
   List<Pote>? _rascunho;
   final _controladores = <int, TextEditingController>{};
   final _controladoresNome = <int, TextEditingController>{};
+  final _controladoresGuardado = <int, TextEditingController>{};
+  final _controladoresVaiGanhar = <int, TextEditingController>{};
 
   /// Guarda de reentrancia: sem ela, um toque duplo no Salvar (facil de
   /// acontecer enquanto a escrita ainda esta em voo, ex. offline) dispara
@@ -61,6 +63,12 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
       c.dispose();
     }
     for (final c in _controladoresNome.values) {
+      c.dispose();
+    }
+    for (final c in _controladoresGuardado.values) {
+      c.dispose();
+    }
+    for (final c in _controladoresVaiGanhar.values) {
       c.dispose();
     }
     super.dispose();
@@ -84,6 +92,24 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
     );
   }
 
+  TextEditingController _controladorGuardado(int indice, double? valor) {
+    return _controladoresGuardado.putIfAbsent(
+      indice,
+      () => TextEditingController(
+        text: valor == null ? '' : valor.toStringAsFixed(2),
+      ),
+    );
+  }
+
+  TextEditingController _controladorVaiGanhar(int indice, double? valor) {
+    return _controladoresVaiGanhar.putIfAbsent(
+      indice,
+      () => TextEditingController(
+        text: valor == null ? '' : valor.toStringAsFixed(2),
+      ),
+    );
+  }
+
   void _resincronizarControladores() {
     for (final c in _controladores.values) {
       c.dispose();
@@ -93,6 +119,14 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
       c.dispose();
     }
     _controladoresNome.clear();
+    for (final c in _controladoresGuardado.values) {
+      c.dispose();
+    }
+    _controladoresGuardado.clear();
+    for (final c in _controladoresVaiGanhar.values) {
+      c.dispose();
+    }
+    _controladoresVaiGanhar.clear();
   }
 
   double get _soma =>
@@ -120,6 +154,8 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
   Widget _conteudo(BuildContext context) {
     final rascunho = _rascunho!;
     final fecha = somaFechada(_soma);
+    final reservaAsync = ref.watch(poteReservaProvider);
+    final coberturaAsync = ref.watch(mesesCoberturaReservaProvider);
 
     return Column(
       children: [
@@ -141,6 +177,17 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
             ],
           ),
         ),
+        if (reservaAsync.value != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(
+              coberturaAsync.value != null
+                  ? 'Sua reserva cobre ${coberturaAsync.requireValue!.toStringAsFixed(1)} meses de gasto.'
+                  : 'Preencha o valor guardado para ver quantos meses sua reserva cobre.',
+              key: const Key('meses_cobertura'),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
         const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -188,70 +235,159 @@ class _TelaPotesState extends ConsumerState<TelaPotes> {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Row(
+        child: Column(
           children: [
-            ReorderableDragStartListener(
-              index: i,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.drag_handle),
-              ),
-            ),
-            CircleAvatar(radius: 10, backgroundColor: corDeHex(pote.cor)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                key: Key('nome_$i'),
-                controller: _controladorNome(i, pote.nome),
-                textCapitalization: TextCapitalization.sentences,
-                inputFormatters: const [PrimeiraMaiuscula()],
-                decoration: const InputDecoration(
-                  labelText: 'Nome',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onChanged: (v) => setState(
-                  () => _rascunho![i] = _rascunho![i].copyWith(nome: v),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 96,
-              child: TextFormField(
-                key: Key('percentual_$i'),
-                controller: _controlador(i, pote.percentual),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  suffixText: '%',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onChanged: (v) => setState(
-                  () => _rascunho![i] = _rascunho![i].copyWith(
-                    percentual: double.tryParse(v) ?? 0,
+            Row(
+              children: [
+                ReorderableDragStartListener(
+                  index: i,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(Icons.drag_handle),
                   ),
                 ),
+                CircleAvatar(radius: 10, backgroundColor: corDeHex(pote.cor)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    key: Key('nome_$i'),
+                    controller: _controladorNome(i, pote.nome),
+                    textCapitalization: TextCapitalization.sentences,
+                    inputFormatters: const [PrimeiraMaiuscula()],
+                    decoration: const InputDecoration(
+                      labelText: 'Nome',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => setState(
+                      () => _rascunho![i] = _rascunho![i].copyWith(nome: v),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 96,
+                  child: TextFormField(
+                    key: Key('percentual_$i'),
+                    controller: _controlador(i, pote.percentual),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      suffixText: '%',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => setState(
+                      () => _rascunho![i] = _rascunho![i].copyWith(
+                        percentual: double.tryParse(v) ?? 0,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  key: Key('remover_$i'),
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Remover pote',
+                  onPressed: () async {
+                    final confirmou = await confirmarExclusao(
+                      context: context,
+                      titulo: 'Remover pote',
+                      mensagem: 'Deseja remover "${pote.nome}" da lista?',
+                    );
+                    if (!confirmou || !mounted) return;
+                    setState(() {
+                      _rascunho!.removeAt(i);
+                      _resincronizarControladores();
+                    });
+                  },
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                const SizedBox(width: 40),
+                Checkbox(
+                  key: Key('reserva_$i'),
+                  value: pote.ehReserva,
+                  onChanged: (v) => setState(() {
+                    for (var j = 0; j < _rascunho!.length; j++) {
+                      _rascunho![j] = _rascunho![j].copyWith(
+                        ehReserva: j == i ? (v ?? false) : false,
+                      );
+                    }
+                  }),
+                ),
+                const Text('Pote de reserva'),
+              ],
+            ),
+            if (pote.ehReserva)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        key: Key('guardado_$i'),
+                        controller: _controladorGuardado(i, pote.valorGuardado),
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Guardado',
+                          prefixText: 'R\$ ',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onChanged: (v) => setState(() {
+                          final atual = _rascunho![i];
+                          _rascunho![i] = Pote(
+                            id: atual.id,
+                            nome: atual.nome,
+                            percentual: atual.percentual,
+                            ordem: atual.ordem,
+                            cor: atual.cor,
+                            icone: atual.icone,
+                            ehReserva: atual.ehReserva,
+                            valorGuardado:
+                                double.tryParse(v.replaceAll(',', '.')),
+                            proximoGanhoEsperado: atual.proximoGanhoEsperado,
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        key: Key('vai_ganhar_$i'),
+                        controller:
+                            _controladorVaiGanhar(i, pote.proximoGanhoEsperado),
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Vai ganhar (próx. mês)',
+                          prefixText: 'R\$ ',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onChanged: (v) => setState(() {
+                          final atual = _rascunho![i];
+                          _rascunho![i] = Pote(
+                            id: atual.id,
+                            nome: atual.nome,
+                            percentual: atual.percentual,
+                            ordem: atual.ordem,
+                            cor: atual.cor,
+                            icone: atual.icone,
+                            ehReserva: atual.ehReserva,
+                            valorGuardado: atual.valorGuardado,
+                            proximoGanhoEsperado:
+                                double.tryParse(v.replaceAll(',', '.')),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            IconButton(
-              key: Key('remover_$i'),
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Remover pote',
-              onPressed: () async {
-                final confirmou = await confirmarExclusao(
-                  context: context,
-                  titulo: 'Remover pote',
-                  mensagem: 'Deseja remover "${pote.nome}" da lista?',
-                );
-                if (!confirmou || !mounted) return;
-                setState(() {
-                  _rascunho!.removeAt(i);
-                  _resincronizarControladores();
-                });
-              },
-            ),
           ],
         ),
       ),
