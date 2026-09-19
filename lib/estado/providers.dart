@@ -282,7 +282,7 @@ final ganhoAssumidoProjecaoProvider =
 
   return ref.watch(ganhosDoMesProvider(mes)).whenData(
         (ganhos) => calcularTotais(
-          ganhos: ganhos,
+          ganhos: ganhosEfetivos(ganhos),
           gastos: const [],
           membroId: membroId,
         ).ganhos,
@@ -402,8 +402,11 @@ final totaisDoMesProvider = Provider.autoDispose<AsyncValue<TotaisMes>>((ref) {
   return combinarAsyncValues(
     ref.watch(ganhosDoMesProvider(mes)),
     ref.watch(gastosDoMesProvider(mes)),
-    (ganhos, gastos) =>
-        calcularTotais(ganhos: ganhos, gastos: gastos, membroId: membroId),
+    (ganhos, gastos) => calcularTotais(
+      ganhos: ganhosEfetivos(ganhos),
+      gastos: gastos,
+      membroId: membroId,
+    ),
   );
 });
 
@@ -696,9 +699,11 @@ final percentualComprometidoProvider =
     ref.watch(ganhosDoMesProvider(mes)),
     (parcelas, ganhos) => percentualComprometido(
       comprometido: comprometidoNoMes(parcelas, mes, membroId: membroId),
-      renda:
-          calcularTotais(ganhos: ganhos, gastos: const [], membroId: membroId)
-              .ganhos,
+      renda: calcularTotais(
+        ganhos: ganhosEfetivos(ganhos),
+        gastos: const [],
+        membroId: membroId,
+      ).ganhos,
     ),
   );
 });

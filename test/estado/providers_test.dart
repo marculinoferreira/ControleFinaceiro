@@ -946,4 +946,85 @@ void main() {
       expect(serie[1].ganhos, 5000); // repete o assumido, ignora a estimativa
     });
   });
+
+  group('ganhos efetivos nos providers existentes', () {
+    Future<ProviderContainer> montarComGanhos({
+      List<(String membroId, double valor, bool previsto)> ganhosDoMes = const [],
+      List<(String mesRef, double valor)> parcelas = const [],
+    }) async {
+      final repoGanhos = RepositorioGanhosFake();
+      for (final (membroId, valor, previsto) in ganhosDoMes) {
+        await repoGanhos.adicionar(Ganho(
+          id: '', mesRef: '2026-10', membroId: membroId,
+          descricao: previsto ? 'Previsto' : 'Real', valor: valor,
+          criadoEm: DateTime.utc(2026, 9, 1), previsto: previsto,
+        ));
+      }
+      final repoGastos = RepositorioGastosFake();
+      for (final (mesRef, valor) in parcelas) {
+        await repoGastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: mesRef, membroId: 'marcos', poteId: 'p1',
+            descricao: 'Parcelada', valor: valor,
+            criadoEm: DateTime.utc(2026, 1, 1), parcelado: true,
+            compraId: 'c1', parcela: 1, totalParcelas: 2,
+          ),
+          quantidadeParcelas: 2,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(repoGanhos),
+        repositorioGastosProvider.overrideWithValue(repoGastos),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 10));
+      c.listen(ganhosDoMesProvider('2026-10'), (_, _) {});
+      c.listen(gastosDoMesProvider('2026-10'), (_, _) {});
+      c.listen(potesProvider, (_, _) {});
+      c.listen(parceladosDesdeProvider('2026-10'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('totaisDoMesProvider usa previsto quando nao ha ganho real', () async {
+      final c = await montarComGanhos(
+        ganhosDoMes: [('marcos', 3800, true)],
+      );
+
+      expect(c.read(totaisDoMesProvider).requireValue.ganhos, 3800);
+    });
+
+    test('totaisDoMesProvider ignora previsto quando ha ganho real', () async {
+      final c = await montarComGanhos(
+        ganhosDoMes: [('marcos', 3800, true), ('marcos', 4200, false)],
+      );
+
+      expect(c.read(totaisDoMesProvider).requireValue.ganhos, 4200);
+    });
+
+    test('percentualComprometidoProvider usa previsto como renda', () async {
+      final c = await montarComGanhos(
+        ganhosDoMes: [('marcos', 1000, true)],
+        parcelas: [('2026-10', 100)],
+      );
+
+      expect(
+        c.read(percentualComprometidoProvider).requireValue,
+        closeTo(0.1, 0.0001),
+      );
+    });
+
+    test('ganhoAssumidoProjecaoProvider usa previsto quando so ha previsto',
+        () async {
+      final c = await montarComGanhos(
+        ganhosDoMes: [('marcos', 3800, true)],
+      );
+
+      expect(c.read(ganhoAssumidoProjecaoProvider).requireValue, 3800);
+    });
+  });
 }
