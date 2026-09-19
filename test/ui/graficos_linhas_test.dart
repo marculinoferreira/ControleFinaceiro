@@ -356,5 +356,51 @@ void main() {
       expect(itens.single!.textStyle.color, Colors.white);
       expect(itens.single!.text, contains(formatarReais(100)));
     });
+
+    testWidgets('percentual comprometido aparece em verde abaixo de 30%',
+        (tester) async {
+      await montar(
+        tester,
+        const LinhaComprometimento(),
+        ganhosPorMes: const [('2026-08', 1000)],
+        parcelasDe: 3,
+        valorParcela: 100, // comprometido de agosto = 100 -> 10%
+      );
+
+      final texto = tester.widget<Text>(
+        find.byKey(const Key('percentual_comprometido')),
+      );
+      expect(texto.data, contains(formatarPercentual(10)));
+      expect(texto.style?.color, Colors.green);
+    });
+
+    testWidgets('percentual comprometido aparece em vermelho acima de 50%',
+        (tester) async {
+      await montar(
+        tester,
+        const LinhaComprometimento(),
+        ganhosPorMes: const [('2026-08', 200)],
+        parcelasDe: 3,
+        valorParcela: 150, // comprometido de agosto = 150 -> 75%
+      );
+
+      final texto = tester.widget<Text>(
+        find.byKey(const Key('percentual_comprometido')),
+      );
+      expect(texto.style?.color, Theme.of(tester.element(find.byType(LinhaComprometimento))).colorScheme.error);
+    });
+
+    testWidgets('sem renda, o percentual nao aparece mas o total continua',
+        (tester) async {
+      await montar(
+        tester,
+        const LinhaComprometimento(),
+        parcelasDe: 3,
+        valorParcela: 100,
+      );
+
+      expect(find.byKey(const Key('percentual_comprometido')), findsNothing);
+      expect(find.text('Total: ${formatarReais(300)}'), findsOneWidget);
+    });
   });
 }

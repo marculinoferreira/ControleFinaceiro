@@ -33,13 +33,44 @@ class LinhaComprometimento extends ConsumerWidget {
       legenda: (_) => [
         ItemLegenda(rotulo: 'Parcelas a pagar', cor: esquema.tertiary),
       ],
-      rodape: (serie) => Text(
-        'Total: ${formatarReais(serie.fold(0.0, (soma, p) => soma + p.valor))}',
-        style: Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
-      ),
+      rodape: (serie) {
+        final total = serie.fold(0.0, (soma, p) => soma + p.valor);
+        final percentual = ref.watch(percentualComprometidoProvider).value;
+        final corPercentual = percentual == null
+            ? null
+            : percentual < 0.30
+                ? Colors.green
+                : percentual < 0.50
+                    ? Colors.orange
+                    : esquema.error;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Total: ${formatarReais(total)}',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            if (percentual != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${formatarPercentual(percentual * 100)} da renda deste '
+                  'mês está comprometida com parcelas',
+                  key: const Key('percentual_comprometido'),
+                  style: TextStyle(
+                    color: corPercentual,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
       construir: (serie) => _Linha(serie: serie),
     );
   }
