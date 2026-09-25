@@ -389,12 +389,16 @@ void main() {
       expect(find.text('Alterar o valor'), findsNothing);
 
       final parcelas = parcelasDe(repo);
-      expect(parcelas.every((g) => g.data.day == 17), isTrue);
-      // Cada uma continua no proprio mes.
-      expect(parcelas.map((g) => g.data.month).toList(), [8, 9, 10]);
+      // Todas as parcelas recebem a MESMA data -- e a data da compra, nao
+      // o vencimento de cada parcela (que fica no proprio mes de qualquer
+      // jeito, via mesRef).
+      expect(
+        parcelas.map((g) => g.data).toList(),
+        everyElement(DateTime(2026, 8, 17)),
+      );
     });
 
-    testWidgets('editar a parcela do meio alinha as irmas a ela',
+    testWidgets('editar a parcela do meio tambem alinha as irmas a ela',
         (tester) async {
       final repo = await comCompraParcelada(quantidade: 3);
       await montar(tester, existente: parcelasDe(repo)[1], repo: repo);
@@ -410,8 +414,12 @@ void main() {
       await tester.pumpAndSettle();
 
       final parcelas = parcelasDe(repo);
-      expect(parcelas.every((g) => g.data.day == 17), isTrue);
-      expect(parcelas.map((g) => g.data.month).toList(), [8, 9, 10]);
+      // Mesmo resultado de editar a primeira: a data e da compra inteira,
+      // nao importa qual parcela foi tocada.
+      expect(
+        parcelas.map((g) => g.data).toList(),
+        everyElement(DateTime(2026, 8, 17)),
+      );
     });
   });
 }

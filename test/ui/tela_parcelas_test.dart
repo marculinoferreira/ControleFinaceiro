@@ -195,6 +195,98 @@ void main() {
   });
 
   testWidgets(
+      'vencimento usa o dia de fechamento cadastrado, nao o dia da compra',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = RepositorioGastosFake();
+    await repo.adicionar(
+      base: Gasto(
+        id: '', mesRef: '2026-09', membroId: 'marcos', poteId: 'p2',
+        descricao: 'Geladeira', valor: 100,
+        criadoEm: DateTime.utc(2026, 9, 22),
+        data: DateTime(2026, 9, 22),
+        cartaoId: 'ct1', parcelado: false,
+      ),
+      quantidadeParcelas: 3,
+    );
+
+    final cartoes = RepositorioCartoesFake();
+    await cartoes.definirMeuFechamento('ct1', 'marcos', 15);
+
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+      repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(cartoes),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 9));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: Scaffold(body: TelaParcelas())),
+    ));
+    await tester.pumpAndSettle();
+
+    // Compra em 22/09, cartao fecha dia 15: a parcela 1 cai na fatura de
+    // setembro (mesRef 2026-09) e a coluna Vencimento mostra o dia de
+    // fechamento (15/09) -- nao o dia da compra (22/09). (22/09 ainda
+    // aparece uma vez, no cabecalho do grupo por data -- o agrupamento usa
+    // a aproximacao do dominio, nao a correcao desta tela; nao e o que este
+    // teste verifica.)
+    expect(find.text(formatarData(DateTime(2026, 9, 15))), findsOneWidget);
+  });
+
+  testWidgets(
+      'sem fechamento cadastrado, o vencimento aproxima pelo dia da compra',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = RepositorioGastosFake();
+    await repo.adicionar(
+      base: Gasto(
+        id: '', mesRef: '2026-09', membroId: 'marcos', poteId: 'p2',
+        descricao: 'Geladeira', valor: 100,
+        criadoEm: DateTime.utc(2026, 9, 22),
+        data: DateTime(2026, 9, 22),
+        cartaoId: 'ct1', parcelado: false,
+      ),
+      quantidadeParcelas: 3,
+    );
+
+    // RepositorioCartoesFake() vazio: nenhum fechamento cadastrado para
+    // 'ct1'/'marcos'.
+    final container = ProviderContainer(overrides: [
+      repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+      repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+      repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+      repositorioGastosProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    container
+        .read(mesSelecionadoProvider.notifier)
+        .irPara(const MesRef(2026, 9));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: Scaffold(body: TelaParcelas())),
+    ));
+    await tester.pumpAndSettle();
+
+    // Sem fechamento cadastrado, a aproximacao usa o mesmo dia da compra --
+    // aparece duas vezes: no cabecalho do grupo por data (que usa a mesma
+    // aproximacao) e na propria celula da linha.
+    expect(find.text(formatarData(DateTime(2026, 9, 22))), findsNWidgets(2));
+  });
+
+  testWidgets(
       'card (mobile) mostra pessoa | pote | cartao · parcela · faltam, e o valor destacado',
       (tester) async {
     await montar(

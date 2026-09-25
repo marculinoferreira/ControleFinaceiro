@@ -334,6 +334,19 @@ final cartoesProvider = StreamProvider<List<Cartao>>(
   (ref) => ref.watch(repositorioCartoesProvider).observar(),
 );
 
+/// Dia de fechamento que [chave.membroId] cadastrou para [chave.cartaoId],
+/// se houver. Generaliza `meuFechamento` do repositorio (que so devolve o
+/// fechamento de quem esta logado) para qualquer integrante -- usado na
+/// tela de Parcelas em aberto, onde compras de pessoas diferentes da casa
+/// aparecem juntas e cada uma pode ter cadastrado um dia diferente para o
+/// mesmo cartao.
+final fechamentoDoCartaoProvider = FutureProvider.autoDispose
+    .family<int?, ({String cartaoId, String membroId})>((ref, chave) {
+  return ref
+      .watch(repositorioCartoesProvider)
+      .meuFechamento(chave.cartaoId, chave.membroId);
+});
+
 final ganhosDoMesProvider =
     StreamProvider.autoDispose.family<List<Ganho>, String>(
   (ref, mesRef) => ref.watch(repositorioGanhosProvider).observarMes(mesRef),

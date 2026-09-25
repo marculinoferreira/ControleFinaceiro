@@ -47,9 +47,11 @@ List<Gasto> gerarParcelas({
       descricao: base.descricao,
       valor: base.valor,
       criadoEm: base.criadoEm,
-      // Cada parcela cai no mesmo dia do mes dela, nao no dia da compra: a
-      // parcela 3 de uma compra de 31/01 vence em marco, nao em janeiro.
-      data: avancarMesesNoDia(base.data, i),
+      // Todas as parcelas compartilham a MESMA data: e a data da compra
+      // (quando o dinheiro efetivamente foi gasto), nao o vencimento de
+      // cada parcela -- essa e uma pergunta diferente, respondida so na
+      // hora de mostrar (ver `agruparParcelasEmAberto` e `dataNoMes`).
+      data: base.data,
       cartaoId: base.cartaoId,
       pixDebito: base.pixDebito,
       parcelado: true,
@@ -65,6 +67,11 @@ List<Gasto> gerarParcelas({
 ///
 /// Sem o encolhimento, 31/01 + 1 mes viraria 03/03 no DateTime do Dart, que
 /// normaliza o excesso para o mes seguinte — a parcela pularia fevereiro.
+///
+/// Usada para APROXIMAR o vencimento de uma parcela quando nao ha dia de
+/// fechamento de cartao cadastrado (ver `agruparParcelasEmAberto`): sem
+/// essa informacao, o melhor palpite e "mesmo dia da compra, um mes por
+/// parcela".
 DateTime avancarMesesNoDia(DateTime data, int meses) {
   final total = data.year * 12 + (data.month - 1) + meses;
   final ano = total ~/ 12;
@@ -72,6 +79,17 @@ DateTime avancarMesesNoDia(DateTime data, int meses) {
   // Dia 0 do mes seguinte e o ultimo dia deste.
   final ultimoDia = DateTime(ano, mes + 1, 0).day;
   return DateTime(ano, mes, data.day < ultimoDia ? data.day : ultimoDia);
+}
+
+/// O dia [dia] dentro do mes [mes], encolhendo para o ultimo dia do mes
+/// quando ele nao existe la (dia 31 num mes de 30, fevereiro, etc).
+///
+/// Usada para calcular o vencimento REAL de uma parcela quando se conhece o
+/// dia de fechamento do cartao: diferente de `avancarMesesNoDia` (que
+/// preserva o dia da COMPRA), aqui o dia vem de fora -- o do fechamento.
+DateTime dataNoMes(MesRef mes, int dia) {
+  final ultimoDia = DateTime(mes.ano, mes.mes + 1, 0).day;
+  return DateTime(mes.ano, mes.mes, dia < ultimoDia ? dia : ultimoDia);
 }
 
 /// Uma compra parcelada vista do mes atual.
@@ -84,8 +102,16 @@ class CompraParcelada {
   /// Cartao da compra. Nulo quando saiu em dinheiro, pix ou debito.
   final String? cartaoId;
 
-  /// Data da parcela **corrente**, nao a da compra: e o vencimento que
-  /// interessa a quem esta olhando o que ainda falta pagar.
+  /// O mes-referencia da parcela **corrente** -- para quem exibe calcular o
+  /// vencimento certo a partir do dia de fechamento do cartao (`dataNoMes`),
+  /// quando ele for conhecido.
+  final String mesRef;
+
+  /// Vencimento **aproximado** da parcela corrente: mesmo dia da compra,
+  /// um mes a mais por parcela ja passada (ver `avancarMesesNoDia`). Nao e
+  /// o dia de fechamento real do cartao -- so quem exibe sabe se tem essa
+  /// informacao (e' por pessoa, fica fora do dominio); quando tiver, deve
+  /// preferir `dataNoMes(MesRef.parse(mesRef), diaFechamento)` a este campo.
   final DateTime data;
 
   final double valorParcela;
@@ -101,6 +127,7 @@ class CompraParcelada {
     required this.parcelaAtual,
     required this.totalParcelas,
     required this.data,
+    required this.mesRef,
     this.cartaoId,
   });
 
@@ -164,7 +191,11 @@ List<CompraParcelada> agruparParcelasEmAberto({
       membroId: corrente.membroId,
       poteId: corrente.poteId,
       cartaoId: corrente.cartaoId,
-      data: corrente.data,
+      mesRef: corrente.mesRef,
+      // corrente.data agora e a data FIXA da compra (mesma em todas as
+      // parcelas); a aproximacao do vencimento desta parcela especifica
+      // se calcula daqui, avancando um mes por parcela ja passada.
+      data: avancarMesesNoDia(corrente.data, corrente.parcela! - 1),
       valorParcela: corrente.valor,
       parcelaAtual: corrente.parcela!,
       totalParcelas: corrente.totalParcelas!,
@@ -217,10 +248,10 @@ class PlanoEdicaoCompra {
 /// nome de uma compra deixando as outras onze parcelas com o nome errado
 /// nunca e o que se quis fazer.
 ///
-/// A data propaga de um jeito proprio: o DIA vale para a compra inteira, mas
-/// cada parcela fica no seu proprio mes. Trocar a data da parcela 3 para
-/// 17/10 poe a 1 em 17/08 e a 2 em 17/09 — a parcela editada recebe
-/// exatamente a data digitada, e as irmas se alinham a ela.
+/// A data e atributo da compra inteira, igual descricao/pessoa/pote: a data
+/// digitada na edicao vale para TODAS as parcelas, sem deslocamento por
+/// mes -- e a mesma compra, a mesma data, em todas elas (a data nao decide
+/// o vencimento de cada parcela; ver `agruparParcelasEmAberto`).
 ///
 /// [alcance] governa apenas o **valor**, que e o unico campo que pode
 /// legitimamente diferir entre parcelas (o arredondamento da ultima, um mes
@@ -297,9 +328,9 @@ PlanoEdicaoCompra planejarEdicaoCompra({
       cartaoId: editado.cartaoId,
       pixDebito: editado.pixDebito,
       totalParcelas: novaQuantidade,
-      // O deslocamento e relativo a parcela editada, entao ela mesma recebe
-      // a data digitada sem alteracao.
-      data: avancarMesesNoDia(editado.data, g.parcela! - editado.parcela!),
+      // A data e da compra inteira: todas as parcelas recebem a mesma,
+      // exatamente a digitada -- nao ha deslocamento por mes.
+      data: editado.data,
     );
     if (herdaValor(g)) alvo = alvo.copyWith(valor: editado.valor);
 
@@ -318,9 +349,9 @@ PlanoEdicaoCompra planejarEdicaoCompra({
         // Herda o carimbo da compra para as parcelas novas nao aparecerem
         // separadas das irmas na lista, que ordena por criadoEm.
         criadoEm: primeira.criadoEm,
-        // Ancorada na parcela EDITADA, nao na primeira: se a data mudou
-        // nesta mesma edicao, a parcela nova precisa nascer ja alinhada.
-        data: avancarMesesNoDia(editado.data, k - editado.parcela!),
+        // Mesma data da compra inteira -- se ela mudou nesta edicao, a
+        // parcela nova ja nasce com o valor novo.
+        data: editado.data,
         cartaoId: editado.cartaoId,
         pixDebito: editado.pixDebito,
         parcelado: true,

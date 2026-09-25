@@ -3,7 +3,9 @@ import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/mes_ref.dart';
 import 'package:controle_financeiro/dominio/parcelas.dart';
 
-/// Uma compra de [total] parcelas comecando em [inicio], ja com ids.
+/// Uma compra de [total] parcelas comecando em [inicio], ja com ids. Todas
+/// as parcelas compartilham [data] (o dia 12 do mes de [inicio], por
+/// padrao) -- e a mesma data em todas, como `gerarParcelas` sempre produz.
 List<Gasto> compraDe({
   int total = 5,
   String inicio = '2026-08',
@@ -13,8 +15,10 @@ List<Gasto> compraDe({
   String poteId = 'custo-fixo',
   String compraId = 'c1',
   String prefixoId = 'g',
+  DateTime? data,
 }) {
   final inicioRef = MesRef.parse(inicio);
+  final dataCompra = data ?? DateTime(inicioRef.ano, inicioRef.mes, 12);
   return List.generate(
     total,
     (i) => Gasto(
@@ -25,7 +29,7 @@ List<Gasto> compraDe({
       descricao: descricao,
       valor: valor,
       criadoEm: DateTime(2026, 8, 1),
-      data: DateTime(inicioRef.avancar(i).ano, inicioRef.avancar(i).mes, 12),
+      data: dataCompra,
       parcelado: true,
       cartaoId: 'ct1',
       compraId: compraId,
@@ -367,7 +371,7 @@ void main() {
   });
 
   group('planejarEdicaoCompra — data', () {
-    test('mudar a data propaga o dia para todas, cada uma no seu mes', () {
+    test('mudar a data propaga a MESMA data para todas as parcelas', () {
       final existentes = compraDe(total: 3); // Ago, Set, Out, todas dia 12
       final editado = existentes.first.copyWith(data: DateTime(2026, 8, 17));
 
@@ -381,15 +385,17 @@ void main() {
       expect(plano.atualizar, hasLength(3));
       expect(plano.atualizar.map((g) => g.data).toList(), [
         DateTime(2026, 8, 17),
-        DateTime(2026, 9, 17),
-        DateTime(2026, 10, 17),
+        DateTime(2026, 8, 17),
+        DateTime(2026, 8, 17),
       ]);
     });
 
-    test('editar a parcela do meio ancora nela, e as irmas se alinham', () {
+    test('editar a parcela do meio tambem propaga a data para todas', () {
       final existentes = compraDe(total: 3);
-      // Parcela 2 (Set) passa para 17/09.
-      final editado = existentes[1].copyWith(data: DateTime(2026, 9, 17));
+      // A data da compra inteira passa a ser 22/09, mesmo editando a
+      // parcela 2 (Set) -- nao ha "ancora" de mes aqui: e uma data so,
+      // compartilhada, igual descricao ou pessoa.
+      final editado = existentes[1].copyWith(data: DateTime(2026, 9, 22));
 
       final plano = planejarEdicaoCompra(
         existentes: existentes,
@@ -399,28 +405,9 @@ void main() {
       );
 
       expect(plano.atualizar.map((g) => g.data).toList(), [
-        DateTime(2026, 8, 17),
-        DateTime(2026, 9, 17), // a editada, exatamente como digitada
-        DateTime(2026, 10, 17),
-      ]);
-    });
-
-    test('dia 31 encolhe para o ultimo dia dos meses curtos', () {
-      final existentes = compraDe(total: 4, inicio: '2026-01'); // Jan..Abr
-      final editado = existentes.first.copyWith(data: DateTime(2026, 1, 31));
-
-      final plano = planejarEdicaoCompra(
-        existentes: existentes,
-        editado: editado,
-        alcance: ModoEdicao.somenteEsta,
-        novaQuantidade: 4,
-      );
-
-      expect(plano.atualizar.map((g) => g.data).toList(), [
-        DateTime(2026, 1, 31),
-        DateTime(2026, 2, 28), // fevereiro nao tem 31
-        DateTime(2026, 3, 31),
-        DateTime(2026, 4, 30), // abril tem 30
+        DateTime(2026, 9, 22),
+        DateTime(2026, 9, 22),
+        DateTime(2026, 9, 22),
       ]);
     });
 
@@ -439,7 +426,7 @@ void main() {
       expect(plano.atualizar.every((g) => g.valor == 126), isTrue);
     });
 
-    test('parcela nova nasce alinhada a data editada', () {
+    test('parcela nova nasce com a mesma data das irmas', () {
       final existentes = compraDe(total: 2);
       final editado = existentes.first.copyWith(data: DateTime(2026, 8, 17));
 
@@ -450,11 +437,11 @@ void main() {
         novaQuantidade: 3,
       );
 
-      expect(plano.criar.single.data, DateTime(2026, 10, 17));
+      expect(plano.criar.single.data, DateTime(2026, 8, 17));
     });
 
     test('a data nao muda quando nao foi tocada', () {
-      final existentes = compraDe(total: 3);
+      final existentes = compraDe(total: 3); // todas em 12/mes
       final editado = existentes.first.copyWith(descricao: 'pneus novos');
 
       final plano = planejarEdicaoCompra(
@@ -464,7 +451,13 @@ void main() {
         novaQuantidade: 3,
       );
 
-      expect(plano.atualizar.map((g) => g.data.day).toList(), [12, 12, 12]);
+      // editado nao tocou `data`, entao ela permanece a da parcela 1
+      // (existentes.first) -- e essa mesma data e propagada as tres.
+      expect(plano.atualizar.map((g) => g.data).toList(), [
+        existentes.first.data,
+        existentes.first.data,
+        existentes.first.data,
+      ]);
     });
   });
 

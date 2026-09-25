@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dominio/models/cartao.dart';
 import '../../dominio/models/membro.dart';
+import '../../dominio/models/mes_ref.dart';
 import '../../dominio/models/pote.dart';
 import '../../dominio/ordem_gastos.dart';
 import '../../dominio/parcelas.dart';
@@ -60,7 +61,7 @@ class TelaParcelas extends ConsumerWidget {
             const SeletorOrdem(),
             const Divider(height: 1),
             Expanded(
-              child: _tabela(context, grupos, membros, potes, cartoes),
+              child: _tabela(context, ref, grupos, membros, potes, cartoes),
             ),
           ],
         );
@@ -70,6 +71,7 @@ class TelaParcelas extends ConsumerWidget {
 
   Widget _tabela(
     BuildContext context,
+    WidgetRef ref,
     List<Grupo<CompraParcelada>> grupos,
     List<Membro> membros,
     List<Pote> potes,
@@ -78,7 +80,7 @@ class TelaParcelas extends ConsumerWidget {
     return TabelaResponsiva.agrupada(
       colunas: const [
         'Compra',
-        'Data',
+        'Vencimento',
         'Pessoa',
         'Pote',
         'Cartão',
@@ -100,15 +102,32 @@ class TelaParcelas extends ConsumerWidget {
                 : grupo.itens.fold<double>(0.0, (soma, c) => soma + c.valorParcela),
             linhas: [
               for (final c in grupo.itens)
-                _linhaDaCompra(context, c, membros, potes, cartoes),
+                _linhaDaCompra(context, ref, c, membros, potes, cartoes),
             ],
           ),
       ],
     );
   }
 
+  /// O vencimento certo, quando dá pra saber: dia de fechamento cadastrado
+  /// pela PESSOA DA COMPRA (nao a logada) para aquele cartao, aplicado ao
+  /// mes da parcela corrente. Sem fechamento cadastrado (ou sem cartao),
+  /// cai na aproximacao que `agruparParcelasEmAberto` ja calculou em
+  /// `c.data` (mesmo dia da compra, um mes a mais por parcela).
+  DateTime _vencimento(WidgetRef ref, CompraParcelada c) {
+    if (c.cartaoId == null) return c.data;
+    final diaFechamento = ref
+        .watch(fechamentoDoCartaoProvider(
+          (cartaoId: c.cartaoId!, membroId: c.membroId),
+        ))
+        .value;
+    if (diaFechamento == null) return c.data;
+    return dataNoMes(MesRef.parse(c.mesRef), diaFechamento);
+  }
+
   LinhaResponsiva _linhaDaCompra(
     BuildContext context,
+    WidgetRef ref,
     CompraParcelada c,
     List<Membro> membros,
     List<Pote> potes,
@@ -127,7 +146,7 @@ class TelaParcelas extends ConsumerWidget {
       chave: ValueKey('compra_${c.compraId}'),
       valores: [
         c.descricao,
-        formatarData(c.data),
+        formatarData(_vencimento(ref, c)),
         nomeDoMembro(membros, c.membroId),
         nomeDoPote(potes, c.poteId),
         nomeDoCartao(cartoes, c.cartaoId),

@@ -1228,4 +1228,69 @@ void main() {
       expect(serieCasal[2].ganhos, 9300); // dezembro: 5000 (assumido) + 4300 (previsto)
     });
   });
+
+  group('fechamentoDoCartaoProvider', () {
+    test('devolve o fechamento cadastrado por um membro especifico', () async {
+      final cartoes = RepositorioCartoesFake();
+      await cartoes.definirMeuFechamento('ct1', 'silvia', 15);
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(cartoes),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+
+      final dia = await c.read(fechamentoDoCartaoProvider(
+        (cartaoId: 'ct1', membroId: 'silvia'),
+      ).future);
+
+      expect(dia, 15);
+    });
+
+    test('nao confunde o fechamento de pessoas diferentes no mesmo cartao',
+        () async {
+      final cartoes = RepositorioCartoesFake();
+      await cartoes.definirMeuFechamento('ct1', 'marcos', 5);
+      await cartoes.definirMeuFechamento('ct1', 'silvia', 15);
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(cartoes),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+
+      final diaMarcos = await c.read(fechamentoDoCartaoProvider(
+        (cartaoId: 'ct1', membroId: 'marcos'),
+      ).future);
+      final diaSilvia = await c.read(fechamentoDoCartaoProvider(
+        (cartaoId: 'ct1', membroId: 'silvia'),
+      ).future);
+
+      expect(diaMarcos, 5);
+      expect(diaSilvia, 15);
+    });
+
+    test('sem fechamento cadastrado devolve nulo', () async {
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+
+      final dia = await c.read(fechamentoDoCartaoProvider(
+        (cartaoId: 'ct1', membroId: 'marcos'),
+      ).future);
+
+      expect(dia, isNull);
+    });
+  });
 }

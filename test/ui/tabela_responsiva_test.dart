@@ -382,6 +382,32 @@ void main() {
       final valorPos = tester.getCenter(find.text(r'R$ 1.200,00'));
       expect(valorPos.dy, greaterThan(nomePos.dy));
     });
+
+    testWidgets(
+        'quando a segunda coluna e Vencimento (Parcelas em aberto), tambem '
+        'aparece ao lado do nome', (tester) async {
+      await comLargura(tester, 420);
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: TabelaResponsiva(
+            colunas: const ['Descricao', 'Vencimento', 'Valor'],
+            linhas: const [
+              LinhaResponsiva(
+                chave: ValueKey('l1'),
+                valores: ['Geladeira', '15/10/2026', r'R$ 100,00'],
+              ),
+            ],
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      final nomePos = tester.getCenter(find.text('Geladeira'));
+      final dataPos = tester.getCenter(find.text('15/10/2026'));
+
+      expect(dataPos.dy, closeTo(nomePos.dy, 1));
+      expect(dataPos.dx, greaterThan(nomePos.dx));
+    });
   });
 
   group('icone principal no card', () {

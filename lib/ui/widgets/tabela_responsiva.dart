@@ -149,11 +149,12 @@ class TabelaResponsiva extends StatelessWidget {
   bool get _temAcoes =>
       _todas.any((l) => l.aoExcluir != null || l.acaoTrailing != null);
 
-  /// Quando a segunda coluna e "Data" (Gastos, Parcelas), o card do mobile
-  /// mostra a data ao lado do nome, no titulo, em vez de so no subtitulo --
-  /// no desktop a Data ja e a coluna logo depois do nome, e o card passa a
-  /// seguir a mesma ordem visual.
-  bool get _dataAoLadoDoNome => colunas.length > 1 && colunas[1] == 'Data';
+  /// Quando a segunda coluna e uma data (Gastos usa "Data", Parcelas usa
+  /// "Vencimento"), o card do mobile mostra a data ao lado do nome, no
+  /// titulo, em vez de so no subtitulo -- no desktop a data ja e a coluna
+  /// logo depois do nome, e o card passa a seguir a mesma ordem visual.
+  bool get _dataAoLadoDoNome =>
+      colunas.length > 1 && (colunas[1] == 'Data' || colunas[1] == 'Vencimento');
 
   @override
   Widget build(BuildContext context) {

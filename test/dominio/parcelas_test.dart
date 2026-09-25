@@ -72,6 +72,17 @@ void main() {
       expect(ps.every((g) => g.valor == 100), isTrue);
     });
 
+    test('todas as parcelas compartilham a mesma data da compra', () {
+      final comData = gastoBase().copyWith(data: DateTime(2026, 9, 22));
+      final ps = gerarParcelas(base: comData, quantidade: 3, compraId: 'c1');
+
+      expect(ps.map((g) => g.data).toList(), [
+        DateTime(2026, 9, 22),
+        DateTime(2026, 9, 22),
+        DateTime(2026, 9, 22),
+      ]);
+    });
+
     test('todas as parcelas herdam o pixDebito do base', () {
       final ps = gerarParcelas(
         base: gastoBase(pixDebito: true),
@@ -141,6 +152,29 @@ void main() {
       expect(abertas.single.totalParcelas, 10);
       expect(abertas.single.parcelasRestantes, 7);
       expect(abertas.single.valorParcela, 100);
+    });
+
+    test('mesRef e o mes-referencia da parcela corrente', () {
+      final abertas = agruparParcelasEmAberto(
+        gastos: compra,
+        mesAtual: const MesRef(2026, 10), // parcela 3
+      );
+
+      expect(abertas.single.mesRef, '2026-10');
+    });
+
+    test(
+        'data e a aproximacao do vencimento (mesmo dia da compra, um mes '
+        'por parcela ja passada) -- nao a data fixa da compra', () {
+      final abertas = agruparParcelasEmAberto(
+        gastos: compra,
+        mesAtual: const MesRef(2026, 10), // parcela 3: 2 meses depois da 1a
+      );
+
+      // gastoBase() nao define `data`, entao ela cai para `criadoEm`
+      // (2026-08-05) -- e essa e a data compartilhada por todas as parcelas
+      // agora (ver o teste "todas as parcelas compartilham..." acima).
+      expect(abertas.single.data, DateTime(2026, 10, 5));
     });
 
     test('formata o resumo como no spec', () {

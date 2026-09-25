@@ -672,10 +672,10 @@ void main() {
       expect(repo.todos.single.data.day, 17);
     });
 
-    testWidgets('cada parcela recebe a data do proprio mes', (tester) async {
+    testWidgets('todas as parcelas recebem a mesma data -- a da compra',
+        (tester) async {
       final repo = RepositorioGastosFake();
-      // Data-base e sempre hoje (nao mais dia 1 do mes-referencia): a
-      // primeira parcela nasce hoje, e as seguintes um mes depois cada.
+      // Data-base e sempre hoje (nao mais dia 1 do mes-referencia).
       final hoje = DateTime.now();
       await montar(tester, comRepo: repo, mes: const MesRef(2020, 3));
 
@@ -691,14 +691,11 @@ void main() {
 
       final parcelas = [...repo.todos]
         ..sort((a, b) => a.parcela!.compareTo(b.parcela!));
+      final dataDaCompra = DateTime(hoje.year, hoje.month, hoje.day);
       expect(
-        parcelas.map((g) => g.data.month).toList(),
-        [
-          for (var i = 0; i < 3; i++)
-            DateTime(hoje.year, hoje.month + i).month,
-        ],
+        parcelas.map((g) => g.data).toList(),
+        everyElement(dataDaCompra),
       );
-      expect(parcelas.every((g) => g.data.day == hoje.day), isTrue);
     });
   });
 

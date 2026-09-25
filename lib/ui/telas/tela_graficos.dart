@@ -176,18 +176,18 @@ class _SeletorTipoVisao extends ConsumerWidget {
         segments: [
           const ButtonSegment(
             value: TipoVisaoGraficos.geral,
-            label: Text('Visão Geral'),
+            label: _RotuloSegmento('Visão Geral'),
             icon: Icon(Icons.donut_large),
           ),
           if (temDupla)
             const ButtonSegment(
               value: TipoVisaoGraficos.comparativo,
-              label: Text('Comparativo'),
+              label: _RotuloSegmento('Comparativo'),
               icon: Icon(Icons.bar_chart),
             ),
           const ButtonSegment(
             value: TipoVisaoGraficos.projecao,
-            label: Text('Projeção'),
+            label: _RotuloSegmento('Projeção'),
             icon: Icon(Icons.trending_up),
           ),
         ],
@@ -199,6 +199,23 @@ class _SeletorTipoVisao extends ConsumerWidget {
         onSelectionChanged: (s) =>
             ref.read(tipoVisaoGraficosProvider.notifier).selecionar(s.first),
       ),
+    );
+  }
+}
+
+/// Rotulo de segmento que encolhe a fonte pra caber na largura do botao em
+/// vez de quebrar linha -- num segmento estreito (3 abas dividindo a tela
+/// de um telefone), o texto quebrado deixa os botoes mais altos e
+/// desalinhados; encolhido, continua legivel numa linha so.
+class _RotuloSegmento extends StatelessWidget {
+  final String texto;
+  const _RotuloSegmento(this.texto);
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(texto, maxLines: 1, softWrap: false),
     );
   }
 }
