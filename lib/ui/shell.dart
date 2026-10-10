@@ -5,6 +5,7 @@ import '../dados/repositorio_gestao_casa.dart';
 import '../dominio/models/casa.dart';
 import '../estado/providers.dart';
 import 'telas/tela_cartoes.dart';
+import 'telas/tela_fixos.dart';
 import 'telas/tela_ganhos.dart';
 import 'telas/tela_gerenciar_casa.dart';
 import 'telas/tela_graficos.dart';
@@ -28,9 +29,10 @@ const List<_Destino> _destinos = [
   _Destino('Resumo', Icons.donut_large),
   _Destino('Ganhos', Icons.trending_up),
   _Destino('Gastos', Icons.receipt_long),
+  _Destino('Parcelas', Icons.event_repeat),
+  _Destino('Fixos', Icons.repeat),
   _Destino('Potes', Icons.pie_chart_outline),
   _Destino('Cartões', Icons.credit_card),
-  _Destino('Parcelas', Icons.event_repeat),
   _Destino('Gráficos', Icons.insights),
 ];
 
@@ -58,9 +60,10 @@ class _ShellState extends ConsumerState<Shell> {
       TelaResumo(),
       TelaGanhos(),
       TelaGastos(),
+      TelaParcelas(),
+      TelaFixos(),
       TelaPotes(),
       TelaCartoes(),
-      TelaParcelas(),
       TelaGraficos(),
     ];
     final conteudo = telas[_indice];
