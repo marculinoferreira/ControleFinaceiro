@@ -1,5 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dominio/models/fixo.dart';
+import 'package:controle_financeiro/dominio/models/mes_ref.dart';
+
+Fixo fixoDe(String id, {TipoFixo tipo = TipoFixo.gasto}) => Fixo(
+      id: id,
+      tipo: tipo,
+      membroId: 'marcos',
+      descricao: 'Aluguel',
+      valor: 1200,
+      criadoEm: DateTime.utc(2026, 10, 1),
+      poteId: tipo == TipoFixo.gasto ? 'p1' : null,
+    );
 
 void main() {
   group('Fixo', () {
@@ -52,6 +63,64 @@ void main() {
 
       expect(ganho.toMap()['tipo'], 'ganho');
       expect(gasto.toMap()['tipo'], 'gasto');
+    });
+  });
+
+  group('mesAlvoDosFixos', () {
+    test('e o mes real de hoje avancado em 1', () {
+      final esperado = MesRef.atual().avancar(1);
+      expect(mesAlvoDosFixos(), esperado);
+    });
+  });
+
+  group('fixosParaGerar', () {
+    test('Fixo sem lancamento gerado ainda entra na lista', () {
+      final aGerar = fixosParaGerar(
+        fixos: [fixoDe('f1')],
+        mesAlvo: MesRef.atual().avancar(1),
+        origensJaGeradasNoMes: {},
+      );
+      expect(aGerar, hasLength(1));
+    });
+
+    test('Fixo cuja origem ja esta em origensJaGeradasNoMes nao entra', () {
+      final aGerar = fixosParaGerar(
+        fixos: [fixoDe('f1'), fixoDe('f2')],
+        mesAlvo: MesRef.atual().avancar(1),
+        origensJaGeradasNoMes: {'f1'},
+      );
+      expect(aGerar.map((f) => f.id), ['f2']);
+    });
+  });
+
+  group('travadoPorFixo', () {
+    test('sem origemFixoId nunca trava', () {
+      final futuro = MesRef.atual().avancar(1).valor;
+      expect(travadoPorFixo(origemFixoId: null, mesRef: futuro), isFalse);
+    });
+
+    test('com origemFixoId e mes futuro, trava', () {
+      final futuro = MesRef.atual().avancar(1).valor;
+      expect(
+        travadoPorFixo(origemFixoId: 'f1', mesRef: futuro),
+        isTrue,
+      );
+    });
+
+    test('com origemFixoId e mes igual ao atual, nao trava', () {
+      final atual = MesRef.atual().valor;
+      expect(
+        travadoPorFixo(origemFixoId: 'f1', mesRef: atual),
+        isFalse,
+      );
+    });
+
+    test('com origemFixoId e mes passado, nao trava', () {
+      final passado = MesRef.atual().avancar(-1).valor;
+      expect(
+        travadoPorFixo(origemFixoId: 'f1', mesRef: passado),
+        isFalse,
+      );
     });
   });
 }
