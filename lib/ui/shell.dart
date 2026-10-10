@@ -7,7 +7,6 @@ import '../estado/providers.dart';
 import 'telas/tela_cartoes.dart';
 import 'telas/tela_ganhos.dart';
 import 'telas/tela_gerenciar_casa.dart';
-import 'telas/tela_graficos.dart';
 import 'telas/tela_gastos.dart';
 import 'telas/tela_parcelas.dart';
 import 'telas/tela_potes.dart';
@@ -31,7 +30,6 @@ const List<_Destino> _destinos = [
   _Destino('Potes', Icons.pie_chart_outline),
   _Destino('Cartões', Icons.credit_card),
   _Destino('Parcelas', Icons.event_repeat),
-  _Destino('Gráficos', Icons.insights),
 ];
 
 class Shell extends ConsumerStatefulWidget {
@@ -55,7 +53,6 @@ class _ShellState extends ConsumerState<Shell> {
       TelaPotes(),
       TelaCartoes(),
       TelaParcelas(),
-      TelaGraficos(),
     ];
     final conteudo = telas[_indice];
 

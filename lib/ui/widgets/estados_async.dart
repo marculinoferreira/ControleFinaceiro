@@ -4,13 +4,29 @@ import 'package:flutter/material.dart';
 /// o layout nao pula quando os dados chegam.
 class CarregandoLista extends StatelessWidget {
   final int linhas;
-  const CarregandoLista({super.key, this.linhas = 5});
+
+  /// `true` quando este skeleton vive dentro de OUTRA area que ja rola
+  /// (ex.: a Visao Geral do Resumo, que empilha a cascata com os graficos
+  /// num unico `SingleChildScrollView`) -- sem isso, o `ListView` recebe
+  /// altura infinita do pai e o Flutter lanca erro de layout. `false` (o
+  /// padrao) mantem o comportamento de sempre, pensado para viver direto
+  /// num `Expanded`.
+  final bool dentroDeOutraRolagem;
+
+  const CarregandoLista({
+    super.key,
+    this.linhas = 5,
+    this.dentroDeOutraRolagem = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final cor = Theme.of(context).colorScheme.surfaceContainerHighest;
     return ListView.separated(
       padding: const EdgeInsets.all(16),
+      shrinkWrap: dentroDeOutraRolagem,
+      physics:
+          dentroDeOutraRolagem ? const NeverScrollableScrollPhysics() : null,
       itemCount: linhas,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (_, _) => Container(

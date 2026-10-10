@@ -111,6 +111,15 @@ class TabelaResponsiva extends StatelessWidget {
   /// agrupamento).
   final double? somatoriaGeral;
 
+  /// `true` quando esta tabela vive dentro de OUTRA area que ja rola (ex.:
+  /// a Visao Geral do Resumo, que empilha a cascata com os graficos num
+  /// unico `SingleChildScrollView`) -- sem isso, o `ListView.builder` do
+  /// card (mobile) recebe altura infinita do pai e o Flutter lanca erro de
+  /// layout. `false` (o padrao) mantem o comportamento de sempre: a lista
+  /// cresce e rola por conta propria, pensada para viver direto num
+  /// `Expanded`.
+  final bool dentroDeOutraRolagem;
+
   /// Lista simples, sem agrupamento.
   TabelaResponsiva({
     super.key,
@@ -118,6 +127,7 @@ class TabelaResponsiva extends StatelessWidget {
     required List<LinhaResponsiva> linhas,
     this.vazio = 'Nada lançado neste mês.',
     this.somatoriaGeral,
+    this.dentroDeOutraRolagem = false,
   })  : grupos = [GrupoResponsivo(titulo: '', linhas: linhas)],
         colunaDoTotal = null,
         assert(
@@ -132,6 +142,7 @@ class TabelaResponsiva extends StatelessWidget {
     required this.colunas,
     required this.grupos,
     this.vazio = 'Nada lançado neste mês.',
+    this.dentroDeOutraRolagem = false,
     this.colunaDoTotal,
     this.somatoriaGeral,
   });
@@ -337,6 +348,9 @@ class TabelaResponsiva extends StatelessWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.all(8),
+      shrinkWrap: dentroDeOutraRolagem,
+      physics:
+          dentroDeOutraRolagem ? const NeverScrollableScrollPhysics() : null,
       itemCount: itens.length,
       itemBuilder: (context, i) {
         final item = itens[i];
