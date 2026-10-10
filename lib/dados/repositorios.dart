@@ -72,6 +72,14 @@ abstract class RepositorioGanhos {
   Future<void> adicionar(Ganho ganho);
   Future<void> atualizar(Ganho ganho);
   Future<void> remover(String id);
+
+  /// Cria OU sobrescreve o lancamento com o id exato [id] -- idempotente:
+  /// chamar duas vezes com o mesmo id nao duplica, so sobrescreve. Usado
+  /// so por `garantirFixosDoMesProvider` (lib/estado/providers.dart), que
+  /// precisa de um id deterministico (Fixo + mes) pra nao gerar duas vezes
+  /// se duas sessoes/dispositivos checarem ao mesmo tempo com cache
+  /// desatualizado.
+  Future<void> definir(String id, Ganho ganho);
 }
 
 abstract class RepositorioGastos {
@@ -106,6 +114,12 @@ abstract class RepositorioGastos {
   Future<void> removerUma(String id);
   Future<void> removerDesta(String compraId, int parcela);
   Future<void> removerCompra(String compraId);
+
+  /// Cria OU sobrescreve um gasto SIMPLES (nunca parcelado) com o id exato
+  /// [id] -- mesmo uso/motivo de `RepositorioGanhos.definir`. Nao passa por
+  /// `gerarParcelas`: e sempre um documento unico, nunca uma compra em N
+  /// parcelas.
+  Future<void> definir(String id, Gasto gasto);
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +246,18 @@ class RepositorioGastosFake implements RepositorioGastos {
     _gastos.removeWhere((g) => g.compraId == compraId);
     _emitir();
   }
+
+  @override
+  Future<void> definir(String id, Gasto gasto) async {
+    final comId = gasto.copyWith(id: id);
+    final i = _gastos.indexWhere((g) => g.id == id);
+    if (i >= 0) {
+      _gastos[i] = comId;
+    } else {
+      _gastos.add(comId);
+    }
+    _emitir();
+  }
 }
 
 class RepositorioGanhosFake implements RepositorioGanhos {
@@ -272,6 +298,18 @@ class RepositorioGanhosFake implements RepositorioGanhos {
   @override
   Future<void> remover(String id) async {
     _ganhos.removeWhere((g) => g.id == id);
+    _emitir();
+  }
+
+  @override
+  Future<void> definir(String id, Ganho ganho) async {
+    final comId = ganho.copyWith(id: id);
+    final i = _ganhos.indexWhere((g) => g.id == id);
+    if (i >= 0) {
+      _ganhos[i] = comId;
+    } else {
+      _ganhos.add(comId);
+    }
     _emitir();
   }
 }

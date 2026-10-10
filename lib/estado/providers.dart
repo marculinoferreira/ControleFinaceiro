@@ -376,8 +376,9 @@ final garantirFixosDoMesProvider = FutureProvider<void>((ref) async {
   );
 
   for (final fixo in aGerar) {
+    final idGerado = '${fixo.id}_${mesAlvo.valor}';
     if (fixo.tipo == TipoFixo.ganho) {
-      await repoGanhos.adicionar(Ganho(
+      await repoGanhos.definir(idGerado, Ganho(
         id: '',
         mesRef: mesAlvo.valor,
         membroId: fixo.membroId,
@@ -388,21 +389,18 @@ final garantirFixosDoMesProvider = FutureProvider<void>((ref) async {
         origemFixoId: fixo.id,
       ));
     } else {
-      await repoGastos.adicionar(
-        base: Gasto(
-          id: '',
-          mesRef: mesAlvo.valor,
-          membroId: fixo.membroId,
-          poteId: fixo.poteId!,
-          descricao: fixo.descricao,
-          valor: fixo.valor,
-          criadoEm: DateTime.now(),
-          parcelado: false,
-          previsto: true,
-          origemFixoId: fixo.id,
-        ),
-        quantidadeParcelas: 1,
-      );
+      await repoGastos.definir(idGerado, Gasto(
+        id: '',
+        mesRef: mesAlvo.valor,
+        membroId: fixo.membroId,
+        poteId: fixo.poteId!,
+        descricao: fixo.descricao,
+        valor: fixo.valor,
+        criadoEm: DateTime.now(),
+        parcelado: false,
+        previsto: true,
+        origemFixoId: fixo.id,
+      ));
     }
   }
 });

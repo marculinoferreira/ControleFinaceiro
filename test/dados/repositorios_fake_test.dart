@@ -104,6 +104,22 @@ void main() {
 
       expect(emissoes.last, 2);
     });
+
+    test('definir com o mesmo id duas vezes sobrescreve, nao duplica',
+        () async {
+      final repo = RepositorioGastosFake();
+      final v1 = base();
+      final v2 = base(mesRef: '2026-09').copyWith(descricao: 'Fogao');
+
+      await repo.definir('x1', v1);
+      await repo.definir('x1', v2);
+
+      expect(repo.todos, hasLength(1));
+      final gravado = repo.todos.single;
+      expect(gravado.id, 'x1');
+      expect(gravado.mesRef, '2026-09');
+      expect(gravado.descricao, 'Fogao');
+    });
   });
 
   // Os tres fakes compartilham a mesma mecanica de stream. O teste acima
@@ -185,6 +201,38 @@ void main() {
       await assinatura.cancel();
 
       expect(emissoes.last, 2);
+    });
+  });
+
+  group('RepositorioGanhosFake', () {
+    test('definir com o mesmo id duas vezes sobrescreve, nao duplica',
+        () async {
+      final repo = RepositorioGanhosFake();
+      final v1 = Ganho(
+        id: '',
+        mesRef: '2026-08',
+        membroId: 'marcos',
+        descricao: 'Salario',
+        valor: 4000,
+        criadoEm: DateTime.utc(2026, 8, 1),
+      );
+      final v2 = Ganho(
+        id: '',
+        mesRef: '2026-09',
+        membroId: 'marcos',
+        descricao: 'Salario revisado',
+        valor: 4200,
+        criadoEm: DateTime.utc(2026, 8, 1),
+      );
+
+      await repo.definir('x1', v1);
+      await repo.definir('x1', v2);
+
+      expect(repo.todos, hasLength(1));
+      final gravado = repo.todos.single;
+      expect(gravado.id, 'x1');
+      expect(gravado.mesRef, '2026-09');
+      expect(gravado.descricao, 'Salario revisado');
     });
   });
 

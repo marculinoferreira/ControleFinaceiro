@@ -1460,5 +1460,94 @@ void main() {
       expect(ganhos, isEmpty);
       expect(gastos, isEmpty);
     });
+
+    test('nao duplica numa segunda checagem (Fixo de gasto)', () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.gasto, membroId: 'marcos',
+          descricao: 'Aluguel', valor: 1200,
+          criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p1',
+        ),
+      ]);
+
+      await c.read(garantirFixosDoMesProvider.future);
+      c.invalidate(garantirFixosDoMesProvider);
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final gastos = await c
+          .read(repositorioGastosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(gastos, hasLength(1));
+      expect(gastos.single.origemFixoId, isNotEmpty);
+    });
+
+    test('o id gerado segue o padrao fixoId_mesRef (Fixo de ganho)',
+        () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.ganho, membroId: 'marcos',
+          descricao: 'Salario', valor: 5000,
+          criadoEm: DateTime.utc(2026, 10, 1),
+        ),
+      ]);
+      final fixoId =
+          (await c.read(repositorioFixosProvider).observar().first).single.id;
+
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final ganhos = await c
+          .read(repositorioGanhosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(ganhos.single.id, '${fixoId}_${mesAlvoDosFixos().valor}');
+    });
+
+    test('o id gerado segue o padrao fixoId_mesRef (Fixo de gasto)',
+        () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.gasto, membroId: 'marcos',
+          descricao: 'Aluguel', valor: 1200,
+          criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p1',
+        ),
+      ]);
+      final fixoId =
+          (await c.read(repositorioFixosProvider).observar().first).single.id;
+
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final gastos = await c
+          .read(repositorioGastosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(gastos.single.id, '${fixoId}_${mesAlvoDosFixos().valor}');
+    });
+
+    test(
+        'definir duas vezes com o mesmo id (corrida entre dispositivos) '
+        'nao duplica', () async {
+      final repo = RepositorioGanhosFake();
+      final mesAlvo = mesAlvoDosFixos().valor;
+      final id = 'fixo-x_$mesAlvo';
+
+      await repo.definir(id, Ganho(
+        id: '', mesRef: mesAlvo, membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+        previsto: true, origemFixoId: 'fixo-x',
+      ));
+      // Segunda escrita "simultanea" com o mesmo id -- simula dois
+      // dispositivos que leram o cache desatualizado e decidiram, cada um
+      // por conta propria, que o lancamento ainda nao existia.
+      await repo.definir(id, Ganho(
+        id: '', mesRef: mesAlvo, membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+        previsto: true, origemFixoId: 'fixo-x',
+      ));
+
+      expect(repo.todos, hasLength(1));
+    });
   });
 }

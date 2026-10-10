@@ -161,6 +161,10 @@ class GanhosFirestore implements RepositorioGanhos {
 
   @override
   Future<void> remover(String id) => _col.doc(id).delete();
+
+  @override
+  Future<void> definir(String id, Ganho ganho) =>
+      _col.doc(id).set(ganho.toMap());
 }
 
 class GastosFirestore implements RepositorioGastos {
@@ -284,4 +288,8 @@ class GastosFirestore implements RepositorioGastos {
       await lote.commit();
     }
   }
+
+  @override
+  Future<void> definir(String id, Gasto gasto) =>
+      _col.doc(id).set(gasto.toMap());
 }
