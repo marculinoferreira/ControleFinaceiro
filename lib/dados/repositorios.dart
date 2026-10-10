@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
+import '../dominio/models/fixo.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
 import '../dominio/models/mes_ref.dart';
@@ -22,6 +23,12 @@ abstract class RepositorioPotes {
   /// "no maximo 6" acontece na UI antes de chamar.
   Future<void> salvarTodos(List<Pote> potes);
 
+  Future<void> remover(String id);
+}
+
+abstract class RepositorioFixos {
+  Stream<List<Fixo>> observar();
+  Future<void> adicionar(Fixo fixo);
   Future<void> remover(String id);
 }
 
@@ -351,6 +358,40 @@ class RepositorioPotesFake implements RepositorioPotes {
     _controlador.add(null);
   }
 }
+
+class RepositorioFixosFake implements RepositorioFixos {
+  final List<Fixo> _fixos = [];
+  final _controlador = StreamController<void>.broadcast();
+  var _sequencia = 0;
+
+  List<Fixo> get todos => List.unmodifiable(_fixos);
+
+  @override
+  Stream<List<Fixo>> observar() =>
+      _correnteEDepois(_controlador.stream, () => List<Fixo>.unmodifiable(_fixos));
+
+  @override
+  Future<void> adicionar(Fixo fixo) async {
+    _fixos.add(_comId(fixo, 'fixo-${_sequencia++}'));
+    _controlador.add(null);
+  }
+
+  @override
+  Future<void> remover(String id) async {
+    _fixos.removeWhere((f) => f.id == id);
+    _controlador.add(null);
+  }
+}
+
+Fixo _comId(Fixo fixo, String id) => Fixo(
+      id: id,
+      tipo: fixo.tipo,
+      membroId: fixo.membroId,
+      descricao: fixo.descricao,
+      valor: fixo.valor,
+      criadoEm: fixo.criadoEm,
+      poteId: fixo.poteId,
+    );
 
 class RepositorioCasaFake implements RepositorioCasa {
   final Casa? _casa;

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
+import 'package:controle_financeiro/dominio/models/fixo.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/pote.dart';
@@ -163,6 +164,55 @@ void main() {
 
       expect(emissoes.first, 0);
       expect(emissoes.last, 2);
+    });
+
+    test('fixos', () async {
+      final repo = RepositorioFixosFake();
+      final emissoes = <int>[];
+      final assinatura = repo.observar().listen((l) => emissoes.add(l.length));
+
+      await repo.adicionar(Fixo(
+        id: '', tipo: TipoFixo.ganho, membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+      ));
+      await repo.adicionar(Fixo(
+        id: '', tipo: TipoFixo.gasto, membroId: 'marcos',
+        descricao: 'Aluguel', valor: 1200,
+        criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p1',
+      ));
+      await Future<void>.delayed(Duration.zero);
+      await assinatura.cancel();
+
+      expect(emissoes.last, 2);
+    });
+  });
+
+  group('RepositorioFixosFake', () {
+    test('remover tira o fixo da lista', () async {
+      final repo = RepositorioFixosFake();
+      await repo.adicionar(Fixo(
+        id: '', tipo: TipoFixo.ganho, membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+      ));
+      final id = repo.todos.single.id;
+
+      await repo.remover(id);
+
+      expect(repo.todos, isEmpty);
+    });
+
+    test('adicionar atribui um id novo, ignorando o id vazio recebido',
+        () async {
+      final repo = RepositorioFixosFake();
+      await repo.adicionar(Fixo(
+        id: '', tipo: TipoFixo.ganho, membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+      ));
+
+      expect(repo.todos.single.id, isNotEmpty);
     });
   });
 }
