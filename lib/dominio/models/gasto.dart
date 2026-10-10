@@ -34,6 +34,19 @@ class Gasto {
   final int? parcela;
   final int? totalParcelas;
 
+  /// Marca que este gasto e uma previsao ("eu sei que vou gastar X"), nao
+  /// um gasto ja realizado. Conta nos calculos normalmente, somado aos
+  /// gastos reais -- so para de contar quando este mesmo lancamento for
+  /// editado e [previsto] virar false (diferente de `Ganho.previsto`, que
+  /// e suprimido pelo real da mesma pessoa; ver `ganhosEfetivos` em
+  /// totais.dart).
+  final bool previsto;
+
+  /// Id do Fixo que gerou este lancamento, se veio de um -- null para
+  /// lancamentos avulsos (a maioria). Usado por `travadoPorFixo` para
+  /// travar edicao/exclusao ate o mes chegar.
+  final String? origemFixoId;
+
   const Gasto({
     required this.id,
     required this.mesRef,
@@ -51,6 +64,8 @@ class Gasto {
     this.compraId,
     this.parcela,
     this.totalParcelas,
+    this.previsto = false,
+    this.origemFixoId,
   }) : data = data ?? criadoEm;
 
   factory Gasto.fromMap(String id, Map<String, dynamic> mapa) => Gasto(
@@ -68,6 +83,8 @@ class Gasto {
         compraId: mapa['compraId'] as String?,
         parcela: (mapa['parcela'] as num?)?.toInt(),
         totalParcelas: (mapa['totalParcelas'] as num?)?.toInt(),
+        previsto: mapa['previsto'] as bool? ?? false,
+        origemFixoId: mapa['origemFixoId'] as String?,
       );
 
   Map<String, dynamic> toMap() => {
@@ -84,6 +101,8 @@ class Gasto {
         'compraId': compraId,
         'parcela': parcela,
         'totalParcelas': totalParcelas,
+        'previsto': previsto,
+        'origemFixoId': origemFixoId,
       };
 
   /// "3/10" quando parcelado, string vazia caso contrario.
@@ -107,6 +126,8 @@ class Gasto {
     String? compraId,
     int? parcela,
     int? totalParcelas,
+    bool? previsto,
+    String? origemFixoId,
   }) =>
       Gasto(
         id: id ?? this.id,
@@ -123,6 +144,8 @@ class Gasto {
         compraId: compraId ?? this.compraId,
         parcela: parcela ?? this.parcela,
         totalParcelas: totalParcelas ?? this.totalParcelas,
+        previsto: previsto ?? this.previsto,
+        origemFixoId: origemFixoId ?? this.origemFixoId,
       );
 }
 

@@ -355,4 +355,5 @@ void main() {
       expect(ganhosEfetivosNaJanela(const []), isEmpty);
     });
   });
+
 }

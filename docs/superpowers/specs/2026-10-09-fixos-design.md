@@ -26,6 +26,21 @@ Pedido original do usuário (verbatim, resumido): um botão novo "Fixos" entre P
 | 9 | Cálculos | Gasto previsto passa a contar nos cálculos (Resumo, cascata, gráfico de evolução) com a mesma regra que ganho previsto já segue: real sempre vence previsto, por pessoa | Gasto precisa da mesma consistência que ganho já tem — sem isso, o Resumo ignoraria um gasto fixo que o usuário já sabe que vai ter. |
 | 10 | Posição na navegação | Resumo, Ganhos, Gastos, Parcelas, Fixos, Potes, Cartões | Ordem pedida explicitamente pelo usuário. |
 
+> **Correção pós-revisão final (2026-10-09):** a decisão #9 acima (real
+> vence previsto, por pessoa, igual ganho) foi revertida para gasto depois da
+> revisão final da implementação. Motivo: gasto previsto e gasto real não
+> representam a mesma coisa (diferente de ganho, onde previsto e real do
+> salário são a mesma entrada vista de dois jeitos) — uma pessoa tem vários
+> gastos reais distintos por mês, e a regra antiga fazia qualquer gasto real
+> dela suprimir TODOS os previstos dela no mês, mesmo sem relação entre eles,
+> o que descolava o total do Resumo do total da lista de Gastos. A regra
+> vigente para gasto: cada gasto (previsto ou real) conta sempre; um previsto
+> só para de contar quando ELE MESMO é editado e o campo `previsto` vira
+> `false`. `gastosEfetivos`/`gastosEfetivosNaJanela` foram removidas de
+> `lib/dominio/totais.dart` — gasto nunca teve essas funções de filtro.
+> `ganhosEfetivos`/`ganhosEfetivosNaJanela` continuam valendo para ganho, sem
+> mudança.
+
 ## 3. Domínio
 
 ### 3.1 Novo modelo `Fixo`

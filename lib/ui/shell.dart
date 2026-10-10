@@ -5,6 +5,7 @@ import '../dados/repositorio_gestao_casa.dart';
 import '../dominio/models/casa.dart';
 import '../estado/providers.dart';
 import 'telas/tela_cartoes.dart';
+import 'telas/tela_fixos.dart';
 import 'telas/tela_ganhos.dart';
 import 'telas/tela_gerenciar_casa.dart';
 import 'telas/tela_gastos.dart';
@@ -27,9 +28,10 @@ const List<_Destino> _destinos = [
   _Destino('Resumo', Icons.donut_large),
   _Destino('Ganhos', Icons.trending_up),
   _Destino('Gastos', Icons.receipt_long),
+  _Destino('Parcelas', Icons.event_repeat),
+  _Destino('Fixos', Icons.repeat),
   _Destino('Potes', Icons.pie_chart_outline),
   _Destino('Cartões', Icons.credit_card),
-  _Destino('Parcelas', Icons.event_repeat),
 ];
 
 class Shell extends ConsumerStatefulWidget {
@@ -44,15 +46,22 @@ class _ShellState extends ConsumerState<Shell> {
 
   @override
   Widget build(BuildContext context) {
+    // Garante os lancamentos previstos do mes seguinte a partir dos Fixos
+    // ativos, uma vez por sessao (o provider nao e autoDispose, entao so
+    // roda de verdade na primeira vez que alguem o observa). O resultado em
+    // si nao importa aqui -- so o efeito colateral de gravar o que faltar.
+    ref.watch(garantirFixosDoMesProvider);
+
     final desktop = MediaQuery.sizeOf(context).width >= breakpointDesktop;
 
     const telas = <Widget>[
       TelaResumo(),
       TelaGanhos(),
       TelaGastos(),
+      TelaParcelas(),
+      TelaFixos(),
       TelaPotes(),
       TelaCartoes(),
-      TelaParcelas(),
     ];
     final conteudo = telas[_indice];
 

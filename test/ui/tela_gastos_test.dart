@@ -11,6 +11,7 @@ import 'package:controle_financeiro/dominio/models/pote.dart';
 import 'package:controle_financeiro/estado/providers.dart';
 import 'package:controle_financeiro/ui/tema/formatadores.dart';
 import 'package:controle_financeiro/ui/telas/tela_gastos.dart';
+import 'package:controle_financeiro/ui/widgets/tabela_responsiva.dart';
 
 const casa = Casa(
   id: 'principal',
@@ -548,6 +549,99 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(container.read(visaoProvider), 'marcos');
+    });
+  });
+
+  group('trava de lancamentos vindos de um Fixo', () {
+    // `DataRow`/`TableRow` nao sao Widgets (so estruturas de dados internas
+    // do DataTable/Table, usadas so pra diffing) -- nao ha como localiza-las
+    // na arvore de widgets por chave nem passa-las para `tester.widget<T>`,
+    // que exige T extends Widget. A forma direta de verificar a trava e ler
+    // a propria `LinhaResponsiva` (o dado que `_linhaDoGasto` monta) a
+    // partir do `TabelaResponsiva` encontrado na arvore: seus campos
+    // `aoTocar`/`aoExcluir` sao exatamente os que governam o
+    // `onSelectChanged` do `DataRow` e o `IconButton` de exclusao.
+    LinhaResponsiva linhaPorId(WidgetTester tester, String id) {
+      final tabela =
+          tester.widget<TabelaResponsiva>(find.byType(TabelaResponsiva));
+      return tabela.grupos
+          .expand((g) => g.linhas)
+          .firstWhere((l) => l.chave == ValueKey('gasto_$id'));
+    }
+
+    Future<(ProviderContainer, RepositorioGastosFake)> montarComMes(
+      WidgetTester tester, {
+      required MesRef mes,
+      required Gasto gasto,
+    }) async {
+      tester.view.physicalSize = const Size(1400, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final repo = RepositorioGastosFake();
+      await repo.adicionar(base: gasto, quantidadeParcelas: 1);
+
+      final container = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGastosProvider.overrideWithValue(repo),
+      ]);
+      addTearDown(container.dispose);
+      container.read(mesSelecionadoProvider.notifier).irPara(mes);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: TelaGastos()),
+      ));
+      await tester.pumpAndSettle();
+      return (container, repo);
+    }
+
+    testWidgets(
+        'vindo de um Fixo com mes futuro, a linha nao responde a toque nem mostra exclusao',
+        (tester) async {
+      final mesFuturo = MesRef.atual().avancar(1);
+      final (_, repo) = await montarComMes(
+        tester,
+        mes: mesFuturo,
+        gasto: Gasto(
+          id: '', mesRef: mesFuturo.valor, membroId: 'marcos', poteId: 'p1',
+          descricao: 'Aluguel', valor: 1200,
+          criadoEm: DateTime.utc(2026, 10, 1), parcelado: false,
+          previsto: true, origemFixoId: 'f1',
+        ),
+      );
+      final id = repo.todos.single.id;
+
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+
+      final linha = linhaPorId(tester, id);
+      expect(linha.aoTocar, isNull);
+      expect(linha.aoExcluir, isNull);
+    });
+
+    testWidgets(
+        'vindo de um Fixo com mes ja chegado, a linha responde normalmente',
+        (tester) async {
+      final mesAtual = MesRef.atual();
+      final (_, repo) = await montarComMes(
+        tester,
+        mes: mesAtual,
+        gasto: Gasto(
+          id: '', mesRef: mesAtual.valor, membroId: 'marcos', poteId: 'p1',
+          descricao: 'Aluguel', valor: 1200,
+          criadoEm: DateTime.utc(2026, 10, 1), parcelado: false,
+          previsto: true, origemFixoId: 'f1',
+        ),
+      );
+      final id = repo.todos.single.id;
+
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+
+      final linha = linhaPorId(tester, id);
+      expect(linha.aoTocar, isNotNull);
+      expect(linha.aoExcluir, isNotNull);
     });
   });
 }

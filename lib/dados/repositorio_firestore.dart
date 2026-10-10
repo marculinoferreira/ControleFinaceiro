@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
+import '../dominio/models/fixo.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
 import '../dominio/models/pote.dart';
@@ -56,6 +57,25 @@ class PotesFirestore implements RepositorioPotes {
     }
     await lote.commit();
   }
+
+  @override
+  Future<void> remover(String id) => _col.doc(id).delete();
+}
+
+class FixosFirestore implements RepositorioFixos {
+  final FirebaseFirestore db;
+  final String casaId;
+  FixosFirestore(this.db, this.casaId);
+
+  CollectionReference<Map<String, dynamic>> get _col =>
+      _casaDoc(db, casaId).collection('fixos');
+
+  @override
+  Stream<List<Fixo>> observar() => _col.snapshots().map(
+      (s) => s.docs.map((d) => Fixo.fromMap(d.id, d.data())).toList());
+
+  @override
+  Future<void> adicionar(Fixo fixo) => _col.add(fixo.toMap());
 
   @override
   Future<void> remover(String id) => _col.doc(id).delete();
@@ -141,6 +161,10 @@ class GanhosFirestore implements RepositorioGanhos {
 
   @override
   Future<void> remover(String id) => _col.doc(id).delete();
+
+  @override
+  Future<void> definir(String id, Ganho ganho) =>
+      _col.doc(id).set(ganho.toMap());
 }
 
 class GastosFirestore implements RepositorioGastos {
@@ -264,4 +288,8 @@ class GastosFirestore implements RepositorioGastos {
       await lote.commit();
     }
   }
+
+  @override
+  Future<void> definir(String id, Gasto gasto) =>
+      _col.doc(id).set(gasto.toMap());
 }

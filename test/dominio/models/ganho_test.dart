@@ -76,5 +76,31 @@ void main() {
 
       expect(atualizado.previsto, isFalse);
     });
+
+    test('round-trip toMap/fromMap preserva origemFixoId', () {
+      final g = Ganho(
+        id: '', mesRef: '2026-11', membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+        previsto: true, origemFixoId: 'f1',
+      );
+
+      final reconstruido = Ganho.fromMap('g1', g.toMap());
+
+      expect(reconstruido.origemFixoId, 'f1');
+    });
+
+    test('origemFixoId ausente no mapa (lancamento legado) cai em null', () {
+      final mapa = Ganho(
+        id: '', mesRef: '2026-11', membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+      ).toMap()
+        ..remove('origemFixoId');
+
+      final reconstruido = Ganho.fromMap('g1', mapa);
+
+      expect(reconstruido.origemFixoId, isNull);
+    });
   });
 }

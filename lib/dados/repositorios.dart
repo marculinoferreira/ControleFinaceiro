@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
+import '../dominio/models/fixo.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
 import '../dominio/models/mes_ref.dart';
@@ -22,6 +23,12 @@ abstract class RepositorioPotes {
   /// "no maximo 6" acontece na UI antes de chamar.
   Future<void> salvarTodos(List<Pote> potes);
 
+  Future<void> remover(String id);
+}
+
+abstract class RepositorioFixos {
+  Stream<List<Fixo>> observar();
+  Future<void> adicionar(Fixo fixo);
   Future<void> remover(String id);
 }
 
@@ -65,6 +72,14 @@ abstract class RepositorioGanhos {
   Future<void> adicionar(Ganho ganho);
   Future<void> atualizar(Ganho ganho);
   Future<void> remover(String id);
+
+  /// Cria OU sobrescreve o lancamento com o id exato [id] -- idempotente:
+  /// chamar duas vezes com o mesmo id nao duplica, so sobrescreve. Usado
+  /// so por `garantirFixosDoMesProvider` (lib/estado/providers.dart), que
+  /// precisa de um id deterministico (Fixo + mes) pra nao gerar duas vezes
+  /// se duas sessoes/dispositivos checarem ao mesmo tempo com cache
+  /// desatualizado.
+  Future<void> definir(String id, Ganho ganho);
 }
 
 abstract class RepositorioGastos {
@@ -99,6 +114,12 @@ abstract class RepositorioGastos {
   Future<void> removerUma(String id);
   Future<void> removerDesta(String compraId, int parcela);
   Future<void> removerCompra(String compraId);
+
+  /// Cria OU sobrescreve um gasto SIMPLES (nunca parcelado) com o id exato
+  /// [id] -- mesmo uso/motivo de `RepositorioGanhos.definir`. Nao passa por
+  /// `gerarParcelas`: e sempre um documento unico, nunca uma compra em N
+  /// parcelas.
+  Future<void> definir(String id, Gasto gasto);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +246,18 @@ class RepositorioGastosFake implements RepositorioGastos {
     _gastos.removeWhere((g) => g.compraId == compraId);
     _emitir();
   }
+
+  @override
+  Future<void> definir(String id, Gasto gasto) async {
+    final comId = gasto.copyWith(id: id);
+    final i = _gastos.indexWhere((g) => g.id == id);
+    if (i >= 0) {
+      _gastos[i] = comId;
+    } else {
+      _gastos.add(comId);
+    }
+    _emitir();
+  }
 }
 
 class RepositorioGanhosFake implements RepositorioGanhos {
@@ -265,6 +298,18 @@ class RepositorioGanhosFake implements RepositorioGanhos {
   @override
   Future<void> remover(String id) async {
     _ganhos.removeWhere((g) => g.id == id);
+    _emitir();
+  }
+
+  @override
+  Future<void> definir(String id, Ganho ganho) async {
+    final comId = ganho.copyWith(id: id);
+    final i = _ganhos.indexWhere((g) => g.id == id);
+    if (i >= 0) {
+      _ganhos[i] = comId;
+    } else {
+      _ganhos.add(comId);
+    }
     _emitir();
   }
 }
@@ -351,6 +396,40 @@ class RepositorioPotesFake implements RepositorioPotes {
     _controlador.add(null);
   }
 }
+
+class RepositorioFixosFake implements RepositorioFixos {
+  final List<Fixo> _fixos = [];
+  final _controlador = StreamController<void>.broadcast();
+  var _sequencia = 0;
+
+  List<Fixo> get todos => List.unmodifiable(_fixos);
+
+  @override
+  Stream<List<Fixo>> observar() =>
+      _correnteEDepois(_controlador.stream, () => List<Fixo>.unmodifiable(_fixos));
+
+  @override
+  Future<void> adicionar(Fixo fixo) async {
+    _fixos.add(_comId(fixo, 'fixo-${_sequencia++}'));
+    _controlador.add(null);
+  }
+
+  @override
+  Future<void> remover(String id) async {
+    _fixos.removeWhere((f) => f.id == id);
+    _controlador.add(null);
+  }
+}
+
+Fixo _comId(Fixo fixo, String id) => Fixo(
+      id: id,
+      tipo: fixo.tipo,
+      membroId: fixo.membroId,
+      descricao: fixo.descricao,
+      valor: fixo.valor,
+      criadoEm: fixo.criadoEm,
+      poteId: fixo.poteId,
+    );
 
 class RepositorioCasaFake implements RepositorioCasa {
   final Casa? _casa;

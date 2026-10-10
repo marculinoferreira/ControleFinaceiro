@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:controle_financeiro/dados/repositorios.dart';
 import 'package:controle_financeiro/dominio/models/casa.dart';
+import 'package:controle_financeiro/dominio/models/fixo.dart';
 import 'package:controle_financeiro/dominio/models/ganho.dart';
 import 'package:controle_financeiro/dominio/models/gasto.dart';
 import 'package:controle_financeiro/dominio/models/membro.dart';
@@ -1050,6 +1051,89 @@ void main() {
     });
   });
 
+  group('gasto previsto e gasto real somam juntos nos providers existentes',
+      () {
+    Future<ProviderContainer> montarComGastos({
+      List<(String membroId, String poteId, double valor, bool previsto)>
+          gastosDoMes = const [],
+    }) async {
+      final repoGastos = RepositorioGastosFake();
+      for (final (membroId, poteId, valor, previsto) in gastosDoMes) {
+        await repoGastos.adicionar(
+          base: Gasto(
+            id: '', mesRef: '2026-10', membroId: membroId, poteId: poteId,
+            descricao: previsto ? 'Previsto' : 'Real', valor: valor,
+            criadoEm: DateTime.utc(2026, 9, 1), parcelado: false,
+            previsto: previsto,
+          ),
+          quantidadeParcelas: 1,
+        );
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(repoGastos),
+      ]);
+      addTearDown(c.dispose);
+      c.read(mesSelecionadoProvider.notifier).irPara(const MesRef(2026, 10));
+      c.listen(ganhosDoMesProvider('2026-10'), (_, _) {});
+      c.listen(gastosDoMesProvider('2026-10'), (_, _) {});
+      c.listen(potesProvider, (_, _) {});
+      c.listen(parceladosDesdeProvider('2026-10'), (_, _) {});
+      await Future<void>.delayed(Duration.zero);
+      return c;
+    }
+
+    test('totaisDoMesProvider usa gasto previsto quando nao ha gasto real',
+        () async {
+      final c = await montarComGastos(
+        gastosDoMes: [('marcos', 'p1', 1200, true)],
+      );
+
+      expect(c.read(totaisDoMesProvider).requireValue.gastos, 1200);
+    });
+
+    test('totaisDoMesProvider soma gasto previsto e gasto real juntos',
+        () async {
+      final c = await montarComGastos(
+        gastosDoMes: [
+          ('marcos', 'p1', 1200, true),
+          ('marcos', 'p1', 1300, false),
+        ],
+      );
+
+      expect(c.read(totaisDoMesProvider).requireValue.gastos, 2500);
+    });
+
+    test('gastosPorPoteProvider usa gasto previsto quando nao ha gasto real',
+        () async {
+      final c = await montarComGastos(
+        gastosDoMes: [('marcos', 'p1', 1200, true)],
+      );
+
+      expect(c.read(gastosPorPoteProvider).requireValue['p1'], 1200);
+    });
+
+    test(
+        'gasto previsto de um pote continua contando mesmo com gasto real '
+        'em outro pote da mesma pessoa',
+        () async {
+      final c = await montarComGastos(
+        gastosDoMes: [
+          ('marcos', 'eletronicos', 300, false), // geladeira, real
+          ('marcos', 'moradia', 1200, true), // aluguel, previsto
+        ],
+      );
+
+      expect(c.read(totaisDoMesProvider).requireValue.gastos, 1500);
+      expect(c.read(gastosPorPoteProvider).requireValue['eletronicos'], 300);
+      expect(c.read(gastosPorPoteProvider).requireValue['moradia'], 1200);
+    });
+  });
+
   group('serieProjecaoProvider com ganhos efetivos', () {
     const casaDuasPessoas = Casa(
       id: 'principal',
@@ -1291,6 +1375,196 @@ void main() {
       ).future);
 
       expect(dia, isNull);
+    });
+  });
+
+  group('garantirFixosDoMesProvider', () {
+    Future<ProviderContainer> montarComFixos(List<Fixo> fixosIniciais) async {
+      final fixos = RepositorioFixosFake();
+      for (final f in fixosIniciais) {
+        await fixos.adicionar(f);
+      }
+
+      final c = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake()),
+        repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
+        repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
+        repositorioFixosProvider.overrideWithValue(fixos),
+        repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
+        repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+      ]);
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test(
+        'gera um Ganho previsto para o mes seguinte a partir de um Fixo de ganho',
+        () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.ganho, membroId: 'marcos',
+          descricao: 'Salario', valor: 5000,
+          criadoEm: DateTime.utc(2026, 10, 1),
+        ),
+      ]);
+
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final ganhos = await c
+          .read(repositorioGanhosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(ganhos, hasLength(1));
+      expect(ganhos.single.previsto, isTrue);
+      expect(ganhos.single.origemFixoId, isNotEmpty);
+    });
+
+    test(
+        'gera um Gasto previsto para o mes seguinte a partir de um Fixo de gasto',
+        () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.gasto, membroId: 'marcos',
+          descricao: 'Aluguel', valor: 1200,
+          criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p1',
+        ),
+      ]);
+
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final gastos = await c
+          .read(repositorioGastosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(gastos, hasLength(1));
+      expect(gastos.single.previsto, isTrue);
+      expect(gastos.single.poteId, 'p1');
+    });
+
+    test('nao duplica numa segunda checagem', () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.ganho, membroId: 'marcos',
+          descricao: 'Salario', valor: 5000,
+          criadoEm: DateTime.utc(2026, 10, 1),
+        ),
+      ]);
+
+      await c.read(garantirFixosDoMesProvider.future);
+      c.invalidate(garantirFixosDoMesProvider);
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final ganhos = await c
+          .read(repositorioGanhosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(ganhos, hasLength(1));
+    });
+
+    test('sem Fixo nenhum, nao gera nada', () async {
+      final c = await montarComFixos([]);
+
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final ganhos = await c
+          .read(repositorioGanhosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      final gastos = await c
+          .read(repositorioGastosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(ganhos, isEmpty);
+      expect(gastos, isEmpty);
+    });
+
+    test('nao duplica numa segunda checagem (Fixo de gasto)', () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.gasto, membroId: 'marcos',
+          descricao: 'Aluguel', valor: 1200,
+          criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p1',
+        ),
+      ]);
+
+      await c.read(garantirFixosDoMesProvider.future);
+      c.invalidate(garantirFixosDoMesProvider);
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final gastos = await c
+          .read(repositorioGastosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(gastos, hasLength(1));
+      expect(gastos.single.origemFixoId, isNotEmpty);
+    });
+
+    test('o id gerado segue o padrao fixoId_mesRef (Fixo de ganho)',
+        () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.ganho, membroId: 'marcos',
+          descricao: 'Salario', valor: 5000,
+          criadoEm: DateTime.utc(2026, 10, 1),
+        ),
+      ]);
+      final fixoId =
+          (await c.read(repositorioFixosProvider).observar().first).single.id;
+
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final ganhos = await c
+          .read(repositorioGanhosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(ganhos.single.id, '${fixoId}_${mesAlvoDosFixos().valor}');
+    });
+
+    test('o id gerado segue o padrao fixoId_mesRef (Fixo de gasto)',
+        () async {
+      final c = await montarComFixos([
+        Fixo(
+          id: '', tipo: TipoFixo.gasto, membroId: 'marcos',
+          descricao: 'Aluguel', valor: 1200,
+          criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p1',
+        ),
+      ]);
+      final fixoId =
+          (await c.read(repositorioFixosProvider).observar().first).single.id;
+
+      await c.read(garantirFixosDoMesProvider.future);
+
+      final gastos = await c
+          .read(repositorioGastosProvider)
+          .observarMes(mesAlvoDosFixos().valor)
+          .first;
+      expect(gastos.single.id, '${fixoId}_${mesAlvoDosFixos().valor}');
+    });
+
+    test(
+        'definir duas vezes com o mesmo id (corrida entre dispositivos) '
+        'nao duplica', () async {
+      final repo = RepositorioGanhosFake();
+      final mesAlvo = mesAlvoDosFixos().valor;
+      final id = 'fixo-x_$mesAlvo';
+
+      await repo.definir(id, Ganho(
+        id: '', mesRef: mesAlvo, membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+        previsto: true, origemFixoId: 'fixo-x',
+      ));
+      // Segunda escrita "simultanea" com o mesmo id -- simula dois
+      // dispositivos que leram o cache desatualizado e decidiram, cada um
+      // por conta propria, que o lancamento ainda nao existia.
+      await repo.definir(id, Ganho(
+        id: '', mesRef: mesAlvo, membroId: 'marcos',
+        descricao: 'Salario', valor: 5000,
+        criadoEm: DateTime.utc(2026, 10, 1),
+        previsto: true, origemFixoId: 'fixo-x',
+      ));
+
+      expect(repo.todos, hasLength(1));
     });
   });
 }
