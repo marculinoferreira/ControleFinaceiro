@@ -29,22 +29,35 @@ class TelaGanhos extends ConsumerWidget {
     final ganhos = ref.watch(ganhosDoMesProvider(mesRef));
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('novo_ganho'),
-        onPressed: membrosAtivos.isEmpty
-            ? null
-            : () =>
-                _abrir(context, ref, membros: membrosAtivos, mesRef: mesRef),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo ganho'),
-      ),
-      body: ganhos.when(
-        loading: () => const CarregandoLista(),
-        error: (e, _) => ErroComRecarregar(
-          erro: e,
-          aoRecarregar: () => ref.invalidate(ganhosDoMesProvider(mesRef)),
-        ),
-        data: (lista) => _Conteudo(membros: membros, ganhos: lista),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                key: const Key('novo_ganho'),
+                onPressed: membrosAtivos.isEmpty
+                    ? null
+                    : () => _abrir(context, ref,
+                        membros: membrosAtivos, mesRef: mesRef),
+                icon: const Icon(Icons.add),
+                label: const Text('Novo ganho'),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ganhos.when(
+              loading: () => const CarregandoLista(),
+              error: (e, _) => ErroComRecarregar(
+                erro: e,
+                aoRecarregar: () =>
+                    ref.invalidate(ganhosDoMesProvider(mesRef)),
+              ),
+              data: (lista) => _Conteudo(membros: membros, ganhos: lista),
+            ),
+          ),
+        ],
       ),
     );
   }
