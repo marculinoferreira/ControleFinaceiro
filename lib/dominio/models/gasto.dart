@@ -35,9 +35,11 @@ class Gasto {
   final int? totalParcelas;
 
   /// Marca que este gasto e uma previsao ("eu sei que vou gastar X"), nao
-  /// um gasto ja realizado. So conta nos calculos quando a mesma pessoa
-  /// nao tiver nenhum gasto real (previsto == false) no mesmo mes — ver
-  /// `gastosEfetivos` em totais.dart.
+  /// um gasto ja realizado. Conta nos calculos normalmente, somado aos
+  /// gastos reais -- so para de contar quando este mesmo lancamento for
+  /// editado e [previsto] virar false (diferente de `Ganho.previsto`, que
+  /// e suprimido pelo real da mesma pessoa; ver `ganhosEfetivos` em
+  /// totais.dart).
   final bool previsto;
 
   /// Id do Fixo que gerou este lancamento, se veio de um -- null para
