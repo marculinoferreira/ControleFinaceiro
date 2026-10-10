@@ -129,35 +129,3 @@ List<Ganho> ganhosEfetivosNaJanela(List<Ganho> ganhosDoIntervalo) {
     for (final lista in porMes.values) ...ganhosEfetivos(lista),
   ];
 }
-
-/// Mesma regra de `ganhosEfetivos`, para gastos: o gasto real de uma
-/// pessoa vence o previsto dela no mesmo mes; nunca mistura os dois.
-/// Assume que [gastosDoMes] ja pertence a um unico mes (mesmo contrato de
-/// `ganhosEfetivos`) -- para uma janela com varios meses, ver
-/// `gastosEfetivosNaJanela`, logo abaixo.
-List<Gasto> gastosEfetivos(List<Gasto> gastosDoMes) {
-  final membrosComReal = <String>{
-    for (final g in gastosDoMes)
-      if (!g.previsto) g.membroId,
-  };
-  return [
-    for (final g in gastosDoMes)
-      if (!g.previsto || !membrosComReal.contains(g.membroId)) g,
-  ];
-}
-
-/// `gastosEfetivos`, mes a mes, para uma janela com varios meses
-/// misturados (ex.: `gastosDoIntervaloProvider`) -- mesmo motivo de
-/// `ganhosEfetivosNaJanela` existir separado de `ganhosEfetivos`: aplicar
-/// a regra sobre a janela inteira de uma vez misturaria "tem gasto real
-/// em setembro" com "tem previsto em novembro" da mesma pessoa, quando
-/// sao perguntas independentes.
-List<Gasto> gastosEfetivosNaJanela(List<Gasto> gastosDoIntervalo) {
-  final porMes = <String, List<Gasto>>{};
-  for (final g in gastosDoIntervalo) {
-    (porMes[g.mesRef] ??= []).add(g);
-  }
-  return [
-    for (final lista in porMes.values) ...gastosEfetivos(lista),
-  ];
-}

@@ -479,7 +479,7 @@ final totaisDoMesProvider = Provider.autoDispose<AsyncValue<TotaisMes>>((ref) {
     ref.watch(gastosDoMesProvider(mes)),
     (ganhos, gastos) => calcularTotais(
       ganhos: ganhosEfetivos(ganhos),
-      gastos: gastosEfetivos(gastos),
+      gastos: gastos,
       membroId: membroId,
     ),
   );
@@ -520,7 +520,7 @@ final serieMensalProvider =
     (ganhos, gastos) => montarSerie(
       meses: meses,
       ganhos: ganhosEfetivosNaJanela(ganhos),
-      gastos: gastosEfetivosNaJanela(gastos),
+      gastos: gastos,
       membroId: membroId,
     ),
   );
@@ -533,7 +533,7 @@ final gastosPorPoteProvider =
   final membroId = ref.watch(visaoProvider);
 
   return ref.watch(gastosDoMesProvider(mes)).whenData((gastos) =>
-      somarGastosPorPote(gastosEfetivos(gastos), membroId: membroId));
+      somarGastosPorPote(gastos, membroId: membroId));
 });
 
 /// Fatias da rosca (grafico 1 da spec 10).

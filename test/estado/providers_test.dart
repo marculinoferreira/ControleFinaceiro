@@ -1051,7 +1051,8 @@ void main() {
     });
   });
 
-  group('gastos efetivos nos providers existentes', () {
+  group('gasto previsto e gasto real somam juntos nos providers existentes',
+      () {
     Future<ProviderContainer> montarComGastos({
       List<(String membroId, String poteId, double valor, bool previsto)>
           gastosDoMes = const [],
@@ -1095,7 +1096,7 @@ void main() {
       expect(c.read(totaisDoMesProvider).requireValue.gastos, 1200);
     });
 
-    test('totaisDoMesProvider ignora gasto previsto quando ha gasto real',
+    test('totaisDoMesProvider soma gasto previsto e gasto real juntos',
         () async {
       final c = await montarComGastos(
         gastosDoMes: [
@@ -1104,7 +1105,7 @@ void main() {
         ],
       );
 
-      expect(c.read(totaisDoMesProvider).requireValue.gastos, 1300);
+      expect(c.read(totaisDoMesProvider).requireValue.gastos, 2500);
     });
 
     test('gastosPorPoteProvider usa gasto previsto quando nao ha gasto real',
@@ -1114,6 +1115,22 @@ void main() {
       );
 
       expect(c.read(gastosPorPoteProvider).requireValue['p1'], 1200);
+    });
+
+    test(
+        'gasto previsto de um pote continua contando mesmo com gasto real '
+        'em outro pote da mesma pessoa',
+        () async {
+      final c = await montarComGastos(
+        gastosDoMes: [
+          ('marcos', 'eletronicos', 300, false), // geladeira, real
+          ('marcos', 'moradia', 1200, true), // aluguel, previsto
+        ],
+      );
+
+      expect(c.read(totaisDoMesProvider).requireValue.gastos, 1500);
+      expect(c.read(gastosPorPoteProvider).requireValue['eletronicos'], 300);
+      expect(c.read(gastosPorPoteProvider).requireValue['moradia'], 1200);
     });
   });
 
