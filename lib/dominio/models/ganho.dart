@@ -13,6 +13,11 @@ class Ganho {
   /// ver `ganhosEfetivos` em totais.dart.
   final bool previsto;
 
+  /// Id do Fixo que gerou este lancamento, se veio de um -- null para
+  /// lancamentos avulsos (a maioria). Usado por `travadoPorFixo` para
+  /// travar edicao/exclusao ate o mes chegar.
+  final String? origemFixoId;
+
   const Ganho({
     required this.id,
     required this.mesRef,
@@ -21,6 +26,7 @@ class Ganho {
     required this.valor,
     required this.criadoEm,
     this.previsto = false,
+    this.origemFixoId,
   });
 
   factory Ganho.fromMap(String id, Map<String, dynamic> mapa) => Ganho(
@@ -31,6 +37,7 @@ class Ganho {
         valor: (mapa['valor'] as num).toDouble(),
         criadoEm: _lerData(mapa['criadoEm']),
         previsto: mapa['previsto'] as bool? ?? false,
+        origemFixoId: mapa['origemFixoId'] as String?,
       );
 
   Map<String, dynamic> toMap() => {
@@ -40,6 +47,7 @@ class Ganho {
         'valor': valor,
         'criadoEm': criadoEm,
         'previsto': previsto,
+        'origemFixoId': origemFixoId,
       };
 
   Ganho copyWith({
@@ -50,6 +58,7 @@ class Ganho {
     double? valor,
     DateTime? criadoEm,
     bool? previsto,
+    String? origemFixoId,
   }) =>
       Ganho(
         id: id ?? this.id,
@@ -59,6 +68,7 @@ class Ganho {
         valor: valor ?? this.valor,
         criadoEm: criadoEm ?? this.criadoEm,
         previsto: previsto ?? this.previsto,
+        origemFixoId: origemFixoId ?? this.origemFixoId,
       );
 }
 
