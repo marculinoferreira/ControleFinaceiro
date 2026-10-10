@@ -10,6 +10,7 @@ import '../dominio/cascata.dart';
 import '../dominio/graficos.dart';
 import '../dominio/models/cartao.dart';
 import '../dominio/models/casa.dart';
+import '../dominio/models/fixo.dart';
 import '../dominio/models/ganho.dart';
 import '../dominio/models/gasto.dart';
 import '../dominio/models/membro.dart';
@@ -66,6 +67,9 @@ final repositorioGanhosProvider = Provider<RepositorioGanhos>((ref) =>
 
 final repositorioGastosProvider = Provider<RepositorioGastos>((ref) =>
     GastosFirestore(ref.watch(firestoreProvider), _casaIdResolvido(ref)));
+
+final repositorioFixosProvider = Provider<RepositorioFixos>((ref) =>
+    FixosFirestore(ref.watch(firestoreProvider), _casaIdResolvido(ref)));
 
 // --- Sessao ---------------------------------------------------------------
 
@@ -334,6 +338,75 @@ final cartoesProvider = StreamProvider<List<Cartao>>(
   (ref) => ref.watch(repositorioCartoesProvider).observar(),
 );
 
+final fixosProvider = StreamProvider<List<Fixo>>(
+  (ref) => ref.watch(repositorioFixosProvider).observar(),
+);
+
+/// Roda uma vez por sessao do app (nao autoDispose, nao fica relendo a
+/// toda hora): confere se cada Fixo ja tem um lancamento previsto gerado
+/// para `mesAlvoDosFixos()` e cria o que faltar. Chamado a partir do
+/// Shell, assim que a casa resolve (ver lib/ui/shell.dart).
+///
+/// Le os repositorios diretamente (`.observar().first`/`.observarMes(...)
+/// .first`), nao atraves de `fixosProvider`/`ganhosDoMesProvider`: isto e
+/// uma checagem pontual de "o que existe agora", nao algo que precisa
+/// recalcular quando o stream emitir de novo.
+final garantirFixosDoMesProvider = FutureProvider<void>((ref) async {
+  final repoFixos = ref.watch(repositorioFixosProvider);
+  final repoGanhos = ref.watch(repositorioGanhosProvider);
+  final repoGastos = ref.watch(repositorioGastosProvider);
+
+  final fixos = await repoFixos.observar().first;
+  if (fixos.isEmpty) return;
+
+  final mesAlvo = mesAlvoDosFixos();
+  final ganhosDoMes = await repoGanhos.observarMes(mesAlvo.valor).first;
+  final gastosDoMes = await repoGastos.observarMes(mesAlvo.valor).first;
+  final origensJaGeradas = {
+    for (final g in ganhosDoMes)
+      if (g.origemFixoId != null) g.origemFixoId!,
+    for (final g in gastosDoMes)
+      if (g.origemFixoId != null) g.origemFixoId!,
+  };
+
+  final aGerar = fixosParaGerar(
+    fixos: fixos,
+    mesAlvo: mesAlvo,
+    origensJaGeradasNoMes: origensJaGeradas,
+  );
+
+  for (final fixo in aGerar) {
+    if (fixo.tipo == TipoFixo.ganho) {
+      await repoGanhos.adicionar(Ganho(
+        id: '',
+        mesRef: mesAlvo.valor,
+        membroId: fixo.membroId,
+        descricao: fixo.descricao,
+        valor: fixo.valor,
+        criadoEm: DateTime.now(),
+        previsto: true,
+        origemFixoId: fixo.id,
+      ));
+    } else {
+      await repoGastos.adicionar(
+        base: Gasto(
+          id: '',
+          mesRef: mesAlvo.valor,
+          membroId: fixo.membroId,
+          poteId: fixo.poteId!,
+          descricao: fixo.descricao,
+          valor: fixo.valor,
+          criadoEm: DateTime.now(),
+          parcelado: false,
+          previsto: true,
+          origemFixoId: fixo.id,
+        ),
+        quantidadeParcelas: 1,
+      );
+    }
+  }
+});
+
 /// Dia de fechamento que [chave.membroId] cadastrou para [chave.cartaoId],
 /// se houver. Generaliza `meuFechamento` do repositorio (que so devolve o
 /// fechamento de quem esta logado) para qualquer integrante -- usado na
@@ -408,7 +481,7 @@ final totaisDoMesProvider = Provider.autoDispose<AsyncValue<TotaisMes>>((ref) {
     ref.watch(gastosDoMesProvider(mes)),
     (ganhos, gastos) => calcularTotais(
       ganhos: ganhosEfetivos(ganhos),
-      gastos: gastos,
+      gastos: gastosEfetivos(gastos),
       membroId: membroId,
     ),
   );
@@ -449,7 +522,7 @@ final serieMensalProvider =
     (ganhos, gastos) => montarSerie(
       meses: meses,
       ganhos: ganhosEfetivosNaJanela(ganhos),
-      gastos: gastos,
+      gastos: gastosEfetivosNaJanela(gastos),
       membroId: membroId,
     ),
   );
@@ -461,9 +534,8 @@ final gastosPorPoteProvider =
   final mes = ref.watch(mesSelecionadoProvider).valor;
   final membroId = ref.watch(visaoProvider);
 
-  return ref
-      .watch(gastosDoMesProvider(mes))
-      .whenData((gastos) => somarGastosPorPote(gastos, membroId: membroId));
+  return ref.watch(gastosDoMesProvider(mes)).whenData((gastos) =>
+      somarGastosPorPote(gastosEfetivos(gastos), membroId: membroId));
 });
 
 /// Fatias da rosca (grafico 1 da spec 10).

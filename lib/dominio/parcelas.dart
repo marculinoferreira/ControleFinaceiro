@@ -34,6 +34,8 @@ List<Gasto> gerarParcelas({
         cartaoId: base.cartaoId,
         pixDebito: base.pixDebito,
         parcelado: false,
+        previsto: base.previsto,
+        origemFixoId: base.origemFixoId,
       ),
     ];
   }
@@ -58,6 +60,8 @@ List<Gasto> gerarParcelas({
       compraId: compraId,
       parcela: i + 1,
       totalParcelas: quantidade,
+      previsto: base.previsto,
+      origemFixoId: base.origemFixoId,
     );
   });
 }
