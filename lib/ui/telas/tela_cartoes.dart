@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../dados/repositorio_gestao_casa.dart';
 import '../../dominio/models/cartao.dart';
 import '../../estado/providers.dart';
+import '../widgets/botao_novo.dart';
 import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
 import '../widgets/formulario_responsivo.dart';
@@ -32,57 +33,66 @@ class TelaCartoes extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('novo_cartao'),
-        onPressed: () => _abrir(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo cartão'),
-      ),
-      body: ref.watch(cartoesProvider).when(
-            loading: () => const CarregandoLista(),
-            error: (e, _) => ErroComRecarregar(
-              erro: e,
-              aoRecarregar: () => ref.invalidate(cartoesProvider),
-            ),
-            data: (cartoes) => TabelaResponsiva(
-              colunas: const ['Cartão'],
-              vazio: 'Nenhum cartão cadastrado.',
-              linhas: [
-                for (final c in cartoes)
-                  LinhaResponsiva(
-                    chave: ValueKey('cartao_${c.id}'),
-                    valores: [c.nome],
-                    tituloEmNegrito: true,
-                    aoTocar: () => _abrir(context, ref, existente: c),
-                    aoExcluir: () => _excluir(context, ref, c),
-                    // Texto e icone juntos, colados um no outro -- nao como
-                    // colunas separadas, que o DataTable espacaria longe um
-                    // do outro.
-                    acaoTrailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (ref.watch(_meuFechamentoDaListaProvider(c.id)).value
-                            case final dia?)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: Text(
-                              'Fechamento dia $dia',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                        IconButton(
-                          key: Key('fechamento_rapido_${c.id}'),
-                          icon: const Icon(Icons.calendar_today, size: 20),
-                          tooltip: 'Meu dia de fechamento',
-                          onPressed: () =>
-                              _definirFechamentoRapido(context, ref, c),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+      body: Column(
+        children: [
+          BotaoNovo(
+            key: const Key('novo_cartao'),
+            rotulo: 'Novo cartão',
+            aoTocar: () => _abrir(context, ref),
           ),
+          Expanded(
+            child: ref.watch(cartoesProvider).when(
+                  loading: () => const CarregandoLista(),
+                  error: (e, _) => ErroComRecarregar(
+                    erro: e,
+                    aoRecarregar: () => ref.invalidate(cartoesProvider),
+                  ),
+                  data: (cartoes) => TabelaResponsiva(
+                    colunas: const ['Cartão'],
+                    vazio: 'Nenhum cartão cadastrado.',
+                    linhas: [
+                      for (final c in cartoes)
+                        LinhaResponsiva(
+                          chave: ValueKey('cartao_${c.id}'),
+                          valores: [c.nome],
+                          tituloEmNegrito: true,
+                          aoTocar: () => _abrir(context, ref, existente: c),
+                          aoExcluir: () => _excluir(context, ref, c),
+                          // Texto e icone juntos, colados um no outro -- nao
+                          // como colunas separadas, que o DataTable
+                          // espacaria longe um do outro.
+                          acaoTrailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (ref
+                                      .watch(_meuFechamentoDaListaProvider(c.id))
+                                      .value
+                                  case final dia?)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: Text(
+                                    'Fechamento dia $dia',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ),
+                              IconButton(
+                                key: Key('fechamento_rapido_${c.id}'),
+                                icon:
+                                    const Icon(Icons.calendar_today, size: 20),
+                                tooltip: 'Meu dia de fechamento',
+                                onPressed: () => _definirFechamentoRapido(
+                                    context, ref, c),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -9,6 +9,7 @@ import '../../estado/providers.dart';
 import '../shell.dart' show breakpointDesktop;
 import '../tema/formatadores.dart';
 import '../tema/tema.dart';
+import '../widgets/botao_novo.dart';
 import '../widgets/campo_moeda.dart';
 import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
@@ -28,46 +29,16 @@ class TelaGanhos extends ConsumerWidget {
     final membrosAtivos = ref.watch(membrosAtivosProvider);
     final ganhos = ref.watch(ganhosDoMesProvider(mesRef));
 
-    final habilitado = membrosAtivos.isNotEmpty;
-
     return Scaffold(
       body: Column(
         children: [
-          // Mesma margem/formato do Card de cada pessoa logo abaixo (ver
-          // _ColunaMembro), pra alinhar largura e cantos com eles, em vez
-          // de um botao solto com proporcoes proprias.
-          Card(
-            margin: const EdgeInsets.all(8),
-            child: InkWell(
-              key: const Key('novo_ganho'),
-              onTap: habilitado
-                  ? () => _abrir(context, ref,
-                      membros: membrosAtivos, mesRef: mesRef)
-                  : null,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.add,
-                      color: habilitado
-                          ? null
-                          : Theme.of(context).disabledColor,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Novo ganho',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: habilitado
-                                ? null
-                                : Theme.of(context).disabledColor,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          BotaoNovo(
+            key: const Key('novo_ganho'),
+            rotulo: 'Novo ganho',
+            aoTocar: membrosAtivos.isEmpty
+                ? null
+                : () => _abrir(context, ref,
+                    membros: membrosAtivos, mesRef: mesRef),
           ),
           Expanded(
             child: ganhos.when(

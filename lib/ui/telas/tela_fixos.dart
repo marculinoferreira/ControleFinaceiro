@@ -6,6 +6,7 @@ import '../../dominio/models/membro.dart';
 import '../../dominio/models/pote.dart';
 import '../../estado/providers.dart';
 import '../tema/formatadores.dart';
+import '../widgets/botao_novo.dart';
 import '../widgets/campo_moeda.dart';
 import '../widgets/dialogo_exclusao.dart';
 import '../widgets/estados_async.dart';
@@ -29,68 +30,76 @@ class TelaFixos extends ConsumerWidget {
     );
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('novo_fixo'),
-        onPressed: membrosAtivos.isEmpty
-            ? null
-            : () => _perguntarTipo(context, ref,
-                membros: membrosAtivos, potes: potes.value ?? const []),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo fixo'),
-      ),
-      body: combinado.when(
-        loading: () => const CarregandoLista(),
-        error: (e, _) => ErroComRecarregar(
-          erro: e,
-          aoRecarregar: () {
-            ref.invalidate(potesProvider);
-            ref.invalidate(fixosProvider);
-          },
-        ),
-        data: (par) {
-          final (listaPotes, listaFixos) = par;
-          if (listaFixos.isEmpty) {
-            return const Center(child: Text('Nenhum fixo cadastrado.'));
-          }
-          return ListView.builder(
-            itemCount: listaFixos.length,
-            itemBuilder: (context, i) {
-              final fixo = listaFixos[i];
-              final ehGanho = fixo.tipo == TipoFixo.ganho;
-              return ListTile(
-                key: Key('fixo_${fixo.id}'),
-                leading: Icon(ehGanho ? Icons.trending_up : Icons.receipt_long),
-                title: Text(fixo.descricao),
-                subtitle: Text(
-                  ehGanho
-                      ? '${nomeDoMembro(membros, fixo.membroId)} · ${formatarReais(fixo.valor)}'
-                      : '${nomeDoMembro(membros, fixo.membroId)} · '
-                          '${nomeDoPote(listaPotes, fixo.poteId!)} · '
-                          '${formatarReais(fixo.valor)}',
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Excluir',
-                  onPressed: () async {
-                    final confirmou = await confirmarExclusao(
-                      context: context,
-                      titulo: 'Excluir fixo',
-                      mensagem: 'Deseja excluir "${fixo.descricao}"? '
-                          'Lançamentos já gerados por ele não são apagados.',
+      body: Column(
+        children: [
+          BotaoNovo(
+            key: const Key('novo_fixo'),
+            rotulo: 'Novo fixo',
+            aoTocar: membrosAtivos.isEmpty
+                ? null
+                : () => _perguntarTipo(context, ref,
+                    membros: membrosAtivos, potes: potes.value ?? const []),
+          ),
+          Expanded(
+            child: combinado.when(
+              loading: () => const CarregandoLista(),
+              error: (e, _) => ErroComRecarregar(
+                erro: e,
+                aoRecarregar: () {
+                  ref.invalidate(potesProvider);
+                  ref.invalidate(fixosProvider);
+                },
+              ),
+              data: (par) {
+                final (listaPotes, listaFixos) = par;
+                if (listaFixos.isEmpty) {
+                  return const Center(child: Text('Nenhum fixo cadastrado.'));
+                }
+                return ListView.builder(
+                  itemCount: listaFixos.length,
+                  itemBuilder: (context, i) {
+                    final fixo = listaFixos[i];
+                    final ehGanho = fixo.tipo == TipoFixo.ganho;
+                    return ListTile(
+                      key: Key('fixo_${fixo.id}'),
+                      leading: Icon(
+                          ehGanho ? Icons.trending_up : Icons.receipt_long),
+                      title: Text(fixo.descricao),
+                      subtitle: Text(
+                        ehGanho
+                            ? '${nomeDoMembro(membros, fixo.membroId)} · ${formatarReais(fixo.valor)}'
+                            : '${nomeDoMembro(membros, fixo.membroId)} · '
+                                '${nomeDoPote(listaPotes, fixo.poteId!)} · '
+                                '${formatarReais(fixo.valor)}',
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Excluir',
+                        onPressed: () async {
+                          final confirmou = await confirmarExclusao(
+                            context: context,
+                            titulo: 'Excluir fixo',
+                            mensagem: 'Deseja excluir "${fixo.descricao}"? '
+                                'Lançamentos já gerados por ele não são apagados.',
+                          );
+                          if (!confirmou) return;
+                          try {
+                            await ref
+                                .read(repositorioFixosProvider)
+                                .remover(fixo.id);
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            avisarErroDeEscrita(context, e);
+                          }
+                        },
+                      ),
                     );
-                    if (!confirmou) return;
-                    try {
-                      await ref.read(repositorioFixosProvider).remover(fixo.id);
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      avisarErroDeEscrita(context, e);
-                    }
                   },
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
