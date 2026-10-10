@@ -346,16 +346,31 @@ final fixosProvider = StreamProvider<List<Fixo>>(
 /// toda hora): confere se cada Fixo ja tem um lancamento previsto gerado
 /// para `mesAlvoDosFixos()` e cria o que faltar. Chamado a partir do
 /// Shell, assim que a casa resolve (ver lib/ui/shell.dart).
+final garantirFixosDoMesProvider = FutureProvider<void>((ref) => garantirFixosDoMes(
+      repoFixos: ref.watch(repositorioFixosProvider),
+      repoGanhos: ref.watch(repositorioGanhosProvider),
+      repoGastos: ref.watch(repositorioGastosProvider),
+    ));
+
+/// A logica de `garantirFixosDoMesProvider`, como funcao simples (nao
+/// provider): TelaFixos chama direto depois de criar um Fixo novo, pra
+/// gerar o lancamento previsto na hora, sem esperar a proxima sessao. Fora
+/// de um provider porque invalidar+reler um FutureProvider de dentro de um
+/// WidgetRef, num handler de evento, nao tem garantia de rodar de
+/// imediato quando ninguem mais observa aquele provider na tela (a
+/// invalidacao fica agendada e so seria de fato processada no proximo
+/// ciclo de build) -- uma funcao comum roda assim que chamada, sem essa
+/// ambiguidade de timing.
 ///
 /// Le os repositorios diretamente (`.observar().first`/`.observarMes(...)
 /// .first`), nao atraves de `fixosProvider`/`ganhosDoMesProvider`: isto e
 /// uma checagem pontual de "o que existe agora", nao algo que precisa
 /// recalcular quando o stream emitir de novo.
-final garantirFixosDoMesProvider = FutureProvider<void>((ref) async {
-  final repoFixos = ref.watch(repositorioFixosProvider);
-  final repoGanhos = ref.watch(repositorioGanhosProvider);
-  final repoGastos = ref.watch(repositorioGastosProvider);
-
+Future<void> garantirFixosDoMes({
+  required RepositorioFixos repoFixos,
+  required RepositorioGanhos repoGanhos,
+  required RepositorioGastos repoGastos,
+}) async {
   final fixos = await repoFixos.observar().first;
   if (fixos.isEmpty) return;
 
@@ -403,7 +418,7 @@ final garantirFixosDoMesProvider = FutureProvider<void>((ref) async {
       ));
     }
   }
-});
+}
 
 /// Dia de fechamento que [chave.membroId] cadastrou para [chave.cartaoId],
 /// se houver. Generaliza `meuFechamento` do repositorio (que so devolve o

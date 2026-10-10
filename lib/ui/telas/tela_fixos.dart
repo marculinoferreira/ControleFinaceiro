@@ -131,6 +131,17 @@ class TelaFixos extends ConsumerWidget {
 
     try {
       await ref.read(repositorioFixosProvider).adicionar(resultado);
+      // Sem isto, o lancamento previsto deste Fixo so apareceria na proxima
+      // vez que o app abrisse (garantirFixosDoMesProvider, watchado uma vez
+      // soh a partir do Shell, ja rodou antes deste Fixo existir) -- chama a
+      // mesma logica direto (nao via provider) para gerar agora. E
+      // idempotente (ids deterministicos), entao nao duplica os Fixos ja
+      // gerados antes.
+      await garantirFixosDoMes(
+        repoFixos: ref.read(repositorioFixosProvider),
+        repoGanhos: ref.read(repositorioGanhosProvider),
+        repoGastos: ref.read(repositorioGastosProvider),
+      );
     } catch (e) {
       if (!context.mounted) return;
       avisarErroDeEscrita(context, e);

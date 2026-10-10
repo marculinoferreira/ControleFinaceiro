@@ -27,6 +27,7 @@ const potes = [
 Future<ProviderContainer> montar(
   WidgetTester tester, {
   RepositorioFixos? repoFixos,
+  RepositorioGastos? repoGastos,
 }) async {
   tester.view.physicalSize = const Size(900, 1200);
   tester.view.devicePixelRatio = 1.0;
@@ -37,7 +38,7 @@ Future<ProviderContainer> montar(
     repositorioPotesProvider.overrideWithValue(RepositorioPotesFake(potes)),
     repositorioCartoesProvider.overrideWithValue(RepositorioCartoesFake()),
     repositorioGanhosProvider.overrideWithValue(RepositorioGanhosFake()),
-    repositorioGastosProvider.overrideWithValue(RepositorioGastosFake()),
+    repositorioGastosProvider.overrideWithValue(repoGastos ?? RepositorioGastosFake()),
     repositorioFixosProvider.overrideWithValue(repoFixos ?? RepositorioFixosFake()),
   ]);
   addTearDown(container.dispose);
@@ -100,6 +101,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Aluguel'), findsOneWidget);
+  });
+
+  testWidgets(
+      'criar um fixo de gasto ja gera o lancamento previsto do mes '
+      'seguinte, sem esperar a proxima sessao', (tester) async {
+    final repoGastos = RepositorioGastosFake();
+    await montar(tester, repoGastos: repoGastos);
+
+    await tester.tap(find.byKey(const Key('novo_fixo')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('tipo_fixo_gasto')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const Key('fixo_form_descricao')), 'Internet');
+    await tester.enterText(find.byType(TextFormField).last, '9990');
+    await tester.tap(find.byKey(const Key('fixo_form_salvar')));
+    // runAsync, e nao so pumpAndSettle: a geracao encadeia varios awaits
+    // sobre streams dos repositorios, fora do ciclo de frame do widget --
+    // sem isto o teste segue adiante antes da escrita realmente terminar.
+    await tester.runAsync(() => tester.pumpAndSettle());
+
+    final mesAlvo = mesAlvoDosFixos();
+    final gastosDoMesAlvo =
+        repoGastos.todos.where((g) => g.mesRef == mesAlvo.valor).toList();
+    expect(gastosDoMesAlvo, hasLength(1));
+    expect(gastosDoMesAlvo.single.descricao, 'Internet');
+    expect(gastosDoMesAlvo.single.previsto, isTrue);
+    expect(gastosDoMesAlvo.single.origemFixoId, isNotNull);
   });
 
   testWidgets('excluir um fixo so pede a confirmacao padrao', (tester) async {
