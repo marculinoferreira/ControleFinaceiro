@@ -560,4 +560,79 @@ void main() {
       expect(checkbox.value, isTrue);
     });
   });
+
+  group('trava de lancamentos vindos de um Fixo', () {
+    Future<RepositorioGanhosFake> montarComMes(
+      WidgetTester tester, {
+      required MesRef mes,
+      required Ganho ganho,
+    }) async {
+      final repo = RepositorioGanhosFake();
+      await repo.adicionar(ganho);
+
+      final container = ProviderContainer(overrides: [
+        repositorioCasaProvider.overrideWithValue(RepositorioCasaFake(casa)),
+        repositorioGanhosProvider.overrideWithValue(repo),
+      ]);
+      addTearDown(container.dispose);
+      container.read(mesSelecionadoProvider.notifier).irPara(mes);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: TelaGanhos()),
+      ));
+      await tester.pumpAndSettle();
+      return repo;
+    }
+
+    testWidgets(
+        'vindo de um Fixo com mes futuro, nao responde a toque nem mostra exclusao',
+        (tester) async {
+      await comLargura(tester, 1400);
+      final mesFuturo = MesRef.atual().avancar(1);
+      final repo = await montarComMes(
+        tester,
+        mes: mesFuturo,
+        ganho: Ganho(
+          id: '', mesRef: mesFuturo.valor, membroId: 'marcos',
+          descricao: 'Salário', valor: 5000,
+          criadoEm: DateTime.utc(2026, 10, 1),
+          previsto: true, origemFixoId: 'f1',
+        ),
+      );
+      final id = repo.todos.single.id;
+
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+
+      await tester.tap(find.byKey(Key('ganho_$id')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Editar ganho'), findsNothing);
+    });
+
+    testWidgets(
+        'vindo de um Fixo com mes ja chegado, responde normalmente',
+        (tester) async {
+      await comLargura(tester, 1400);
+      final mesAtual = MesRef.atual();
+      final repo = await montarComMes(
+        tester,
+        mes: mesAtual,
+        ganho: Ganho(
+          id: '', mesRef: mesAtual.valor, membroId: 'marcos',
+          descricao: 'Salário', valor: 5000,
+          criadoEm: DateTime.utc(2026, 10, 1),
+          previsto: true, origemFixoId: 'f1',
+        ),
+      );
+      final id = repo.todos.single.id;
+
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+
+      await tester.tap(find.byKey(Key('ganho_$id')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Editar ganho'), findsOneWidget);
+    });
+  });
 }

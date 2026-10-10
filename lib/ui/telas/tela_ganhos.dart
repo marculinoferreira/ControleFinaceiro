@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../dominio/models/fixo.dart' show travadoPorFixo;
 import '../../dominio/models/ganho.dart';
 import '../../dominio/models/membro.dart';
 import '../../dominio/totais.dart';
@@ -203,12 +204,18 @@ class _ColunaMembro extends ConsumerWidget {
                           itemCount: ganhos.length,
                           itemBuilder: (context, i) {
                             final g = ganhos[i];
+                            final travado = travadoPorFixo(
+                              origemFixoId: g.origemFixoId,
+                              mesRef: g.mesRef,
+                            );
                             return ListTile(
                               key: Key('ganho_${g.id}'),
                               title: Text(g.descricao),
                               subtitle: g.previsto
                                   ? Text(
-                                      '${formatarReais(g.valor)} · Previsto',
+                                      travado
+                                          ? '${formatarReais(g.valor)} · Previsto · Fixo'
+                                          : '${formatarReais(g.valor)} · Previsto',
                                       style: TextStyle(
                                         fontStyle: FontStyle.italic,
                                         color: Theme.of(context)
@@ -217,34 +224,39 @@ class _ColunaMembro extends ConsumerWidget {
                                       ),
                                     )
                                   : Text(formatarReais(g.valor)),
-                              onTap: () => _abrir(
-                                context,
-                                ref,
-                                membros: membros,
-                                mesRef: mesRef,
-                                existente: g,
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                tooltip: 'Excluir',
-                                onPressed: () async {
-                                  final confirmou = await confirmarExclusao(
-                                    context: context,
-                                    titulo: 'Excluir ganho',
-                                    mensagem:
-                                        'Deseja excluir "${g.descricao}"?',
-                                  );
-                                  if (!confirmou) return;
-                                  try {
-                                    await ref
-                                        .read(repositorioGanhosProvider)
-                                        .remover(g.id);
-                                  } catch (e) {
-                                    if (!context.mounted) return;
-                                    avisarErroDeEscrita(context, e);
-                                  }
-                                },
-                              ),
+                              onTap: travado
+                                  ? null
+                                  : () => _abrir(
+                                        context,
+                                        ref,
+                                        membros: membros,
+                                        mesRef: mesRef,
+                                        existente: g,
+                                      ),
+                              trailing: travado
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.delete_outline),
+                                      tooltip: 'Excluir',
+                                      onPressed: () async {
+                                        final confirmou =
+                                            await confirmarExclusao(
+                                          context: context,
+                                          titulo: 'Excluir ganho',
+                                          mensagem:
+                                              'Deseja excluir "${g.descricao}"?',
+                                        );
+                                        if (!confirmou) return;
+                                        try {
+                                          await ref
+                                              .read(repositorioGanhosProvider)
+                                              .remover(g.id);
+                                        } catch (e) {
+                                          if (!context.mounted) return;
+                                          avisarErroDeEscrita(context, e);
+                                        }
+                                      },
+                                    ),
                             );
                           },
                         ),

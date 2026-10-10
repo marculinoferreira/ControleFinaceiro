@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dominio/models/cartao.dart';
+import '../../dominio/models/fixo.dart' show travadoPorFixo;
 import '../../dominio/models/gasto.dart';
 import '../../dominio/models/membro.dart';
 import '../../dominio/models/pote.dart';
@@ -141,6 +142,9 @@ class TelaGastos extends ConsumerWidget {
       }
     }
 
+    final travado =
+        travadoPorFixo(origemFixoId: g.origemFixoId, mesRef: g.mesRef);
+
     return LinhaResponsiva(
       chave: ValueKey('gasto_${g.id}'),
       valores: [
@@ -160,10 +164,13 @@ class TelaGastos extends ConsumerWidget {
         nomePote: nomeDoPote(potes, g.poteId),
         nomeCartao: nomeDoCartao(cartoes, g.cartaoId),
         rotuloParcela: g.rotuloParcela,
+        extra: g.previsto ? (travado ? 'Previsto · Fixo' : 'Previsto') : null,
       ),
       valorDestacado: formatarReais(g.valor),
-      aoTocar: () => abrirFormularioGasto(context: context, ref: ref, existente: g),
-      aoExcluir: () => _excluir(context, ref, g),
+      aoTocar: travado
+          ? null
+          : () => abrirFormularioGasto(context: context, ref: ref, existente: g),
+      aoExcluir: travado ? null : () => _excluir(context, ref, g),
     );
   }
 
