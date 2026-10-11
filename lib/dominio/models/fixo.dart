@@ -8,8 +8,11 @@ enum TipoFixo { ganho, gasto }
 /// que o app verifica (ver `garantirFixosDoMesProvider` em
 /// lib/estado/providers.dart).
 ///
-/// Excluir o Fixo so impede gerar NOVOS meses -- lancamentos que ele ja
-/// gerou continuam existindo, independentes dele a partir dai.
+/// Editar ou excluir o Fixo so afeta o lancamento do mes seguinte (o
+/// unico ainda travado -- ver `travadoPorFixo`): editar sobrescreve esse
+/// lancamento com os novos valores, excluir apaga esse lancamento junto.
+/// Lancamentos de meses ja destravados (correntes/passados) ficam
+/// intocados, independentes do Fixo a partir dai.
 class Fixo {
   final String id;
   final TipoFixo tipo;
@@ -63,6 +66,14 @@ DateTime _lerData(dynamic bruto) {
 /// Mes-alvo da geracao: sempre o mes seguinte ao mes REAL de hoje (nao o
 /// mes selecionado na tela).
 MesRef mesAlvoDosFixos() => MesRef.atual().avancar(1);
+
+/// Id deterministico do lancamento que [fixo] gera/gerou para [mesAlvo] --
+/// mesmo id usado por `definir` (upsert idempotente) na geracao
+/// automatica, e por quem precisa achar/editar/apagar esse lancamento
+/// depois (editar ou excluir o Fixo, ver `garantirFixosDoMesProvider` e
+/// `TelaFixos`).
+String idLancamentoDoFixo(Fixo fixo, MesRef mesAlvo) =>
+    '${fixo.id}_${mesAlvo.valor}';
 
 /// Os Fixos que AINDA NAO tem um lancamento gerado para [mesAlvo]
 /// (comparando o id do Fixo contra `origemFixoId` dos lancamentos ja

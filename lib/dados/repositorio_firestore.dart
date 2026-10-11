@@ -78,6 +78,9 @@ class FixosFirestore implements RepositorioFixos {
   Future<void> adicionar(Fixo fixo) => _col.add(fixo.toMap());
 
   @override
+  Future<void> atualizar(Fixo fixo) => _col.doc(fixo.id).update(fixo.toMap());
+
+  @override
   Future<void> remover(String id) => _col.doc(id).delete();
 }
 

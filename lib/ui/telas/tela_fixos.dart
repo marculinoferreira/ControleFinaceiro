@@ -72,6 +72,22 @@ class TelaFixos extends ConsumerWidget {
                                 '${nomeDoPote(listaPotes, fixo.poteId!)} · '
                                 '${formatarReais(fixo.valor)}',
                       ),
+                      // Mesmo raciocinio de _ColunaMembro em
+                      // tela_ganhos.dart: se quem o Fixo pertence foi
+                      // removido, ele entra no dropdown mesmo assim (senao
+                      // o formulario quebraria por faltar o valor
+                      // selecionado como opcao).
+                      onTap: () => _editar(context, ref,
+                          membros: membrosAtivos
+                                  .any((m) => m.id == fixo.membroId)
+                              ? membrosAtivos
+                              : [
+                                  ...membrosAtivos,
+                                  membros.firstWhere(
+                                      (m) => m.id == fixo.membroId),
+                                ],
+                          potes: listaPotes,
+                          fixo: fixo),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
                         tooltip: 'Excluir',
@@ -80,13 +96,21 @@ class TelaFixos extends ConsumerWidget {
                             context: context,
                             titulo: 'Excluir fixo',
                             mensagem: 'Deseja excluir "${fixo.descricao}"? '
-                                'Lançamentos já gerados por ele não são apagados.',
+                                'O lançamento previsto do mês seguinte '
+                                'também é apagado; lançamentos de meses '
+                                'anteriores não são afetados.',
                           );
                           if (!confirmou) return;
                           try {
                             await ref
                                 .read(repositorioFixosProvider)
                                 .remover(fixo.id);
+                            await removerLancamentoDoFixo(
+                              fixo: fixo,
+                              mesAlvo: mesAlvoDosFixos(),
+                              repoGanhos: ref.read(repositorioGanhosProvider),
+                              repoGastos: ref.read(repositorioGastosProvider),
+                            );
                           } catch (e) {
                             if (!context.mounted) return;
                             avisarErroDeEscrita(context, e);
@@ -156,17 +180,57 @@ class TelaFixos extends ConsumerWidget {
       avisarErroDeEscrita(context, e);
     }
   }
+
+  Future<void> _editar(
+    BuildContext context,
+    WidgetRef ref, {
+    required List<Membro> membros,
+    required List<Pote> potes,
+    required Fixo fixo,
+  }) async {
+    final resultado = await mostrarFormulario<Fixo>(
+      context: context,
+      titulo: fixo.tipo == TipoFixo.ganho
+          ? 'Editar ganho fixo'
+          : 'Editar gasto fixo',
+      construir: (c) => _Formulario(
+        tipo: fixo.tipo,
+        membros: membros,
+        potes: potes,
+        existente: fixo,
+      ),
+    );
+    if (resultado == null || !context.mounted) return;
+
+    try {
+      await ref.read(repositorioFixosProvider).atualizar(resultado);
+      // Sincroniza o lancamento do mes seguinte com os novos valores na
+      // hora -- combinado com a decisao do usuario de que editar o Fixo
+      // tambem altera esse lancamento, sem esperar a proxima geracao.
+      await definirLancamentoDoFixo(
+        fixo: resultado,
+        mesAlvo: mesAlvoDosFixos(),
+        repoGanhos: ref.read(repositorioGanhosProvider),
+        repoGastos: ref.read(repositorioGastosProvider),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      avisarErroDeEscrita(context, e);
+    }
+  }
 }
 
 class _Formulario extends StatefulWidget {
   final TipoFixo tipo;
   final List<Membro> membros;
   final List<Pote> potes;
+  final Fixo? existente;
 
   const _Formulario({
     required this.tipo,
     required this.membros,
     required this.potes,
+    this.existente,
   });
 
   @override
@@ -183,12 +247,16 @@ class _FormularioState extends State<_Formulario> {
   @override
   void initState() {
     super.initState();
-    _descricao = TextEditingController();
-    _valor = TextEditingController();
-    _membroId = widget.membros.first.id;
-    _poteId = widget.tipo == TipoFixo.gasto && widget.potes.isNotEmpty
-        ? widget.potes.first.id
-        : null;
+    final f = widget.existente;
+    _descricao = TextEditingController(text: f?.descricao ?? '');
+    _valor = TextEditingController(
+      text: f == null ? '' : formatarReais(f.valor),
+    );
+    _membroId = f?.membroId ?? widget.membros.first.id;
+    _poteId = f?.poteId ??
+        (widget.tipo == TipoFixo.gasto && widget.potes.isNotEmpty
+            ? widget.potes.first.id
+            : null);
   }
 
   @override
@@ -201,13 +269,14 @@ class _FormularioState extends State<_Formulario> {
   void _salvar() {
     if (!_chave.currentState!.validate()) return;
 
+    final base = widget.existente;
     final fixo = Fixo(
-      id: '',
+      id: base?.id ?? '',
       tipo: widget.tipo,
       membroId: _membroId,
       descricao: _descricao.text.trim(),
       valor: parsearMoeda(_valor.text) ?? 0,
-      criadoEm: DateTime.now(),
+      criadoEm: base?.criadoEm ?? DateTime.now(),
       poteId: widget.tipo == TipoFixo.gasto ? _poteId : null,
     );
     Navigator.of(context).pop(fixo);

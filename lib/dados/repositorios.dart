@@ -29,6 +29,7 @@ abstract class RepositorioPotes {
 abstract class RepositorioFixos {
   Stream<List<Fixo>> observar();
   Future<void> adicionar(Fixo fixo);
+  Future<void> atualizar(Fixo fixo);
   Future<void> remover(String id);
 }
 
@@ -411,6 +412,13 @@ class RepositorioFixosFake implements RepositorioFixos {
   @override
   Future<void> adicionar(Fixo fixo) async {
     _fixos.add(_comId(fixo, 'fixo-${_sequencia++}'));
+    _controlador.add(null);
+  }
+
+  @override
+  Future<void> atualizar(Fixo fixo) async {
+    final i = _fixos.indexWhere((f) => f.id == fixo.id);
+    if (i >= 0) _fixos[i] = fixo;
     _controlador.add(null);
   }
 

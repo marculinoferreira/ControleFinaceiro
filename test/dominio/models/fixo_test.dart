@@ -73,6 +73,27 @@ void main() {
     });
   });
 
+  group('idLancamentoDoFixo', () {
+    test('junta o id do fixo com o mes, separados por underline', () {
+      final id = idLancamentoDoFixo(fixoDe('f1'), const MesRef(2026, 11));
+      expect(id, 'f1_2026-11');
+    });
+
+    test('fixos diferentes no mesmo mes dao ids diferentes', () {
+      final mes = const MesRef(2026, 11);
+      final idA = idLancamentoDoFixo(fixoDe('f1'), mes);
+      final idB = idLancamentoDoFixo(fixoDe('f2'), mes);
+      expect(idA, isNot(idB));
+    });
+
+    test('o mesmo fixo em meses diferentes da ids diferentes', () {
+      final fixo = fixoDe('f1');
+      final idOutubro = idLancamentoDoFixo(fixo, const MesRef(2026, 10));
+      final idNovembro = idLancamentoDoFixo(fixo, const MesRef(2026, 11));
+      expect(idOutubro, isNot(idNovembro));
+    });
+  });
+
   group('fixosParaGerar', () {
     test('Fixo sem lancamento gerado ainda entra na lista', () {
       final aGerar = fixosParaGerar(

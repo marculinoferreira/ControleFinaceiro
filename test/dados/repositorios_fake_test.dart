@@ -262,5 +262,28 @@ void main() {
 
       expect(repo.todos.single.id, isNotEmpty);
     });
+
+    test('atualizar troca os valores mantendo o mesmo id', () async {
+      final repo = RepositorioFixosFake();
+      await repo.adicionar(Fixo(
+        id: '', tipo: TipoFixo.gasto, membroId: 'marcos',
+        descricao: 'Aluguel', valor: 1200,
+        criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p1',
+      ));
+      final id = repo.todos.single.id;
+
+      await repo.atualizar(Fixo(
+        id: id, tipo: TipoFixo.gasto, membroId: 'silvia',
+        descricao: 'Aluguel kitnet', valor: 1500,
+        criadoEm: DateTime.utc(2026, 10, 1), poteId: 'p2',
+      ));
+
+      expect(repo.todos, hasLength(1));
+      expect(repo.todos.single.id, id);
+      expect(repo.todos.single.descricao, 'Aluguel kitnet');
+      expect(repo.todos.single.membroId, 'silvia');
+      expect(repo.todos.single.valor, 1500);
+      expect(repo.todos.single.poteId, 'p2');
+    });
   });
 }

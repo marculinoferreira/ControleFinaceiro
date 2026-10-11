@@ -391,32 +391,69 @@ Future<void> garantirFixosDoMes({
   );
 
   for (final fixo in aGerar) {
-    final idGerado = '${fixo.id}_${mesAlvo.valor}';
-    if (fixo.tipo == TipoFixo.ganho) {
-      await repoGanhos.definir(idGerado, Ganho(
-        id: '',
-        mesRef: mesAlvo.valor,
-        membroId: fixo.membroId,
-        descricao: fixo.descricao,
-        valor: fixo.valor,
-        criadoEm: DateTime.now(),
-        previsto: true,
-        origemFixoId: fixo.id,
-      ));
-    } else {
-      await repoGastos.definir(idGerado, Gasto(
-        id: '',
-        mesRef: mesAlvo.valor,
-        membroId: fixo.membroId,
-        poteId: fixo.poteId!,
-        descricao: fixo.descricao,
-        valor: fixo.valor,
-        criadoEm: DateTime.now(),
-        parcelado: false,
-        previsto: true,
-        origemFixoId: fixo.id,
-      ));
-    }
+    await definirLancamentoDoFixo(
+      fixo: fixo,
+      mesAlvo: mesAlvo,
+      repoGanhos: repoGanhos,
+      repoGastos: repoGastos,
+    );
+  }
+}
+
+/// Cria OU sobrescreve (upsert, via `definir`) o lancamento previsto que
+/// [fixo] gera para [mesAlvo], com os valores ATUAIS de [fixo] -- usado
+/// pela geracao automatica (loop de `garantirFixosDoMes`, acima) e por
+/// `TelaFixos` ao editar um Fixo (sincroniza o lancamento do mes seguinte
+/// com os novos valores na hora, sem esperar a proxima geracao).
+Future<void> definirLancamentoDoFixo({
+  required Fixo fixo,
+  required MesRef mesAlvo,
+  required RepositorioGanhos repoGanhos,
+  required RepositorioGastos repoGastos,
+}) async {
+  final idGerado = idLancamentoDoFixo(fixo, mesAlvo);
+  if (fixo.tipo == TipoFixo.ganho) {
+    await repoGanhos.definir(idGerado, Ganho(
+      id: '',
+      mesRef: mesAlvo.valor,
+      membroId: fixo.membroId,
+      descricao: fixo.descricao,
+      valor: fixo.valor,
+      criadoEm: DateTime.now(),
+      previsto: true,
+      origemFixoId: fixo.id,
+    ));
+  } else {
+    await repoGastos.definir(idGerado, Gasto(
+      id: '',
+      mesRef: mesAlvo.valor,
+      membroId: fixo.membroId,
+      poteId: fixo.poteId!,
+      descricao: fixo.descricao,
+      valor: fixo.valor,
+      criadoEm: DateTime.now(),
+      parcelado: false,
+      previsto: true,
+      origemFixoId: fixo.id,
+    ));
+  }
+}
+
+/// Apaga o lancamento previsto que [fixo] gerou para [mesAlvo], se existir
+/// -- usado por `TelaFixos` ao excluir um Fixo (so o lancamento do mes
+/// seguinte, o unico ainda travado; meses ja destravados ficam intocados).
+/// Apagar um id que nao existe e um no-op seguro nos dois repositorios.
+Future<void> removerLancamentoDoFixo({
+  required Fixo fixo,
+  required MesRef mesAlvo,
+  required RepositorioGanhos repoGanhos,
+  required RepositorioGastos repoGastos,
+}) async {
+  final idGerado = idLancamentoDoFixo(fixo, mesAlvo);
+  if (fixo.tipo == TipoFixo.ganho) {
+    await repoGanhos.remover(idGerado);
+  } else {
+    await repoGastos.removerUma(idGerado);
   }
 }
 
